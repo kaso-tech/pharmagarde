@@ -89,7 +89,7 @@ export function PharmaMap({ places, userLocation, mapType = "Standard", selected
 
 const styles = StyleSheet.create({
   wrapper: { flex: 1, overflow: "hidden" },
-  map: { ...StyleSheet.absoluteFillObject },
+  map: StyleSheet.absoluteFill,
   markerShadow: { alignItems: "center", justifyContent: "center" },
   markerShadowActive: {
     shadowColor: "#031308",

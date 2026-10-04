@@ -71,7 +71,7 @@ export function PharmaMap({ places, userLocation, mapType = "Standard", selected
 
 const styles = StyleSheet.create({
   wrapper: { flex: 1, minHeight: 420, overflow: "hidden" },
-  satelliteOverlay: { ...StyleSheet.absoluteFillObject },
+  satelliteOverlay: StyleSheet.absoluteFill,
   road: { position: "absolute", borderRadius: 999, opacity: 0.88 },
   roadOne: { width: "120%", height: 18, left: "-10%", top: "36%", transform: [{ rotate: "-18deg" }] },
   roadTwo: { width: 18, height: "120%", left: "52%", top: "-10%", transform: [{ rotate: "12deg" }] },

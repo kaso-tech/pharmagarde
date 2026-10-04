@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   footerLock: { position: "absolute", right: 0, top: -1 },
   footerLabel: { fontSize: 11, lineHeight: 14, fontWeight: "800" },
   footerLabelActive: { fontWeight: "900" },
-  overlay: { ...StyleSheet.absoluteFillObject },
+  overlay: StyleSheet.absoluteFill,
   drawerPanel: {
     position: "absolute",
     left: 0,
