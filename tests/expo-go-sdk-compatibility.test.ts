@@ -51,4 +51,14 @@ describe("compatibilité Expo Go", () => {
     expect(map).toContain("<MapLibreView");
     expect(`${map}\n${mapView}`).not.toMatch(/google\.maps|maps\.googleapis|react-native-maps/);
   });
+
+  it("affiche la carte via react-native-webview (présent dans Expo Go) et l'isole en cas d'échec", () => {
+    const map = readProjectFile("components/pharmagarde/PharmaMap.tsx");
+
+    // « Can't find ViewManager 'ExpoDomWebViewModule' » : la WebView Expo par défaut n'est pas
+    // dans le binaire. La version de react-native-webview doit être celle attendue par le SDK.
+    expect(manifest.dependencies["react-native-webview"]).toBe("13.16.1");
+    expect(map).toContain("useExpoDOMWebView: false");
+    expect(map).toContain("<MapErrorBoundary");
+  });
 });
