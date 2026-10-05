@@ -127,6 +127,12 @@ export function MenuContent({ onClose }: MenuContentProps) {
                 active={false}
                 onPress={handleLogout}
               />
+              <DrawerActionRow
+                icon="person-remove"
+                title="Supprimer mon compte"
+                active={pathname.includes("/pharmagarde/supprimer-compte")}
+                onPress={() => navigate("/pharmagarde/supprimer-compte")}
+              />
             </>
           ) : (
             <>

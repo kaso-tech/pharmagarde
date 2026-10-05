@@ -64,6 +64,7 @@ type RateLimitOptions = {
 
 export function createRateLimiter({ name, windowMs, max, key, message }: RateLimitOptions) {
   const hits = new Map<string, { count: number; resetAt: number }>();
+  let lastSweepAt = Date.now();
 
   return function rateLimit(req: Request, res: Response, next: NextFunction) {
     const rawKey = key(req);
@@ -73,8 +74,10 @@ export function createRateLimiter({ name, windowMs, max, key, message }: RateLim
     }
 
     const now = Date.now();
-    if (hits.size > 10_000) {
+    // Purge régulière des compteurs expirés : les IP ne restent pas en mémoire au-delà de la fenêtre.
+    if (now - lastSweepAt > 60_000 || hits.size > 10_000) {
       for (const [entryKey, entry] of hits) if (entry.resetAt <= now) hits.delete(entryKey);
+      lastSweepAt = now;
     }
 
     const entryKey = `${name}:${rawKey}`;

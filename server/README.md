@@ -571,6 +571,16 @@ Keep this channel for owner-facing alerts; end-user messaging should flow throug
 
 ---
 
+## Pages publiques et suppression de compte
+
+| Route | Usage |
+|-------|-------|
+| `GET /confidentialite` | Politique de confidentialité (URL à déclarer sur l'App Store et Google Play). Texte source : `shared/privacy-policy.ts`, partagé avec l'écran de l'app. |
+| `GET /compte/suppression` | Explique comment supprimer son compte (URL « suppression de compte » exigée par Google Play). |
+| `POST /api/auth/delete-account` | Supprime le compte connecté ; mot de passe requis pour les comptes téléphone/mot de passe. Données personnelles effacées, paiements conservés sans lien d'identité. |
+
+L'identité de l'app (nom, bundle ID `com.pharmagarde.app`, schéma `pharmagarde://`, e-mail de support) est définie dans `app-identity.js`.
+
 ## Environment Variables
 
 Available environment variables:
