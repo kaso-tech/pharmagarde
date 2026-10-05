@@ -176,3 +176,9 @@ export async function deleteUserAccount(userId: number) {
     await tx.update(transactions).set({ rawProviderPayload: null, paymentUrl: null }).where(eq(transactions.userId, userId));
   });
 }
+
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DATABASE_UNAVAILABLE");
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}

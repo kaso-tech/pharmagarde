@@ -95,7 +95,8 @@ describe("authentification locale PharmaGarde", () => {
     const api = await import("../lib/_core/api");
     const Auth = await import("../lib/_core/auth");
 
-    const registered = await api.register({ phone: "+22670123456", email: "patient@example.com", password: "secret1", confirmPassword: "secret1" });
+    const registered = await api.register({ phone: "+22670123456", email: "patient@example.com", password: "secret12", confirmPassword: "secret12", code: "123456" });
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body))).toMatchObject({ phone: "+22670123456", code: "123456" });
     await Auth.setSessionToken(registered.token);
     expect(await Auth.getAuthorizationHeader()).toEqual({ Authorization: "Bearer register-token" });
 

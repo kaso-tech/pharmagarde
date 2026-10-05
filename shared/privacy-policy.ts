@@ -36,7 +36,8 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
   {
     title: "Compte",
     paragraphs: [
-      "La création d'un compte est nécessaire pour souscrire à l'abonnement Premium. Nous enregistrons votre numéro de téléphone, votre adresse e-mail si vous la fournissez, votre mot de passe sous forme chiffrée (jamais en clair) et les dates de création et de dernière connexion.",
+      "La création d'un compte est nécessaire pour souscrire à l'abonnement Premium. Nous enregistrons votre numéro de téléphone, votre adresse e-mail si vous la fournissez, votre mot de passe sous forme chiffrée (jamais en clair), la date de vérification du numéro et les dates de création et de dernière connexion.",
+      "Pour vérifier votre numéro à l'inscription et pour réinitialiser un mot de passe oublié, un code à usage unique vous est envoyé par SMS. Le code est conservé sous forme chiffrée et expire au bout de 10 minutes. Votre numéro et le texte du SMS sont transmis à notre prestataire d'envoi de SMS uniquement pour cet envoi.",
     ],
   },
   {
@@ -56,7 +57,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
   {
     title: "Destinataires",
     paragraphs: [
-      "Vos données ne sont ni vendues ni utilisées à des fins publicitaires. Elles sont accessibles uniquement à l'équipe qui exploite le service, à notre hébergeur et à Ligdi Cash pour les paiements.",
+      "Vos données ne sont ni vendues ni utilisées à des fins publicitaires. Elles sont accessibles uniquement à l'équipe qui exploite le service, à notre hébergeur, à Ligdi Cash pour les paiements et à notre prestataire SMS pour l'envoi des codes de vérification.",
       "Les informations sur les pharmacies et structures de santé proviennent d'OpenStreetMap (© contributeurs OpenStreetMap, licence ODbL) ; aucune donnée personnelle n'y est transmise.",
     ],
   },

@@ -4,6 +4,7 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerAccountRoutes } from "../account";
+import { registerPhoneAuthRoutes } from "../phone-auth";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
@@ -57,6 +58,7 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerAccountRoutes(app);
+  registerPhoneAuthRoutes(app);
   app.post("/payment/init", paymentInitRateLimit, initPremiumPayment);
   app.get("/pharmagarde/abonnement", handlePremiumPaymentReturn);
   app.post("/payment/callback", handleLigdiCashWebhook);

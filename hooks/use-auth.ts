@@ -96,7 +96,7 @@ export function useAuth(options?: UseAuthOptions) {
     }
   }, []);
 
-  const register = useCallback(async (payload: { phone: string; email?: string; password: string; confirmPassword: string; rememberMe?: boolean }) => {
+  const register = useCallback(async (payload: { phone: string; email?: string; password: string; confirmPassword: string; code: string; rememberMe?: boolean }) => {
     setLoading(true);
     setError(null);
     try {
@@ -105,6 +105,7 @@ export function useAuth(options?: UseAuthOptions) {
         email: payload.email ? normalizeEmail(payload.email) : null,
         password: payload.password.trim(),
         confirmPassword: payload.confirmPassword.trim(),
+        code: payload.code.trim(),
       });
       const userInfo = normalizeAuthUser(result.user);
       await Auth.setSessionToken(result.token, { rememberMe: payload.rememberMe ?? true });

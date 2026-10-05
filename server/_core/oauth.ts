@@ -5,6 +5,7 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { buildLocalOpenId, hashPassword, validateLoginPayload, validateRegisterPayload, verifyPassword } from "./local-auth";
 import { clientIpKey, createRateLimiter } from "./security";
+import { VERIFY_ERROR_MESSAGES, verifyCode } from "../verification-codes";
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
@@ -120,6 +121,14 @@ export function registerOAuthRoutes(app: Express) {
           }
         }
 
+        // L5 : le numéro doit être prouvé par le code SMS reçu (POST …/register/request-code).
+        const code = typeof req.body?.code === "string" ? req.body.code : "";
+        const verification = await verifyCode(validation.phone, "register", code);
+        if (verification !== "ok") {
+          res.status(400).json({ error: VERIFY_ERROR_MESSAGES[verification], field: "code" });
+          return;
+        }
+
         const openId = buildLocalOpenId(validation.phone);
         const user = await createLocalAuthUser({
           openId,
@@ -127,6 +136,7 @@ export function registerOAuthRoutes(app: Express) {
           email: validation.email,
           passwordHash: hashPassword(validation.password),
           loginMethod: "phone_password",
+          phoneVerifiedAt: new Date(),
           lastSignedIn: new Date(),
         });
 
