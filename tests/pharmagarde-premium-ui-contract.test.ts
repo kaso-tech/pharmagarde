@@ -46,11 +46,11 @@ describe("premium ui contract", () => {
     const premiumUi = read("lib/pharmagarde/premium-ui.ts");
     const theme = read("theme.config.js");
 
-    expect(premiumUi).toContain("#03C04A");
+    expect(premiumUi).toContain("#008000");
     expect(premiumUi).toContain("usePremiumPalette");
     expect(premiumUi).toContain("ImpactFeedbackStyle.Light");
     expect(premiumUi).toContain("selectionAsync");
-    expect(theme).toContain("#03C04A");
+    expect(theme).toContain("#008000");
     expect(theme).toContain("#101512");
   });
 });

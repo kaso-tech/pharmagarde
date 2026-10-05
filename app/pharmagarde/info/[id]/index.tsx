@@ -3,26 +3,27 @@ import { useLocalSearchParams } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AppChrome } from "@/components/pharmagarde/app-ui";
+import { type LegalSection, PRIVACY_POLICY_INTRO, PRIVACY_POLICY_SECTIONS, PRIVACY_POLICY_UPDATED_AT } from "@/shared/privacy-policy";
 
-const BRAND_GREEN = "#03C04A";
+const BRAND_GREEN = "#008000";
 
 type InfoPage = {
   title: string;
   icon: keyof typeof MaterialIcons.glyphMap;
   intro: string;
   points: string[];
+  updatedAt?: string;
+  sections?: LegalSection[];
 };
 
 const INFO_PAGES: Record<string, InfoPage> = {
   "politique-confidentialite": {
     title: "Politique de confidentialité",
     icon: "privacy-tip",
-    intro: "PharmaGarde BF privilégie une approche sobre : les préférences du drawer, la ville et les paramètres de carte sont conservés localement sur l’appareil dans cette version.",
-    points: [
-      "Les préférences servent uniquement à personnaliser l’expérience mobile.",
-      "Aucune donnée de paiement ou donnée médicale sensible n’est collectée dans les écrans actuels.",
-      "Les futures contributions pourront être synchronisées après ajout d’un backend de validation.",
-    ],
+    intro: PRIVACY_POLICY_INTRO,
+    updatedAt: PRIVACY_POLICY_UPDATED_AT,
+    points: [],
+    sections: PRIVACY_POLICY_SECTIONS,
   },
   "conditions-utilisation": {
     title: "Conditions d’utilisation",
@@ -60,8 +61,9 @@ const INFO_PAGES: Record<string, InfoPage> = {
     intro: "PharmaGarde BF vise à faciliter l’accès à l’information de proximité sur les pharmacies, cliniques et médicaments essentiels au Burkina Faso.",
     points: [
       "L’expérience mobile est pensée pour une utilisation simple, rapide et à une main.",
-      "La couleur #03C04A représente la santé, la disponibilité et la confiance.",
+      "La couleur #008000 représente la santé, la disponibilité et la confiance.",
       "Le modèle est prêt pour une évolution vers des données communautaires validées.",
+      "Données des pharmacies et structures de santé : © contributeurs OpenStreetMap, sous licence ODbL (openstreetmap.org/copyright).",
     ],
   },
 };
@@ -77,9 +79,19 @@ export default function InfoScreen() {
           <MaterialIcons name={page.icon} size={30} color="#FFFFFF" />
         </View>
         <Text style={styles.title}>{page.title}</Text>
+        {page.updatedAt ? <Text style={styles.updatedAt}>Dernière mise à jour : {page.updatedAt}</Text> : null}
         <Text style={styles.intro}>{page.intro}</Text>
 
-        <View style={styles.card}>
+        {page.sections?.map((section) => (
+          <View key={section.title} style={styles.card}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            {section.paragraphs.map((paragraph) => (
+              <Text key={paragraph} style={styles.sectionText}>{paragraph}</Text>
+            ))}
+          </View>
+        ))}
+
+        {page.points.length > 0 ? <View style={styles.card}>
           {page.points.map((point, index) => (
             <View key={point} style={styles.pointRow}>
               <View style={styles.pointBullet}>
@@ -88,7 +100,7 @@ export default function InfoScreen() {
               <Text style={styles.pointText}>{point}</Text>
             </View>
           ))}
-        </View>
+        </View> : null}
       </ScrollView>
     </AppChrome>
   );
@@ -104,5 +116,8 @@ const styles = StyleSheet.create({
   pointRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
   pointBullet: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#EAF8EF", alignItems: "center", justifyContent: "center" },
   pointNumber: { color: BRAND_GREEN, fontSize: 13, fontWeight: "900" },
+  updatedAt: { color: "#667085", fontSize: 12, lineHeight: 18, fontWeight: "700", marginTop: 4 },
+  sectionTitle: { color: "#102016", fontSize: 16, lineHeight: 22, fontWeight: "900" },
+  sectionText: { color: "#344054", fontSize: 14, lineHeight: 21 },
   pointText: { flex: 1, color: "#102016", fontSize: 14, lineHeight: 21, fontWeight: "700" },
 });

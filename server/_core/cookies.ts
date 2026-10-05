@@ -50,11 +50,17 @@ export function getSessionCookieOptions(
   const hostname = req.hostname;
   const domain = getParentDomain(hostname);
 
+  const secure = isSecureRequest(req);
+  // Lax par défaut : un site tiers ne peut pas faire envoyer le cookie de session. SameSite=None
+  // n'est accepté qu'en HTTPS et sur demande explicite (SESSION_COOKIE_SAMESITE=none), par exemple
+  // pour une prévisualisation dans une iframe cross-site.
+  const sameSite = process.env.SESSION_COOKIE_SAMESITE?.trim().toLowerCase() === "none" && secure ? "none" : "lax";
+
   return {
     domain,
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    sameSite,
+    secure,
   };
 }

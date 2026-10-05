@@ -146,6 +146,14 @@ export async function logout(): Promise<void> {
   });
 }
 
+// Supprime définitivement le compte connecté (mot de passe exigé pour les comptes locaux).
+export async function deleteAccount(password: string): Promise<{ success: true }> {
+  return apiCall<{ success: true }>("/api/auth/delete-account", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
 // Get current authenticated user (web uses cookie-based auth)
 export async function getMe(): Promise<{
   id: number;

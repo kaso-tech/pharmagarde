@@ -571,6 +571,16 @@ Keep this channel for owner-facing alerts; end-user messaging should flow throug
 
 ---
 
+## Pages publiques et suppression de compte
+
+| Route | Usage |
+|-------|-------|
+| `GET /confidentialite` | Politique de confidentialité (URL à déclarer sur l'App Store et Google Play). Texte source : `shared/privacy-policy.ts`, partagé avec l'écran de l'app. |
+| `GET /compte/suppression` | Explique comment supprimer son compte (URL « suppression de compte » exigée par Google Play). |
+| `POST /api/auth/delete-account` | Supprime le compte connecté ; mot de passe requis pour les comptes téléphone/mot de passe. Données personnelles effacées, paiements conservés sans lien d'identité. |
+
+L'identité de l'app (nom, bundle ID `com.pharmagarde.app`, schéma `pharmagarde://`, e-mail de support) est définie dans `app-identity.js`.
+
 ## Environment Variables
 
 Available environment variables:
@@ -586,6 +596,14 @@ Available environment variables:
 | `OWNER_NAME` | Owner's display name |
 | `BUILT_IN_FORGE_API_URL` | Manus API endpoint |
 | `BUILT_IN_FORGE_API_KEY` | Manus API key |
+| `CORS_ALLOWED_ORIGINS` | Origines web autorisées à appeler l'API avec credentials, séparées par des virgules (ex. `https://app.pharmagarde.bf`). Hors production, `localhost` est toujours autorisé. |
+| `SESSION_COOKIE_SAMESITE` | `lax` par défaut ; `none` seulement pour une prévisualisation en iframe cross-site (HTTPS requis). |
+| `TRUST_PROXY` | Nombre de proxys de confiance devant le serveur (ex. `1`). Absent : `X-Forwarded-For` est ignoré. À régler pour que la limitation de débit voie la vraie IP du client. |
+| `PUBLIC_APP_URL` | URL publique de l'app, utilisée pour le retour de paiement Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
+| `PUBLIC_API_URL` | URL publique de l'API, utilisée pour le callback Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
+| `OSM_OVERPASS_URL` | Endpoint Overpass pour collecter pharmacies et structures de santé OpenStreetMap (défaut : `https://overpass-api.de/api/interpreter`). En production, préférer une instance dédiée. |
+| `PHARMAGARDE_OSM_RADIUS_METERS` | Rayon de collecte autour de chaque ville (défaut `15000`). |
+| `PHARMAGARDE_OSM_REQUEST_DELAY_MS` | Pause entre deux requêtes Overpass (défaut `1000`), pour respecter la politique d'usage de l'instance publique. |
 
 Expo runtime variables (prefixed with `EXPO_PUBLIC_`):
 

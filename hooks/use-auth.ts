@@ -134,6 +134,15 @@ export function useAuth(options?: UseAuthOptions) {
     }
   }, []);
 
+  const deleteAccount = useCallback(async (password: string) => {
+    await Api.deleteAccount(password);
+    // Le serveur a invalidé le compte : on efface la session locale comme pour une déconnexion.
+    await Auth.removeSessionToken();
+    await Auth.clearUserInfo();
+    setUser(null);
+    setError(null);
+  }, []);
+
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
 
   useEffect(() => {
@@ -181,6 +190,7 @@ export function useAuth(options?: UseAuthOptions) {
     login,
     register,
     logout,
+    deleteAccount,
   };
 }
 

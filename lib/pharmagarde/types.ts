@@ -18,10 +18,10 @@ export type HealthPlace = {
   latitude?: number;
   longitude?: number;
   isOpen?: boolean;
-  /** Type métier enregistré après récupération Google : Pharmacie, CHU, CSPS, CMA, etc. */
+  /** Type métier déduit des données OpenStreetMap : Pharmacie, CHU, CSPS, CMA, etc. */
   establishmentType?: string;
-  googlePlaceTypes?: string[];
-  googlePrimaryType?: string;
+  /** Horaires au format OpenStreetMap, ex. « Mo-Sa 08:00-20:00 ». */
+  openingHours?: string;
 };
 
 export type MedicineAgeCategory = "Enfant" | "Adulte" | "Tous";

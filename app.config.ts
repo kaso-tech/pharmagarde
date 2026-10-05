@@ -2,41 +2,15 @@
 import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
-// Bundle ID format: space.manus.<project_name_dots>.<timestamp>
-// e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
-// Bundle ID can only contain letters, numbers, and dots
-// Android requires each dot-separated segment to start with a letter
-const rawBundleId = "space.manus.pharmagarde_bf_expo.t20260501015223";
-const bundleId =
-  rawBundleId
-    .replace(/[-_]/g, ".") // Replace hyphens/underscores with dots
-    .replace(/[^a-zA-Z0-9.]/g, "") // Remove invalid chars
-    .replace(/\.+/g, ".") // Collapse consecutive dots
-    .replace(/^\.+|\.+$/g, "") // Trim leading/trailing dots
-    .toLowerCase()
-    .split(".")
-    .map((segment) => {
-      // Android requires each segment to start with a letter
-      // Prefix with 'x' if segment starts with a digit
-      return /^[a-zA-Z]/.test(segment) ? segment : "x" + segment;
-    })
-    .join(".") || "space.manus.app";
-// Extract timestamp from bundle ID and prefix with "manus" for deep link scheme
-// e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
-const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
-const schemeFromBundleId = `manus${timestamp}`;
+import { APP_BUNDLE_ID, APP_NAME, APP_SCHEME, APP_SLUG } from "./app-identity";
 
 const env = {
-  // App branding - update these values directly (do not use env vars)
-  appName: "PharmaGarde BF",
-  appSlug: "pharmagarde_bf_expo",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663570163538/mtt4U4HHpsRNK7x3vDSzqc/pharmagarde-bf-icon-Xh5VU8ZWYLRQkb8mtFXsxx.png",
-  scheme: schemeFromBundleId,
-  iosBundleId: bundleId,
-  androidPackage: bundleId,
-  googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+  // Identité définie dans app-identity.js
+  appName: APP_NAME,
+  appSlug: APP_SLUG,
+  scheme: APP_SCHEME,
+  iosBundleId: APP_BUNDLE_ID,
+  androidPackage: APP_BUNDLE_ID,
 };
 
 const config: ExpoConfig = {
@@ -131,9 +105,8 @@ const config: ExpoConfig = {
         },
       },
     ],
-    // NOTE: react-native-maps config plugin removed for Expo Go compatibility.
-    // Google Maps API key is handled via env vars (EXPO_PUBLIC_GOOGLE_MAPS_API_KEY for Web, GOOGLE_MAPS_API_KEY for native builds).
-    // For native Google Maps on iOS/Android, use EAS development build with proper config plugin setup.
+    // La carte utilise MapLibre GL JS via un composant DOM Expo (components/pharmagarde/maplibre-view.tsx) :
+    // aucun plugin natif ni clé Google Maps n'est requis, ce qui préserve la compatibilité Expo Go.
   ],
   experiments: {
     typedRoutes: true,

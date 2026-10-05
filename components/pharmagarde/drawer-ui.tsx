@@ -4,8 +4,8 @@ import { Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Switch, Text,
 
 import { useColors } from "@/hooks/use-colors";
 
-const BRAND_GREEN = "#03C04A";
-const DARK_GREEN = "#02983B";
+const BRAND_GREEN = "#008000";
+const DARK_GREEN = "#006400";
 
 type DrawerPalette = {
   brandGreen: string;
@@ -56,7 +56,7 @@ export function DrawerHero({ onClose }: { onClose: () => void }) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Fermer le menu"
-        android_ripple={{ color: "rgba(3,192,74,0.16)", borderless: false }}
+        android_ripple={{ color: "rgba(0,128,0,0.16)", borderless: false }}
         style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
         onPress={onClose}
       >
@@ -94,7 +94,7 @@ export function DrawerActionRow({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: !!active }}
-      android_ripple={{ color: "rgba(3,192,74,0.12)", borderless: false }}
+      android_ripple={{ color: "rgba(0,128,0,0.12)", borderless: false }}
       style={({ pressed }) => [
         styles.row,
         { backgroundColor: active ? palette.selectedSurface : palette.surface, borderBottomColor: palette.border },
@@ -128,7 +128,7 @@ export function DrawerSelectRow({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${title} : ${value}`}
-      android_ripple={{ color: "rgba(3,192,74,0.12)", borderless: false }}
+      android_ripple={{ color: "rgba(0,128,0,0.12)", borderless: false }}
       style={({ pressed }) => [styles.row, { backgroundColor: palette.surface, borderBottomColor: palette.border }, pressed && styles.pressed]}
       onPress={onPress}
     >
@@ -165,7 +165,7 @@ export function DrawerSwitchRow({
         accessibilityLabel={title}
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: palette.border, true: "rgba(3,192,74,0.36)" }}
+        trackColor={{ false: palette.border, true: "rgba(0,128,0,0.36)" }}
         thumbColor={value ? BRAND_GREEN : palette.surface}
         ios_backgroundColor={palette.border}
       />
@@ -250,7 +250,7 @@ export function DrawerSelectionModal<T extends string>({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  android_ripple={{ color: "rgba(3,192,74,0.12)", borderless: false }}
+                  android_ripple={{ color: "rgba(0,128,0,0.12)", borderless: false }}
                   style={({ pressed }) => [
                     styles.optionRow,
                     { backgroundColor: palette.surface, borderColor: palette.border },
@@ -278,7 +278,7 @@ export function DrawerFooter() {
       <Text style={[styles.footerText, { color: palette.muted }]}>Version communautaire · Burkina Faso</Text>
       <View style={[styles.footerBadge, { backgroundColor: palette.surface }]}>
         <MaterialIcons name="verified" size={15} color={DARK_GREEN} />
-        <Text style={styles.footerBadgeText}>#03C04A</Text>
+        <Text style={styles.footerBadgeText}>#008000</Text>
       </View>
     </View>
   );

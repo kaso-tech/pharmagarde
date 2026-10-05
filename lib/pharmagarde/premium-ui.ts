@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/use-colors";
 import { useThemeContext } from "@/lib/theme-provider";
 
-export const BRAND_GREEN = "#03C04A";
+export const BRAND_GREEN = "#008000";
 export const CLINIC_BLUE = "#0B74DE";
 
 export const premiumSpacing = {
@@ -46,7 +46,7 @@ export function usePremiumPalette() {
     warning: colors.warning,
     overlay: dark ? "rgba(4, 8, 6, 0.62)" : "rgba(8, 24, 13, 0.32)",
     glass: dark ? "rgba(26, 33, 29, 0.86)" : "rgba(255, 255, 255, 0.9)",
-    softGreen: dark ? "rgba(35, 216, 103, 0.14)" : "rgba(3, 192, 74, 0.11)",
+    softGreen: dark ? "rgba(35, 216, 103, 0.14)" : "rgba(0, 128, 0, 0.11)",
     mapLand: dark ? "#162019" : "#E7F4EC",
     mapRoad: dark ? "#2A352F" : "#FFFFFF",
   };

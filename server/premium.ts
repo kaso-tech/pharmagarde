@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { transactions, users, type InsertTransaction, type User } from "../drizzle/schema";
 import { getDb } from "./db";
+import { getPublicPaymentUrls } from "./_core/security";
 import { sdk } from "./_core/sdk";
 
 export type PremiumPlanId = "week" | "month" | "quarter" | "semester";
@@ -217,15 +218,12 @@ export async function getAuthenticatedDbUser(req: Request) {
     }
   }
 
+  // L'identité ne provient que d'une session JWT vérifiée : aucun en-tête client (ex. x-user-open-id)
+  // n'est accepté comme preuve d'identité, sinon n'importe qui pourrait se faire passer pour un abonné.
   const authUser = (req as Request & { user?: User }).user;
   if (authUser?.id) return authUser;
 
-  const openId = typeof req.header("x-user-open-id") === "string" ? req.header("x-user-open-id") : undefined;
-  if (!openId) return undefined;
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
+  return undefined;
 }
 
 function getLigdiCashConfig() {
@@ -349,13 +347,19 @@ export async function initPremiumPayment(req: Request, res: Response) {
     const user = await getAuthenticatedDbUser(req);
     if (!user) return res.status(401).json({ error: "Connexion requise pour souscrire à Premium." });
 
+    let publicUrls: ReturnType<typeof getPublicPaymentUrls>;
+    try {
+      publicUrls = getPublicPaymentUrls();
+    } catch (error) {
+      console.error("[PremiumPayment] URLs publiques invalides", error instanceof Error ? error.message : error);
+      return res.status(503).json({ error: "Paiement indisponible : configuration serveur incomplète." });
+    }
+
     const { planId } = paymentInitSchema.parse(req.body ?? {});
     const plan = PREMIUM_PLANS[planId];
     const reference = `pg-${user.id}-${planId}-${Date.now()}`;
-    const publicBaseUrl = process.env.PUBLIC_APP_URL ?? `${req.protocol}://${req.get("host")}`;
-    const callbackBaseUrl = process.env.PUBLIC_API_URL ?? `${req.protocol}://${req.get("host")}`;
-    const returnUrl = `${publicBaseUrl}/pharmagarde/abonnement?paymentReference=${encodeURIComponent(reference)}`;
-    const callbackUrl = `${callbackBaseUrl}/payment/callback`;
+    const returnUrl = `${publicUrls.appUrl}/pharmagarde/abonnement?paymentReference=${encodeURIComponent(reference)}`;
+    const callbackUrl = `${publicUrls.apiUrl}/payment/callback`;
 
     const payment = await createLigdiCashPayment({
       amount: plan.amount,
@@ -414,7 +418,7 @@ function renderPaymentReturnPage(params: { paymentReference?: string; reference?
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4fbf7; color: #102016; }
     main { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
     section { width: min(440px, 100%); background: #fff; border-radius: 28px; box-shadow: 0 18px 50px rgba(10, 126, 80, .14); padding: 28px; text-align: center; }
-    .badge { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 22px; display: grid; place-items: center; background: #10c85a; color: #fff; font-size: 34px; font-weight: 800; }
+    .badge { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 22px; display: grid; place-items: center; background: #008000; color: #fff; font-size: 34px; font-weight: 800; }
     h1 { font-size: 24px; line-height: 1.2; margin: 0 0 12px; }
     p { color: #53645a; line-height: 1.55; margin: 0 0 14px; }
     dl { margin: 18px 0 0; text-align: left; background: #f4fbf7; border-radius: 18px; padding: 16px; }

@@ -73,20 +73,6 @@ function getBoolean(record: Record<string, unknown>, keys: string[]) {
   return undefined;
 }
 
-function getStringArray(record: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = record[key];
-    if (Array.isArray(value)) {
-      const strings = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim());
-      if (strings.length > 0) return strings;
-    }
-    if (typeof value === "string" && value.trim()) {
-      return value.split(",").map((item) => item.trim()).filter(Boolean);
-    }
-  }
-  return undefined;
-}
-
 function asRecords(payload: unknown): Record<string, unknown>[] {
   if (Array.isArray(payload)) return payload.filter((item): item is Record<string, unknown> => !!item && typeof item === "object" && !Array.isArray(item));
   if (payload && typeof payload === "object") {
@@ -101,7 +87,7 @@ function asRecords(payload: unknown): Record<string, unknown>[] {
 
 function normalizePlace(raw: Record<string, unknown>, type: "pharmacy" | "clinic", index: number): HealthPlace | null {
   const name = getString(raw, ["name", "nom", "title", "libelle", "label", "raisonSociale"]);
-  const id = getString(raw, ["id", "uuid", "_id", "code", "slug", "googlePlaceId"]) ?? (name ? `${type}-${name}-${index}` : undefined);
+  const id = getString(raw, ["id", "uuid", "_id", "code", "slug", "osmId"]) ?? (name ? `${type}-${name}-${index}` : undefined);
   if (!id || !name) return null;
   return {
     id,
@@ -116,8 +102,7 @@ function normalizePlace(raw: Record<string, unknown>, type: "pharmacy" | "clinic
     longitude: getNumber(raw, ["longitude", "lng", "lon"]),
     isOpen: getBoolean(raw, ["isOpen", "open", "ouvert", "garde", "onDuty"]),
     establishmentType: getString(raw, ["establishmentType", "establishment_type", "typeEtablissement", "type_etablissement", "localType", "local_type", "type"]),
-    googlePlaceTypes: getStringArray(raw, ["googlePlaceTypes", "google_place_types", "placeTypes", "types"]),
-    googlePrimaryType: getString(raw, ["googlePrimaryType", "google_primary_type", "primaryType", "primary_type"]),
+    openingHours: getString(raw, ["openingHours", "opening_hours", "horaires"]),
   };
 }
 

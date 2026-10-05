@@ -3,12 +3,22 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { registerAccountRoutes } from "../account";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { initializePharmaGardeCache, registerPharmaGardeCacheRoutes, startPharmaGardeSchedulers } from "../pharmagarde-cache";
 import { handleLigdiCashWebhook, handlePremiumPaymentReturn, initPremiumPayment } from "../premium";
+import { clientIpKey, corsMiddleware, createRateLimiter, parseTrustProxy } from "./security";
+
+const paymentInitRateLimit = createRateLimiter({
+  name: "payment-init",
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  key: clientIpKey,
+  message: "Trop de tentatives de paiement. Réessayez dans quelques minutes.",
+});
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -31,39 +41,23 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+  app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
   const server = createServer(app);
 
   // Register public REST routes immediately so /pharmacies and /healthcare cannot be masked by API middleware.
   registerPharmaGardeCacheRoutes(app);
 
-  // Enable CORS for all routes - reflect the request origin to support credentials
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin) {
-      res.header("Access-Control-Allow-Origin", origin);
-    }
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept, Authorization",
-    );
-    res.header("Access-Control-Allow-Credentials", "true");
+  // CORS limité aux origines autorisées (CORS_ALLOWED_ORIGINS) ; voir server/_core/security.ts.
+  app.use(corsMiddleware);
 
-    // Handle preflight requests
-    if (req.method === "OPTIONS") {
-      res.sendStatus(200);
-      return;
-    }
-    next();
-  });
-
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
   await initializePharmaGardeCache();
   registerStorageProxy(app);
   registerOAuthRoutes(app);
-  app.post("/payment/init", initPremiumPayment);
+  registerAccountRoutes(app);
+  app.post("/payment/init", paymentInitRateLimit, initPremiumPayment);
   app.get("/pharmagarde/abonnement", handlePremiumPaymentReturn);
   app.post("/payment/callback", handleLigdiCashWebhook);
   app.post("/payment/webhook", handleLigdiCashWebhook);

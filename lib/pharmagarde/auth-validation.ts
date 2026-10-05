@@ -15,6 +15,7 @@ export type LoginErrors = Partial<Record<keyof LoginForm, string>>;
 
 const EMAIL_PATTERN = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']{2,}$/i;
 const PHONE_PATTERN = /^\+226[0-9]{8}$/;
+export const MIN_PASSWORD_LENGTH = 8;
 
 export function sanitizeInput(value: string) {
   return value.replace(/[<>"'`{}[\]\\]/g, "").trim();
@@ -67,7 +68,7 @@ export function validateRegisterForm(form: RegisterForm): RegisterErrors {
   if (email && !isValidEmail(email)) errors.email = "Adresse email invalide.";
 
   if (!password) errors.password = "Mot de passe obligatoire.";
-  else if (password.length < 6) errors.password = "Le mot de passe doit contenir au moins 6 caractères.";
+  else if (password.length < MIN_PASSWORD_LENGTH) errors.password = `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`;
 
   if (!confirmPassword) errors.confirmPassword = "Confirmation obligatoire.";
   else if (password !== confirmPassword) errors.confirmPassword = "La confirmation doit correspondre au mot de passe.";

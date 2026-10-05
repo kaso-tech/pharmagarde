@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 62, height: 62, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 16 },
   emptyTitle: { fontSize: 19, lineHeight: 25, fontWeight: "900", textAlign: "center" },
   emptyMessage: { fontSize: 14, lineHeight: 21, textAlign: "center", marginTop: 8, marginBottom: 18, fontWeight: "600" },
-  primaryButton: { minHeight: 48, paddingHorizontal: 22, borderRadius: 17, alignItems: "center", justifyContent: "center", shadowColor: "#03C04A", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
+  primaryButton: { minHeight: 48, paddingHorizontal: 22, borderRadius: 17, alignItems: "center", justifyContent: "center", shadowColor: "#008000", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
   primaryButtonText: { color: "#FFFFFF", fontWeight: "900", fontSize: 15, lineHeight: 19 },
   notice: { marginHorizontal: 16, marginTop: 12, borderRadius: 18, padding: 12, borderWidth: 1, flexDirection: "row", alignItems: "flex-start", gap: 9 },
   noticeText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: "700" },

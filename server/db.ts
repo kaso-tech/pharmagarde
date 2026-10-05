@@ -1,6 +1,8 @@
 import { eq, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { randomBytes } from "node:crypto";
+
+import { InsertUser, transactions, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -142,4 +144,35 @@ export async function createLocalAuthUser(user: InsertUser) {
 
   await db.insert(users).values(user);
   return getUserByOpenId(user.openId);
+}
+
+/**
+ * Supprime un compte à la demande de l'utilisateur. Les données personnelles (téléphone, e-mail,
+ * nom, mot de passe, identifiant de connexion) sont effacées ; la ligne est conservée sous un
+ * identifiant anonyme pour que les paiements restent rattachés à une pièce comptable (obligation
+ * de conservation), sans plus pointer vers une personne. Les sessions existantes deviennent
+ * invalides car leur openId n'existe plus.
+ */
+export async function deleteUserAccount(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DATABASE_UNAVAILABLE");
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({
+        openId: `deleted:${userId}:${randomBytes(8).toString("hex")}`,
+        name: null,
+        email: null,
+        phone: null,
+        passwordHash: null,
+        loginMethod: "deleted",
+        role: "user",
+        subscriptionEnd: null,
+      })
+      .where(eq(users.id, userId));
+    // La réponse brute du prestataire peut contenir des coordonnées du payeur : on ne garde que
+    // les champs comptables (offre, montant, statut, références).
+    await tx.update(transactions).set({ rawProviderPayload: null, paymentUrl: null }).where(eq(transactions.userId, userId));
+  });
 }

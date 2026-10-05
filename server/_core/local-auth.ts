@@ -3,6 +3,7 @@ import { scryptSync, timingSafeEqual, randomBytes } from "crypto";
 const PHONE_PATTERN = /^\+226[0-9]{8}$/;
 const EMAIL_PATTERN = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']{2,}$/i;
 const SCRYPT_KEY_LENGTH = 64;
+export const MIN_PASSWORD_LENGTH = 8;
 
 type RegisterValidationResult =
   | { ok: true; phone: string; email: string | null; password: string }
@@ -55,7 +56,7 @@ export function validateRegisterPayload(payload: unknown): RegisterValidationRes
   if (email && !isValidEmail(email)) errors.email = "Adresse email invalide.";
 
   if (!password) errors.password = "Le mot de passe est obligatoire.";
-  else if (password.length < 6) errors.password = "Le mot de passe doit contenir au moins 6 caractères.";
+  else if (password.length < MIN_PASSWORD_LENGTH) errors.password = `Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`;
 
   if (!confirmPassword) errors.confirmPassword = "La confirmation du mot de passe est obligatoire.";
   else if (password !== confirmPassword) errors.confirmPassword = "La confirmation doit correspondre au mot de passe.";

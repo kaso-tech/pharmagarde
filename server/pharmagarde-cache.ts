@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { applyCorsHeaders } from "./_core/security";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
 export type CacheKind = "pharmacies" | "healthcare";
@@ -24,21 +25,20 @@ export type CachedHealthPlace = {
   latitude?: number;
   longitude?: number;
   isOpen?: boolean;
-  openingHours?: Record<string, unknown>;
-  businessStatus?: string;
-  source?: "google" | "local";
-  googlePlaceId?: string;
-  googlePlaceTypes?: string[];
-  googlePrimaryType?: string;
-  collectionQuery?: string;
-  collectionMethod?: "textsearch" | "nearbysearch";
+  /** Horaires au format OpenStreetMap `opening_hours` (ex. « Mo-Sa 08:00-20:00 »). */
+  openingHours?: string;
+  source?: "osm" | "local";
+  /** Identifiant OpenStreetMap, ex. « node/123456 ». */
+  osmId?: string;
+  /** Valeur OSM ayant classé le lieu (amenity ou healthcare), ex. « pharmacy », « hospital ». */
+  osmType?: string;
   updatedAt?: string;
 };
 
 type CacheBuckets = Record<string, CachedHealthPlace[]>;
 
 type CacheState = {
-  version: 2;
+  version: 3;
   kind: CacheKind;
   byCity: CacheBuckets;
   updatedAt: string | null;
@@ -63,8 +63,6 @@ export type SupportedCity = {
   longitude: number;
 };
 
-type SearchPoint = SupportedCity & { zone: "centre" | "nord" | "sud" | "est" | "ouest" };
-
 export const SUPPORTED_CITIES: SupportedCity[] = [
   { name: "Ouagadougou", latitude: 12.3714, longitude: -1.5197 },
   { name: "Bobo-Dioulasso", latitude: 11.1771, longitude: -4.2979 },
@@ -83,25 +81,19 @@ export const SUPPORTED_CITIES: SupportedCity[] = [
 
 const PHARMACY_TTL_MS = 24 * 60 * 60 * 1000;
 const HEALTHCARE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const DEFAULT_RADIUS_METERS = 15000;
-const GOOGLE_PAGE_DELAY_MS = Number(process.env.PHARMAGARDE_GOOGLE_PAGE_DELAY_MS ?? 2000);
 const CACHE_DIR = process.env.PHARMAGARDE_CACHE_DIR ?? path.join(process.cwd(), "server", ".cache");
-const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY ?? process.env.GOOGLE_MAPS_API_KEY ?? "";
 const PREMIUM_RESULT_LIMIT = 3;
 
-const TEXT_SEARCH_TERMS = ["pharmacie", "hôpital", "clinique", "CSPS", "centre médical", "dispensaire"] as const;
-const PHARMACY_TEXT_SEARCH_TEMPLATES = [
-  "pharmacie à {ville}",
-  "pharmacy in {ville}",
-  "dépôt pharmaceutique à {ville}",
-  "médicament à {ville}",
-  "pharmacie de garde à {ville}",
-] as const;
-const NEARBY_SEARCH_TYPES = ["pharmacy", "hospital", "doctor"] as const;
-const PHARMACY_NEARBY_SEARCH_TYPE = "pharmacy" as const;
-const PHARMACY_ZONE_OFFSET_KM = Number(process.env.PHARMAGARDE_PHARMACY_ZONE_OFFSET_KM ?? 7);
-const MEDICAL_NAME_TERMS = ["pharmacie", "pharmacy", "hopital", "hospital", "clinique", "clinic", "csps", "chu", "chr", "cma", "centre medical", "centre de sante", "dispensaire", "medical", "sante", "health"];
-const NON_MEDICAL_NAME_TERMS = ["veterinaire", "vétérinaire", "animal", "boutique", "supermarche", "supermarché", "hotel", "hôtel", "restaurant", "bar", "ecole", "école"];
+// Collecte OpenStreetMap via l'API Overpass. Instance publique par défaut : respecter sa politique
+// d'usage (requêtes séquentielles, User-Agent identifiable) ou pointer OSM_OVERPASS_URL vers une
+// instance dédiée en production.
+const OVERPASS_URL = process.env.OSM_OVERPASS_URL ?? "https://overpass-api.de/api/interpreter";
+const OSM_RADIUS_METERS = Number(process.env.PHARMAGARDE_OSM_RADIUS_METERS ?? 15000);
+const OSM_REQUEST_DELAY_MS = Number(process.env.PHARMAGARDE_OSM_REQUEST_DELAY_MS ?? 1000);
+const OSM_USER_AGENT = "PharmaGardeBF/1.0 (+https://github.com/kaso-tech/pharmagarde)";
+export const OSM_ATTRIBUTION = "© contributeurs OpenStreetMap (ODbL)";
+const UNNAMED_PHARMACY_LABEL = "Pharmacie (nom non renseigné)";
+const NON_MEDICAL_NAME_TERMS = ["veterinaire", "animal"];
 
 const memoryCache: Record<CacheKind, CacheState> = {
   pharmacies: createEmptyState("pharmacies"),
@@ -132,7 +124,7 @@ function createEmptyBuckets(): CacheBuckets {
 
 function createEmptyState(kind: CacheKind): CacheState {
   return {
-    version: 2,
+    version: 3,
     kind,
     byCity: createEmptyBuckets(),
     updatedAt: null,
@@ -157,100 +149,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function getString(record: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  }
-  return undefined;
-}
-
-function getNumber(record: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (typeof value === "string") {
-      const parsed = Number(value.replace(",", "."));
-      if (Number.isFinite(parsed)) return parsed;
-    }
-  }
-  return undefined;
-}
-
-function getStringArray(record: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = record[key];
-    if (Array.isArray(value)) {
-      const strings = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim());
-      if (strings.length > 0) return strings;
-    }
-    if (typeof value === "string" && value.trim()) {
-      return value.split(",").map((item) => item.trim()).filter(Boolean);
-    }
-  }
-  return undefined;
-}
-
-function mergeRecords(primary: Record<string, unknown>, secondary?: Record<string, unknown>) {
-  return secondary ? ({ ...primary, ...secondary } as Record<string, unknown>) : primary;
-}
-
-function selectGooglePrimaryType(types?: string[]) {
-  if (!types?.length) return undefined;
-  const genericTypes = new Set(["establishment", "point_of_interest", "health"]);
-  return types.find((type) => !genericTypes.has(type)) ?? types[0];
-}
-
-function classifyPlace(name: string, types: string[] = []): { category: CachedPlaceCategory; type: LocalEstablishmentType } {
+function classifyPlace(name: string, osmTypes: string[] = []): { category: CachedPlaceCategory; type: LocalEstablishmentType } {
   const normalizedName = normalizeCityName(name);
-  const normalizedTypes = types.map((type) => type.toLowerCase());
-  if (normalizedTypes.includes("pharmacy") || normalizedName.includes("pharmacie") || normalizedName.includes("pharmacy")) return { category: "pharmacy", type: "Pharmacie" };
+  if (osmTypes.includes("pharmacy") || normalizedName.includes("pharmacie") || normalizedName.includes("pharmacy")) return { category: "pharmacy", type: "Pharmacie" };
   if (/\bchu\b/.test(normalizedName)) return { category: "healthcare", type: "CHU" };
   if (/\bchr\b/.test(normalizedName)) return { category: "healthcare", type: "CHR" };
   if (/\bcma\b/.test(normalizedName)) return { category: "healthcare", type: "CMA" };
   if (/\bcsps\b/.test(normalizedName)) return { category: "healthcare", type: "CSPS" };
-  if (normalizedName.includes("clinique") || normalizedName.includes("clinic")) return { category: "healthcare", type: "Clinique" };
-  if (normalizedTypes.includes("hospital") || normalizedName.includes("hopital") || normalizedName.includes("hospital")) return { category: "healthcare", type: "Hôpital" };
+  if (normalizedName.includes("clinique") || normalizedName.includes("clinic") || osmTypes.includes("clinic")) return { category: "healthcare", type: "Clinique" };
+  if (osmTypes.includes("hospital") || normalizedName.includes("hopital") || normalizedName.includes("hospital")) return { category: "healthcare", type: "Hôpital" };
   return { category: "healthcare", type: "Centre de santé" };
-}
-
-function hasQualitySignal(raw: Record<string, unknown>) {
-  const rating = getNumber(raw, ["rating"]);
-  const userRatingsTotal = getNumber(raw, ["user_ratings_total", "userRatingsTotal"]);
-  const phone = getString(raw, ["international_phone_number", "formatted_phone_number", "phone", "telephone"]);
-  const businessStatus = getString(raw, ["business_status", "businessStatus"]);
-  return (rating !== undefined && rating >= 2) || (userRatingsTotal !== undefined && userRatingsTotal >= 1) || !!phone || businessStatus === "OPERATIONAL";
-}
-
-function isPharmacyCandidate(name: string, types: string[] = []) {
-  const normalizedName = normalizeCityName(name);
-  const normalizedTypes = types.map((type) => type.toLowerCase());
-  return normalizedTypes.includes("pharmacy") || normalizedName.includes("pharmacie") || normalizedName.includes("pharmacy");
-}
-
-function isClearlyMedical(name: string, types: string[] = []) {
-  const normalizedName = normalizeCityName(name);
-  if (NON_MEDICAL_NAME_TERMS.some((term) => normalizedName.includes(normalizeCityName(term)))) return false;
-  const normalizedTypes = types.map((type) => type.toLowerCase());
-  if (normalizedTypes.some((type) => ["pharmacy", "hospital", "doctor", "health"].includes(type))) return true;
-  return MEDICAL_NAME_TERMS.some((term) => normalizedName.includes(normalizeCityName(term)));
-}
-
-function buildSearchPoints(city: SupportedCity): SearchPoint[] {
-  const latitudeDelta = PHARMACY_ZONE_OFFSET_KM / 111;
-  const longitudeDelta = PHARMACY_ZONE_OFFSET_KM / (111 * Math.max(Math.cos((city.latitude * Math.PI) / 180), 0.2));
-  return [
-    { ...city, zone: "centre" },
-    { ...city, latitude: city.latitude + latitudeDelta, zone: "nord" },
-    { ...city, latitude: city.latitude - latitudeDelta, zone: "sud" },
-    { ...city, longitude: city.longitude + longitudeDelta, zone: "est" },
-    { ...city, longitude: city.longitude - longitudeDelta, zone: "ouest" },
-  ];
-}
-
-function buildPharmacyTextSearchQueries(city: SupportedCity) {
-  return PHARMACY_TEXT_SEARCH_TEMPLATES.map((template) => template.replace("{ville}", city.name));
 }
 
 function findSupportedCity(value?: string | null) {
@@ -277,51 +185,64 @@ function getRequestedCityFilter(req: Request): RequestedCityFilter {
   };
 }
 
-function normalizeOpeningHours(raw: Record<string, unknown>) {
-  const openingHours = raw.opening_hours;
-  return isRecord(openingHours) ? openingHours : undefined;
+type OsmElement = {
+  type: string;
+  id: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat?: number; lon?: number };
+  tags?: Record<string, string>;
+};
+
+function osmTag(tags: Record<string, string>, keys: string[]) {
+  for (const key of keys) {
+    const value = tags[key]?.trim();
+    if (value) return value;
+  }
+  return undefined;
 }
 
-function normalizeGooglePlace(rawBase: Record<string, unknown>, city: SupportedCity, index: number, options?: { collectionQuery?: string; collectionMethod?: "textsearch" | "nearbysearch"; targetKind?: CacheKind }): CachedHealthPlace | null {
-  const raw = rawBase;
-  const geometry = isRecord(raw.geometry) ? raw.geometry : undefined;
-  const location = geometry && isRecord(geometry.location) ? geometry.location : undefined;
-  const placeId = getString(raw, ["place_id", "id"]);
-  const name = getString(raw, ["name", "nom", "title"]);
+function osmAddress(tags: Record<string, string>) {
+  const street = [osmTag(tags, ["addr:housenumber"]), osmTag(tags, ["addr:street"])].filter(Boolean).join(" ");
+  const parts = [street, osmTag(tags, ["addr:quarter", "addr:suburb", "addr:neighbourhood"]), osmTag(tags, ["addr:city"])].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : osmTag(tags, ["addr:full"]);
+}
+
+export function normalizeOsmElement(element: OsmElement, city: SupportedCity, kind: CacheKind): CachedHealthPlace | null {
+  const tags = element.tags ?? {};
+  const latitude = element.lat ?? element.center?.lat;
+  const longitude = element.lon ?? element.center?.lon;
+  if (typeof latitude !== "number" || typeof longitude !== "number") return null;
+
+  const amenity = osmTag(tags, ["amenity"]);
+  const healthcare = osmTag(tags, ["healthcare"]);
+  const osmTypes = [amenity, healthcare].filter((value): value is string => !!value);
+  const taggedName = osmTag(tags, ["name:fr", "name", "official_name", "brand"]);
+  // Une pharmacie sans nom reste utile (position, horaires) ; une structure de santé sans nom non.
+  const name = taggedName ?? (kind === "pharmacies" ? UNNAMED_PHARMACY_LABEL : undefined);
   if (!name) return null;
+  if (NON_MEDICAL_NAME_TERMS.some((term) => normalizeCityName(name).includes(term))) return null;
+  if (osmTag(tags, ["healthcare:speciality"])?.includes("veterinary")) return null;
 
-  const googlePlaceTypes = getStringArray(raw, ["types"]) ?? [];
-  if (options?.targetKind === "pharmacies") {
-    if (!isPharmacyCandidate(name, googlePlaceTypes)) return null;
-  } else {
-    if (!isClearlyMedical(name, googlePlaceTypes)) return null;
-    if (!hasQualitySignal(raw)) return null;
-  }
-
-  const slug = cityKey(city.name);
-  const classification = classifyPlace(name, googlePlaceTypes);
-  const openingHours = normalizeOpeningHours(raw);
+  const classification = classifyPlace(name, osmTypes);
+  const openingHours = osmTag(tags, ["opening_hours"]);
+  const osmId = `${element.type}/${element.id}`;
   return {
-    id: placeId ?? `${slug}-${classification.category}-${name.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}-${index}`,
+    id: `osm-${element.type}-${element.id}`,
     type: classification.type,
     category: classification.category,
     name,
-    address: getString(raw, ["formatted_address", "vicinity", "address", "adresse"]),
+    address: osmAddress(tags),
     city: city.name,
-    phone: getString(raw, ["international_phone_number", "formatted_phone_number", "phone", "telephone"]),
-    rating: getNumber(raw, ["rating", "note", "googleRating", "google_rating", "noteGoogle", "stars"]),
-    userRatingsTotal: getNumber(raw, ["user_ratings_total", "userRatingsTotal"]),
-    latitude: location ? getNumber(location, ["lat", "latitude"]) : getNumber(raw, ["lat", "latitude"]),
-    longitude: location ? getNumber(location, ["lng", "lon", "longitude"]) : getNumber(raw, ["lng", "lon", "longitude"]),
-    isOpen: openingHours && typeof openingHours.open_now === "boolean" ? openingHours.open_now : undefined,
+    phone: osmTag(tags, ["phone", "contact:phone", "contact:mobile"]),
+    latitude,
+    longitude,
+    // Seul « 24/7 » est interprété ; le reste des horaires OSM est conservé tel quel.
+    isOpen: openingHours === "24/7" ? true : undefined,
     openingHours,
-    businessStatus: getString(raw, ["business_status", "businessStatus"]),
-    source: "google",
-    googlePlaceId: placeId,
-    googlePlaceTypes,
-    googlePrimaryType: selectGooglePrimaryType(googlePlaceTypes),
-    collectionQuery: options?.collectionQuery,
-    collectionMethod: options?.collectionMethod,
+    source: "osm",
+    osmId,
+    osmType: kind === "pharmacies" ? "pharmacy" : healthcare ?? amenity,
     updatedAt: nowIso(),
   };
 }
@@ -330,9 +251,14 @@ function dedupePlaces(items: CachedHealthPlace[]) {
   const seen = new Set<string>();
   const unique: CachedHealthPlace[] = [];
   for (const item of items) {
-    const key = `${item.googlePlaceId ?? `${item.category}:${item.name}:${item.latitude ?? ""}:${item.longitude ?? ""}`}`.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
+    // Un même établissement est souvent cartographié deux fois (point + bâtiment) : on rapproche
+    // aussi par nom et position arrondie (~100 m) quand le nom est renseigné.
+    const keys = [item.osmId ?? item.id];
+    if (item.name !== UNNAMED_PHARMACY_LABEL && item.latitude !== undefined && item.longitude !== undefined) {
+      keys.push(`${item.category}:${normalizeCityName(item.name)}:${item.latitude.toFixed(3)}:${item.longitude.toFixed(3)}`);
+    }
+    if (keys.some((key) => seen.has(key))) continue;
+    keys.forEach((key) => seen.add(key));
     unique.push(item);
   }
   return unique;
@@ -375,165 +301,50 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function callGooglePaged(url: URL): Promise<Record<string, unknown>[]> {
-  if (!GOOGLE_API_KEY) {
-    throw new Error("GOOGLE_PLACES_API_KEY ou GOOGLE_MAPS_API_KEY non configurée.");
-  }
-
-  const results: Record<string, unknown>[] = [];
-  let pageToken: string | undefined;
-  for (let page = 0; page < 3; page += 1) {
-    if (pageToken) {
-      await sleep(GOOGLE_PAGE_DELAY_MS);
-      url.searchParams.set("pagetoken", pageToken);
-    }
-
-    const response = await fetch(url.toString(), { headers: { accept: "application/json" } });
-    if (!response.ok) {
-      throw new Error(`Google Places a répondu ${response.status} ${response.statusText}`);
-    }
-    const payload = await response.json();
-    if (!isRecord(payload)) break;
-    const status = getString(payload, ["status"]);
-    if (status && !["OK", "ZERO_RESULTS"].includes(status)) {
-      throw new Error(`Google Places status=${status}${getString(payload, ["error_message"]) ? `: ${getString(payload, ["error_message"])}` : ""}`);
-    }
-    if (Array.isArray(payload.results)) results.push(...payload.results.filter(isRecord));
-    const nextPageToken = getString(payload, ["next_page_token"]);
-    if (!nextPageToken || status === "ZERO_RESULTS") break;
-    pageToken = nextPageToken;
-  }
-  return results;
+export function buildOverpassQuery(city: Pick<SupportedCity, "latitude" | "longitude">, kind: CacheKind, radiusMeters = OSM_RADIUS_METERS) {
+  const around = `(around:${radiusMeters},${city.latitude},${city.longitude})`;
+  const selectors = kind === "pharmacies"
+    ? [`nwr["amenity"="pharmacy"]${around};`, `nwr["healthcare"="pharmacy"]${around};`]
+    : [`nwr["amenity"~"^(hospital|clinic|doctors)$"]${around};`, `nwr["healthcare"~"^(hospital|clinic|centre|doctor|health_post)$"]${around};`];
+  return `[out:json][timeout:90];(${selectors.join("")});out center tags;`;
 }
 
-async function callGoogleTextSearch(point: Pick<SupportedCity, "latitude" | "longitude">, query: string) {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-  url.searchParams.set("key", GOOGLE_API_KEY);
-  url.searchParams.set("query", `${query} Burkina Faso`);
-  url.searchParams.set("location", `${point.latitude},${point.longitude}`);
-  url.searchParams.set("radius", String(Number(process.env.PHARMAGARDE_GOOGLE_RADIUS_METERS ?? DEFAULT_RADIUS_METERS)));
-  url.searchParams.set("language", "fr");
-  url.searchParams.set("region", "bf");
-  return callGooglePaged(url);
-}
-
-async function callGoogleNearby(point: Pick<SupportedCity, "latitude" | "longitude">, type: (typeof NEARBY_SEARCH_TYPES)[number] | typeof PHARMACY_NEARBY_SEARCH_TYPE) {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
-  url.searchParams.set("key", GOOGLE_API_KEY);
-  url.searchParams.set("location", `${point.latitude},${point.longitude}`);
-  url.searchParams.set("radius", String(Number(process.env.PHARMAGARDE_GOOGLE_RADIUS_METERS ?? DEFAULT_RADIUS_METERS)));
-  url.searchParams.set("type", type);
-  url.searchParams.set("language", "fr");
-  return callGooglePaged(url);
-}
-
-async function callGoogleDetails(placeId: string) {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-  url.searchParams.set("key", GOOGLE_API_KEY);
-  url.searchParams.set("place_id", placeId);
-  url.searchParams.set("language", "fr");
-  url.searchParams.set("fields", "name,place_id,types,formatted_address,geometry,rating,user_ratings_total,international_phone_number,formatted_phone_number,opening_hours,business_status");
-
-  const response = await fetch(url.toString(), { headers: { accept: "application/json" } });
+async function callOverpass(query: string): Promise<OsmElement[]> {
+  const response = await fetch(OVERPASS_URL, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": OSM_USER_AGENT,
+    },
+    body: `data=${encodeURIComponent(query)}`,
+  });
   if (!response.ok) {
-    throw new Error(`Google Place Details a répondu ${response.status} ${response.statusText}`);
+    throw new Error(`Overpass a répondu ${response.status} ${response.statusText}`);
   }
-  const payload = await response.json();
-  if (!isRecord(payload)) return undefined;
-  const status = getString(payload, ["status"]);
-  if (status && !["OK", "ZERO_RESULTS", "NOT_FOUND"].includes(status)) {
-    throw new Error(`Google Place Details status=${status}${getString(payload, ["error_message"]) ? `: ${getString(payload, ["error_message"])}` : ""}`);
+  const payload: unknown = await response.json();
+  if (!isRecord(payload) || !Array.isArray(payload.elements)) {
+    throw new Error("Réponse Overpass inattendue : champ elements absent.");
   }
-  return isRecord(payload.result) ? payload.result : undefined;
+  return payload.elements.filter((element): element is OsmElement => isRecord(element) && typeof element.type === "string" && typeof element.id === "number");
 }
 
-async function enrichPlacesWithDetails(items: Record<string, unknown>[]) {
-  const byPlaceId = new Map<string, Record<string, unknown>>();
-  for (const item of items) {
-    const placeId = getString(item, ["place_id", "id"]);
-    if (placeId && !byPlaceId.has(placeId)) byPlaceId.set(placeId, item);
-  }
-
-  const enriched: Record<string, unknown>[] = [];
-  for (const item of byPlaceId.values()) {
-    const placeId = getString(item, ["place_id", "id"]);
-    if (!placeId) {
-      enriched.push(item);
-      continue;
-    }
-    const details = await callGoogleDetails(placeId).catch(() => undefined);
-    enriched.push(mergeRecords(item, details));
-  }
-  return enriched;
-}
-
-async function fetchGoogleItemsForCity(city: SupportedCity, kind: CacheKind) {
-  const rawItems: Record<string, unknown>[] = [];
-  const queryByPlaceId = new Map<string, { collectionQuery: string; collectionMethod: "textsearch" | "nearbysearch"; targetKind: CacheKind }>();
-
-  if (kind === "pharmacies") {
-    const points = buildSearchPoints(city);
-    for (const point of points) {
-      for (const query of buildPharmacyTextSearchQueries(city)) {
-        const results = await callGoogleTextSearch(point, query);
-        rawItems.push(...results);
-        for (const result of results) {
-          const placeId = getString(result, ["place_id", "id"]);
-          if (placeId && !queryByPlaceId.has(placeId)) queryByPlaceId.set(placeId, { collectionQuery: `${point.zone}:${query}`, collectionMethod: "textsearch", targetKind: kind });
-        }
-      }
-
-      const nearbyResults = await callGoogleNearby(point, PHARMACY_NEARBY_SEARCH_TYPE);
-      rawItems.push(...nearbyResults);
-      for (const result of nearbyResults) {
-        const placeId = getString(result, ["place_id", "id"]);
-        if (placeId && !queryByPlaceId.has(placeId)) queryByPlaceId.set(placeId, { collectionQuery: `${point.zone}:nearby:${PHARMACY_NEARBY_SEARCH_TYPE}`, collectionMethod: "nearbysearch", targetKind: kind });
-      }
-    }
-  } else {
-    for (const term of TEXT_SEARCH_TERMS) {
-      const query = `${term} à ${city.name}`;
-      const results = await callGoogleTextSearch(city, query);
-      rawItems.push(...results);
-      for (const result of results) {
-        const placeId = getString(result, ["place_id", "id"]);
-        if (placeId && !queryByPlaceId.has(placeId)) queryByPlaceId.set(placeId, { collectionQuery: query, collectionMethod: "textsearch", targetKind: kind });
-      }
-    }
-
-    for (const nearbyType of NEARBY_SEARCH_TYPES) {
-      const results = await callGoogleNearby(city, nearbyType);
-      rawItems.push(...results);
-      for (const result of results) {
-        const placeId = getString(result, ["place_id", "id"]);
-        if (placeId && !queryByPlaceId.has(placeId)) queryByPlaceId.set(placeId, { collectionQuery: `nearby:${nearbyType}`, collectionMethod: "nearbysearch", targetKind: kind });
-      }
-    }
-  }
-
-  const enrichedItems = await enrichPlacesWithDetails(rawItems);
-  return enrichedItems.map((item, index) => {
-    const placeId = getString(item, ["place_id", "id"]);
-    return normalizeGooglePlace(item, city, index, placeId ? queryByPlaceId.get(placeId) : { targetKind: kind });
-  }).filter((item): item is CachedHealthPlace => item !== null);
-}
-
-async function fetchGoogleItemsByCity(kind: CacheKind) {
-  const settled = await Promise.allSettled(
-    SUPPORTED_CITIES.map(async (city) => {
-      const allItems = dedupePlaces(await fetchGoogleItemsForCity(city, kind));
-      const category = kind === "pharmacies" ? "pharmacy" : "healthcare";
-      return { city, items: allItems.filter((item) => item.category === category) };
-    }),
-  );
+async function fetchOsmItemsByCity(kind: CacheKind) {
   const byCity = createEmptyBuckets();
   const errors: string[] = [];
+  const category: CachedPlaceCategory = kind === "pharmacies" ? "pharmacy" : "healthcare";
 
-  for (const result of settled) {
-    if (result.status === "fulfilled") {
-      byCity[cityKey(result.value.city.name)] = result.value.items.map((item) => ({ ...item, city: result.value.city.name }));
-    } else {
-      errors.push(result.reason instanceof Error ? result.reason.message : "Erreur Google API inconnue");
+  // Séquentiel : l'instance Overpass publique limite les requêtes simultanées.
+  for (const [index, city] of SUPPORTED_CITIES.entries()) {
+    if (index > 0 && OSM_REQUEST_DELAY_MS > 0) await sleep(OSM_REQUEST_DELAY_MS);
+    try {
+      const elements = await callOverpass(buildOverpassQuery(city, kind));
+      const items = elements
+        .map((element) => normalizeOsmElement(element, city, kind))
+        .filter((item): item is CachedHealthPlace => item !== null && item.category === category);
+      byCity[cityKey(city.name)] = dedupePlaces(items);
+    } catch (error) {
+      errors.push(`${city.name} : ${error instanceof Error ? error.message : "erreur OpenStreetMap inconnue"}`);
     }
   }
 
@@ -553,9 +364,10 @@ async function loadState(kind: CacheKind) {
   try {
     const raw = await readFile(fileFor(kind), "utf8");
     const parsed = JSON.parse(raw) as Partial<CacheState> & { version?: number; byCity?: unknown };
-    if (parsed.version === 2 && parsed.kind === kind && isRecord(parsed.byCity)) {
+    // Version 3 = données OpenStreetMap. Les caches antérieurs (Google Places) sont ignorés.
+    if (parsed.version === 3 && parsed.kind === kind && isRecord(parsed.byCity)) {
       memoryCache[kind] = {
-        version: 2,
+        version: 3,
         kind,
         byCity: normalizeBuckets(parsed.byCity),
         updatedAt: parsed.updatedAt ?? null,
@@ -596,10 +408,10 @@ export async function updateCachedDataset(kind: CacheKind, force = false): Promi
     const attemptAt = nowIso();
     memoryCache[kind] = { ...memoryCache[kind], lastRefreshAttemptAt: attemptAt };
     try {
-      const byCity = await fetchGoogleItemsByCity(kind);
+      const byCity = await fetchOsmItemsByCity(kind);
       const updatedAt = nowIso();
       const next: CacheState = {
-        version: 2,
+        version: 3,
         kind,
         byCity,
         updatedAt,
@@ -610,7 +422,7 @@ export async function updateCachedDataset(kind: CacheKind, force = false): Promi
       await persistState(kind, next);
       return { kind, ok: true, refreshed: true, itemCount: countBuckets(byCity), updatedAt: next.updatedAt, expiresAt: next.expiresAt };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur Google API inconnue";
+      const message = error instanceof Error ? error.message : "Erreur OpenStreetMap inconnue";
       const fallback = { ...memoryCache[kind], lastRefreshAttemptAt: attemptAt, lastError: message };
       memoryCache[kind] = fallback;
       await persistState(kind, fallback).catch(() => undefined);
@@ -647,16 +459,8 @@ function maybeUnrefTimer(timer: ReturnType<typeof setInterval>) {
   candidate.unref?.();
 }
 
-function withPublicCorsHeaders(req: Request, res: Response) {
-  const origin = req.headers?.origin;
-  if (origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-}
-
 function withCacheHeaders(req: Request, res: Response, kind: CacheKind) {
-  withPublicCorsHeaders(req, res);
+  applyCorsHeaders(req, res);
   const state = memoryCache[kind];
   res.setHeader("Cache-Control", kind === "pharmacies" ? "public, max-age=300, stale-while-revalidate=86400" : "public, max-age=1800, stale-while-revalidate=604800");
   if (state.updatedAt) res.setHeader("Last-Modified", new Date(state.updatedAt).toUTCString());
@@ -692,6 +496,8 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
     data: items,
     meta: {
       cache: "server-local-cache-by-city",
+      source: "openstreetmap",
+      attribution: OSM_ATTRIBUTION,
       kind,
       city: responseCity,
       cityKey: cityFilter.key ?? null,
@@ -711,7 +517,7 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
 
 async function sendMedicinesDataset(req: Request, res: Response) {
   const isPremium = await getPremiumAccessFromRequest(req);
-  withPublicCorsHeaders(req, res);
+  applyCorsHeaders(req, res);
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("X-PharmaGarde-Premium", isPremium ? "true" : "false");
   if (!isPremium) {
