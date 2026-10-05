@@ -36,7 +36,6 @@ const env = {
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
-  googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "",
 };
 
 const config: ExpoConfig = {
@@ -131,9 +130,8 @@ const config: ExpoConfig = {
         },
       },
     ],
-    // NOTE: react-native-maps config plugin removed for Expo Go compatibility.
-    // Google Maps API key is handled via env vars (EXPO_PUBLIC_GOOGLE_MAPS_API_KEY for Web, GOOGLE_MAPS_API_KEY for native builds).
-    // For native Google Maps on iOS/Android, use EAS development build with proper config plugin setup.
+    // La carte utilise MapLibre GL JS via un composant DOM Expo (components/pharmagarde/maplibre-view.tsx) :
+    // aucun plugin natif ni clé Google Maps n'est requis, ce qui préserve la compatibilité Expo Go.
   ],
   experiments: {
     typedRoutes: true,

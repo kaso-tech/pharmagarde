@@ -31,14 +31,24 @@ describe("compatibilité Expo Go", () => {
 
   it("n’emploie plus les options et styles retirés par React Native 0.86", () => {
     const appConfig = readProjectFile("app.config.ts");
-    const nativeMap = readProjectFile("components/pharmagarde/PharmaMap.native.tsx");
-    const webMap = readProjectFile("components/pharmagarde/PharmaMap.tsx");
+    const map = readProjectFile("components/pharmagarde/PharmaMap.tsx");
     const appShell = readProjectFile("components/pharmagarde/app-shell.tsx");
 
     expect(appConfig).not.toContain("newArchEnabled");
     expect(appConfig).not.toContain("edgeToEdgeEnabled");
-    expect(nativeMap).toContain("map: StyleSheet.absoluteFill");
-    expect(webMap).toContain("satelliteOverlay: StyleSheet.absoluteFill");
+    expect(map).toContain("map: StyleSheet.absoluteFill");
     expect(appShell).toContain("overlay: StyleSheet.absoluteFill");
+  });
+
+  it("affiche la carte avec MapLibre via un composant DOM, sans module natif ni Google Maps", () => {
+    const map = readProjectFile("components/pharmagarde/PharmaMap.tsx");
+    const mapView = readProjectFile("components/pharmagarde/maplibre-view.tsx");
+
+    expect(manifest.dependencies["react-native-maps"]).toBeUndefined();
+    expect(manifest.dependencies["maplibre-gl"]).toMatch(/^\^5\./);
+    expect(mapView.startsWith('"use dom";')).toBe(true);
+    expect(mapView).toContain('from "maplibre-gl"');
+    expect(map).toContain("<MapLibreView");
+    expect(`${map}\n${mapView}`).not.toMatch(/google\.maps|maps\.googleapis|react-native-maps/);
   });
 });
