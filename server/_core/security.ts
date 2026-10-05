@@ -137,3 +137,29 @@ export function getPublicPaymentUrls(env: NodeJS.ProcessEnv = process.env) {
     apiUrl: readAbsoluteUrl("PUBLIC_API_URL", env),
   };
 }
+
+// --- En-têtes de sécurité HTTP (S13) -----------------------------------------------------------
+// Équivalent minimal de helmet, sans dépendance. L'API ne sert que du JSON et quelques pages HTML
+// statiques (pages légales, retour de paiement) à styles intégrés : une politique stricte suffit.
+
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'none'",
+  "style-src 'unsafe-inline'",
+  "img-src 'self' data:",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+export function securityHeadersMiddleware(req: Request, res: Response, next: NextFunction) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+}

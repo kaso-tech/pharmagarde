@@ -1,6 +1,9 @@
-import { Medicine } from "./types";
+import type { Medicine } from "../lib/pharmagarde/types";
 
-export const LOCAL_ESSENTIAL_MEDICINES: Medicine[] = [
+// S12 : catalogue servi uniquement par le serveur (GET /medicaments) aux abonnés Premium. Il n'est
+// plus embarqué dans l'app, où il était lisible sans abonnement.
+
+export const ESSENTIAL_MEDICINES: Medicine[] = [
   {
     id: "paracetamol-500mg",
     type: "medicine",
@@ -443,4 +446,4 @@ export const LOCAL_ESSENTIAL_MEDICINES: Medicine[] = [
   },
 ];
 
-export const LOCAL_MEDICINES_NOTICE = "Liste locale indicative de médicaments essentiels courants au Burkina Faso avec prix approximatifs en FCFA. Les prix peuvent varier selon la ville, la disponibilité et le point de vente.";
+export const MEDICINES_NOTICE = "Liste locale indicative de médicaments essentiels courants au Burkina Faso avec prix approximatifs en FCFA. Les prix peuvent varier selon la ville, la disponibilité et le point de vente.";

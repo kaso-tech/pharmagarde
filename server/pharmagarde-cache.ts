@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { applyCorsHeaders } from "./_core/security";
+import { ESSENTIAL_MEDICINES, MEDICINES_NOTICE } from "./medicines-data";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
 export type CacheKind = "pharmacies" | "healthcare";
@@ -463,7 +464,10 @@ function maybeUnrefTimer(timer: ReturnType<typeof setInterval>) {
 function withCacheHeaders(req: Request, res: Response, kind: CacheKind) {
   applyCorsHeaders(req, res);
   const state = memoryCache[kind];
-  res.setHeader("Cache-Control", kind === "pharmacies" ? "public, max-age=300, stale-while-revalidate=86400" : "public, max-age=1800, stale-while-revalidate=604800");
+  // La réponse dépend de l'abonnement de l'appelant (3 résultats ou liste complète) : elle ne doit
+  // pas être partagée par un cache intermédiaire entre utilisateurs.
+  res.setHeader("Cache-Control", kind === "pharmacies" ? "private, max-age=300" : "private, max-age=1800");
+  res.setHeader("Vary", "Origin, Authorization, Cookie");
   if (state.updatedAt) res.setHeader("Last-Modified", new Date(state.updatedAt).toUTCString());
   if (state.expiresAt) res.setHeader("X-PharmaGarde-Cache-Expires-At", state.expiresAt);
   res.setHeader("X-PharmaGarde-Cache-Source", "server-local-cache-by-city");
@@ -504,14 +508,12 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
       cityKey: cityFilter.key ?? null,
       supportedCities: SUPPORTED_CITIES.map((city) => city.name),
       itemCount: items.length,
-      unrestrictedItemCount: allItems.length,
       totalItemCount: countBuckets(state.byCity),
       premiumRequiredForFullResults: !isPremium,
       freeResultLimit: isPremium ? null : PREMIUM_RESULT_LIMIT,
       updatedAt: state.updatedAt,
       expiresAt: state.expiresAt,
       stale: !isCacheFresh(kind),
-      lastError: state.lastError,
     },
   });
 }
@@ -527,10 +529,10 @@ async function sendMedicinesDataset(req: Request, res: Response) {
   }
 
   res.json({
-    medicaments: [],
-    medicines: [],
-    data: [],
-    meta: { premiumRequired: true, itemCount: 0 },
+    medicaments: ESSENTIAL_MEDICINES,
+    medicines: ESSENTIAL_MEDICINES,
+    data: ESSENTIAL_MEDICINES,
+    meta: { premiumRequired: true, itemCount: ESSENTIAL_MEDICINES.length, notice: MEDICINES_NOTICE },
   });
 }
 

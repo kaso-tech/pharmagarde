@@ -119,7 +119,8 @@ describe("abonnement premium backend", () => {
     expect(premium).toContain("invoiceToken=${encodeURIComponent(input.invoiceToken)}");
     expect(premium).toContain("const verification = await verifyLigdiCashPayment");
     expect(premium).toContain('const status: TransactionStatus = verification.confirmed ? "success"');
-    expect(premium).toContain('if (status === "success" && transaction.status !== "success")');
+    expect(premium).toContain('ne(transactions.status, "success")');
+    expect(premium).toContain('result.affectedRows !== 1');
     expect(premium).not.toContain("isSuccessfulLigdiCashStatus(payload)");
   });
 });

@@ -3,13 +3,12 @@ import * as Location from "expo-location";
 import { PropsWithChildren, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 
-import { subscribeSessionTokenChanges } from "@/lib/_core/auth";
+import { getAuthorizationHeader, subscribeSessionTokenChanges } from "@/lib/_core/auth";
 import { useThemeContext } from "@/lib/theme-provider";
 import { fetchClinics, fetchMedicines, fetchPharmacies, getDefaultApiBaseUrl, normalizeBaseUrl } from "./api";
 import { distanceKm, filterPlacesByCity, inferCityFromAddressParts, inferNearestKnownCity, normalizeCityName } from "./city-utils";
 import { getDefaultLocationFallback } from "./location-policy";
 import { DISTANCE_UNAVAILABLE_LABEL, resolveReferenceLocation } from "./reference-location";
-import { LOCAL_ESSENTIAL_MEDICINES, LOCAL_MEDICINES_NOTICE } from "./medicines-data";
 import { sortPlacesByOpenThenDistance } from "./place-ordering";
 import { fetchPremiumStatus, initPremiumPayment, limitFreeResults, type PaymentInitResponse, type PremiumPlanId } from "./premium";
 import { AppPreferences, CombinedSearchItem, Coordinates, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "./types";
@@ -149,7 +148,8 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
   const [locationMessage, setLocationMessage] = useState<string | undefined>(undefined);
   const [pharmacies, setPharmacies] = useState<HealthPlace[]>([]);
   const [clinics, setClinics] = useState<HealthPlace[]>([]);
-  const [medicines, setMedicines] = useState<Medicine[]>(LOCAL_ESSENTIAL_MEDICINES);
+  // S12 : le catalogue vient du serveur, réservé aux abonnés Premium.
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [isPremium, setIsPremium] = useState(false);
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [premiumLoading, setPremiumLoading] = useState(false);
@@ -357,7 +357,7 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
     if (!isApiConfigured) {
       setPharmacies([]);
       setClinics([]);
-      setMedicines(LOCAL_ESSENTIAL_MEDICINES);
+      setMedicines([]);
       setErrors({
         pharmacies: "L’URL du backend est indisponible dans cet environnement. Réessayez depuis le domaine de prévisualisation ou après publication.",
         clinics: "L’URL du backend est indisponible dans cet environnement. Réessayez depuis le domaine de prévisualisation ou après publication.",
@@ -369,10 +369,13 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
     const nextErrors: DataErrors = {};
     const activeCity = getSafeSelectedCity(selectedCity);
     console.info("[PharmaGarde Frontend] Ville envoyée aux APIs", { selectedCity: activeCity, isManualCitySelection, hasReferenceLocation: Boolean(referenceLocation), pharmaciesEndpoint: `/pharmacies?city=${encodeURIComponent(activeCity)}`, healthcareEndpoint: `/healthcare?city=${encodeURIComponent(activeCity)}` });
+    // Le jeton permet au serveur d'appliquer les droits Premium (listes complètes, médicaments).
+    const authHeaders = await getAuthorizationHeader().catch(() => ({}));
+    const requestOptions = { authHeaders, cacheVariant: isPremium ? "premium" : "free" };
     const [pharmacyResult, clinicResult, medicineResult] = await Promise.allSettled([
-      fetchPharmacies(apiBaseUrl, referenceLocation, activeCity),
-      fetchClinics(apiBaseUrl, referenceLocation, activeCity),
-      fetchMedicines(apiBaseUrl),
+      fetchPharmacies(apiBaseUrl, referenceLocation, activeCity, requestOptions),
+      fetchClinics(apiBaseUrl, referenceLocation, activeCity, requestOptions),
+      isPremium ? fetchMedicines(apiBaseUrl, requestOptions) : Promise.resolve([] as Medicine[]),
     ]);
 
     if (pharmacyResult.status === "fulfilled") {
@@ -397,10 +400,11 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
 
     if (!isPremium) {
       setMedicines([]);
-    } else if (medicineResult.status === "fulfilled" && medicineResult.value.length > 0) setMedicines(medicineResult.value);
-    else {
-      setMedicines(LOCAL_ESSENTIAL_MEDICINES);
-      nextErrors.medicines = medicineResult.status === "rejected" && medicineResult.reason instanceof Error ? `${medicineResult.reason.message} ${LOCAL_MEDICINES_NOTICE}` : LOCAL_MEDICINES_NOTICE;
+    } else if (medicineResult.status === "fulfilled") {
+      setMedicines(medicineResult.value);
+    } else {
+      setMedicines([]);
+      nextErrors.medicines = medicineResult.reason instanceof Error ? medicineResult.reason.message : "Erreur de chargement des médicaments.";
     }
 
     setErrors(nextErrors);

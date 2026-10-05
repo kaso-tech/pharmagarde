@@ -198,8 +198,15 @@ describe("cache backend PharmaGarde", () => {
       meta: { city: "Kaya", cityKey: "kaya", itemCount: 1, totalItemCount: 4 },
     });
     expect(allPharmaciesResponse.body).toMatchObject({
-      meta: { city: null, itemCount: 3, unrestrictedItemCount: 4, totalItemCount: 4, premiumRequiredForFullResults: true, freeResultLimit: 3 },
+      meta: { city: null, itemCount: 3, totalItemCount: 4, premiumRequiredForFullResults: true, freeResultLimit: 3 },
     });
+    // S11 : ni le nombre de résultats masqués ni les erreurs internes ne sont exposés.
+    const allMeta = (allPharmaciesResponse.body as { meta: Record<string, unknown> }).meta;
+    expect(allMeta).not.toHaveProperty("unrestrictedItemCount");
+    expect(allMeta).not.toHaveProperty("lastError");
+    // La réponse dépend de l'abonnement : aucun cache partagé entre utilisateurs.
+    expect(allPharmaciesResponse.headers["Cache-Control"]).toMatch(/^private/);
+    expect(allPharmaciesResponse.headers.Vary).toContain("Authorization");
     expect(unsupportedCityResponse.body).toMatchObject({
       pharmacies: [],
       meta: { city: "Ville Introuvable", cityKey: "ville-introuvable", itemCount: 0, totalItemCount: 4 },

@@ -115,7 +115,9 @@ function normalizeMedicine(raw: Record<string, unknown>, index: number): Medicin
     type: "medicine",
     name,
     category: getString(raw, ["category", "categorie", "classe", "famille"]),
-    pharmaceuticalType: getString(raw, ["type", "forme", "form", "dosageForm"]),
+    ageCategory: getString(raw, ["ageCategory", "age_category", "trancheAge"]) as Medicine["ageCategory"],
+    pharmaceuticalType: getString(raw, ["pharmaceuticalType", "pharmaceutical_type", "forme", "form", "dosageForm"]),
+    priceApprox: getNumber(raw, ["priceApprox", "price_approx", "prix", "price"]),
     description: getString(raw, ["description", "details", "indication"]),
     imageUrl: getString(raw, ["imageUrl", "image", "photo", "thumbnail", "picture"]),
   };
@@ -191,7 +193,17 @@ async function readStalePayload(cacheKey: string) {
   }
 }
 
-async function requestJson(baseUrl: string, path: string, coordinates?: Coordinates, city?: string) {
+/**
+ * Options d'accès aux données protégées par l'abonnement : le jeton de session est transmis pour
+ * que le serveur applique les droits Premium, et la variante sépare dans le cache local les
+ * réponses gratuites (3 résultats) des réponses complètes.
+ */
+export type DatasetRequestOptions = {
+  authHeaders?: Record<string, string>;
+  cacheVariant?: string;
+};
+
+async function requestJson(baseUrl: string, path: string, coordinates?: Coordinates, city?: string, options: DatasetRequestOptions & { cache?: boolean } = {}) {
   const requiredCity = requireCityForDataset(path, city);
   const cleanBase = normalizeBaseUrl(baseUrl);
   if (!cleanBase) {
@@ -199,7 +211,8 @@ async function requestJson(baseUrl: string, path: string, coordinates?: Coordina
   }
 
   const datasetKind = getDatasetKind(path);
-  const cacheKey = datasetKind ? buildCacheKey(cleanBase, path, coordinates, requiredCity) : null;
+  const useCache = options.cache !== false;
+  const cacheKey = datasetKind && useCache ? `${buildCacheKey(cleanBase, path, coordinates, requiredCity)}${options.cacheVariant ? `:${options.cacheVariant}` : ""}` : null;
   if (cacheKey) {
     const cached = await readCachedPayload(cacheKey);
     if (cached) {
@@ -225,7 +238,7 @@ async function requestJson(baseUrl: string, path: string, coordinates?: Coordina
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   try {
     const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", ...(options.authHeaders ?? {}) },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -251,20 +264,22 @@ async function requestJson(baseUrl: string, path: string, coordinates?: Coordina
   }
 }
 
-export async function fetchPharmacies(baseUrl: string, coordinates?: Coordinates, city?: string) {
+export async function fetchPharmacies(baseUrl: string, coordinates?: Coordinates, city?: string, options: DatasetRequestOptions = {}) {
   const selectedCity = requireCityForDataset("/pharmacies", city);
-  const payload = await requestJson(baseUrl, "/pharmacies", coordinates, selectedCity);
+  const payload = await requestJson(baseUrl, "/pharmacies", coordinates, selectedCity, options);
   return asRecords(payload).map((item, index) => normalizePlace(item, "pharmacy", index)).filter((item): item is HealthPlace => item !== null);
 }
 
-export async function fetchClinics(baseUrl: string, coordinates?: Coordinates, city?: string) {
+export async function fetchClinics(baseUrl: string, coordinates?: Coordinates, city?: string, options: DatasetRequestOptions = {}) {
   const selectedCity = requireCityForDataset("/healthcare", city);
-  const payload = await requestJson(baseUrl, "/healthcare", coordinates, selectedCity);
+  const payload = await requestJson(baseUrl, "/healthcare", coordinates, selectedCity, options);
   return asRecords(payload).map((item, index) => normalizePlace(item, "clinic", index)).filter((item): item is HealthPlace => item !== null);
 }
 
-export async function fetchMedicines(baseUrl: string) {
-  const payload = await requestJson(baseUrl, "/medicaments");
+export async function fetchMedicines(baseUrl: string, options: DatasetRequestOptions = {}) {
+  // Catalogue réservé aux abonnés : jamais mis en cache local, pour qu'un abonnement expiré ne
+  // laisse pas la liste disponible hors ligne.
+  const payload = await requestJson(baseUrl, "/medicaments", undefined, undefined, { ...options, cache: false });
   return asRecords(payload).map((item, index) => normalizeMedicine(item, index)).filter((item): item is Medicine => item !== null);
 }
 
