@@ -41,7 +41,7 @@ const SATELLITE_STYLE: StyleSpecification = {
       tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
       maxzoom: 19,
-      attribution: "Imagerie © Esri, Maxar, Earthstar Geographics",
+      attribution: "Imagerie © Esri, Maxar, Earthstar Geographics · Lieux © contributeurs OpenStreetMap",
     },
   },
   layers: [{ id: "satellite", type: "raster", source: "satellite" }],

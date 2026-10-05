@@ -591,6 +591,9 @@ Available environment variables:
 | `TRUST_PROXY` | Nombre de proxys de confiance devant le serveur (ex. `1`). Absent : `X-Forwarded-For` est ignoré. À régler pour que la limitation de débit voie la vraie IP du client. |
 | `PUBLIC_APP_URL` | URL publique de l'app, utilisée pour le retour de paiement Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
 | `PUBLIC_API_URL` | URL publique de l'API, utilisée pour le callback Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
+| `OSM_OVERPASS_URL` | Endpoint Overpass pour collecter pharmacies et structures de santé OpenStreetMap (défaut : `https://overpass-api.de/api/interpreter`). En production, préférer une instance dédiée. |
+| `PHARMAGARDE_OSM_RADIUS_METERS` | Rayon de collecte autour de chaque ville (défaut `15000`). |
+| `PHARMAGARDE_OSM_REQUEST_DELAY_MS` | Pause entre deux requêtes Overpass (défaut `1000`), pour respecter la politique d'usage de l'instance publique. |
 
 Expo runtime variables (prefixed with `EXPO_PUBLIC_`):
 
