@@ -578,6 +578,7 @@ Keep this channel for owner-facing alerts; end-user messaging should flow throug
 | `GET /confidentialite` | Politique de confidentialité (URL à déclarer sur l'App Store et Google Play). Texte source : `shared/privacy-policy.ts`, partagé avec l'écran de l'app. |
 | `GET /compte/suppression` | Explique comment supprimer son compte (URL « suppression de compte » exigée par Google Play). |
 | `POST /api/auth/delete-account` | Supprime le compte connecté ; mot de passe requis pour les comptes téléphone/mot de passe. Données personnelles effacées, paiements conservés sans lien d'identité. |
+| `POST /api/auth/logout-all` | Déconnecte tous les appareils : les jetons émis avant l'appel sont refusés (`users.sessionsValidAfter`). Les sessions durent 30 jours. |
 | `POST /api/auth/register/request-code` | Envoie par SMS le code de vérification du numéro ; `POST /api/auth/register` exige ensuite `code`. |
 | `POST /api/auth/password-reset/request` | Envoie un code de réinitialisation si le numéro a un compte (réponse identique sinon). |
 | `POST /api/auth/password-reset/confirm` | `{ phone, code, password, confirmPassword }` : change le mot de passe si le code est valide. |
@@ -591,7 +592,7 @@ Available environment variables:
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | MySQL/TiDB connection string |
-| `JWT_SECRET` | Session signing secret |
+| `JWT_SECRET` | Secret de signature des sessions (30 jours) et des codes SMS. **Obligatoire.** |
 | `VITE_APP_ID` | Manus OAuth app ID |
 | `OAUTH_SERVER_URL` | Manus OAuth backend URL |
 | `VITE_OAUTH_PORTAL_URL` | Manus login portal URL |
@@ -599,6 +600,7 @@ Available environment variables:
 | `OWNER_NAME` | Owner's display name |
 | `BUILT_IN_FORGE_API_URL` | Manus API endpoint |
 | `BUILT_IN_FORGE_API_KEY` | Manus API key |
+| `PHARMAGARDE_ADMIN_TOKEN` | Jeton exigé par `POST /admin/update-data` (en `Authorization: Bearer` ou `x-admin-token`). Sans lui, la route est fermée, y compris en développement. |
 | `CORS_ALLOWED_ORIGINS` | Origines web autorisées à appeler l'API avec credentials, séparées par des virgules (ex. `https://app.pharmagarde.bf`). Hors production, `localhost` est toujours autorisé. |
 | `SESSION_COOKIE_SAMESITE` | `lax` par défaut ; `none` seulement pour une prévisualisation en iframe cross-site (HTTPS requis). |
 | `TRUST_PROXY` | Nombre de proxys de confiance devant le serveur (ex. `1`). Absent : `X-Forwarded-For` est ignoré. À régler pour que la limitation de débit voie la vraie IP du client. |

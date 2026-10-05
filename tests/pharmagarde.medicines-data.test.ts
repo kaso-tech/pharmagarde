@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LOCAL_ESSENTIAL_MEDICINES } from "../lib/pharmagarde/medicines-data";
+import { ESSENTIAL_MEDICINES as LOCAL_ESSENTIAL_MEDICINES } from "../server/medicines-data";
 
 describe("catalogue local des médicaments essentiels", () => {
   it("fournit les champs nécessaires à l’affichage mobile demandé", () => {

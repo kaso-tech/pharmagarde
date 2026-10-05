@@ -154,8 +154,8 @@ describe("cartes pharmacies et cliniques", () => {
     const types = read("lib/pharmagarde/types.ts");
 
     expect(appState).toContain("const referenceLocation = useMemo(() => resolveReferenceLocation");
-    expect(appState).toContain("fetchPharmacies(apiBaseUrl, referenceLocation, activeCity)");
-    expect(appState).toContain("fetchClinics(apiBaseUrl, referenceLocation, activeCity)");
+    expect(appState).toContain("fetchPharmacies(apiBaseUrl, referenceLocation, activeCity, requestOptions)");
+    expect(appState).toContain("fetchClinics(apiBaseUrl, referenceLocation, activeCity, requestOptions)");
     expect(appState).toContain("resolveReferenceLocation({ selectedCity, userLocation })");
     expect(appState).toContain("withLocalDistances(filterPlacesByCity(pharmacyResult.value, activeCity), referenceLocation)");
     expect(appState).toContain("distanceKm(origin");

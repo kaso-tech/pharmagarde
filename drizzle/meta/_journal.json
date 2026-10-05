@@ -36,6 +36,13 @@
       "when": 1791197150093,
       "tag": "0004_phone_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1791197929294,
+      "tag": "0005_session_revocation",
+      "breakpoints": true
     }
   ]
 }

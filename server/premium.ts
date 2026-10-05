@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import type { Request, Response } from "express";
 import { z } from "zod";
 
@@ -468,6 +468,37 @@ export async function handlePremiumPaymentReturn(req: Request, res: Response) {
   return res.status(200).type("html").send(renderPaymentReturnPage({ paymentReference, reference, mode, status }));
 }
 
+type Database = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
+/**
+ * S10 : enregistre le résultat d'un paiement et prolonge l'abonnement au plus une fois.
+ *
+ * Tout se passe dans une transaction SQL. La mise à jour de la transaction est conditionnelle
+ * (`status <> 'success'`) : si deux webhooks arrivent en même temps, un seul passe la ligne en
+ * succès (affectedRows = 1) et prolonge l'abonnement ; l'autre ne modifie rien. Une transaction déjà
+ * payée ne peut pas non plus être rétrogradée en échec par un webhook tardif. La ligne utilisateur
+ * est verrouillée (SELECT … FOR UPDATE) pendant le calcul de la nouvelle date de fin.
+ */
+export async function recordPaymentOutcome(
+  db: Database,
+  transaction: Pick<InsertTransaction, "userId" | "planId"> & { id: number },
+  status: TransactionStatus,
+  fields: { providerTransactionId: string; rawProviderPayload: string },
+) {
+  return db.transaction(async (tx) => {
+    const [result] = await tx
+      .update(transactions)
+      .set({ status, ...fields })
+      .where(and(eq(transactions.id, transaction.id), ne(transactions.status, "success")));
+    if (status !== "success" || result.affectedRows !== 1) return false;
+
+    const userRows = await tx.select().from(users).where(eq(users.id, transaction.userId)).limit(1).for("update");
+    const nextEnd = calculateSubscriptionEnd(userRows[0]?.subscriptionEnd, transaction.planId as PremiumPlanId);
+    await tx.update(users).set({ subscriptionEnd: nextEnd }).where(eq(users.id, transaction.userId));
+    return true;
+  });
+}
+
 export async function handleLigdiCashWebhook(req: Request, res: Response) {
   try {
     const db = await getDb();
@@ -484,18 +515,11 @@ export async function handleLigdiCashWebhook(req: Request, res: Response) {
 
     const verification = await verifyLigdiCashPayment({ invoiceToken, expectedAmount: transaction.amount });
     const status: TransactionStatus = verification.confirmed ? "success" : verification.failed ? "failed" : "pending";
-    await db.update(transactions).set({
-      status,
+    const activated = await recordPaymentOutcome(db, transaction, status, {
       providerTransactionId: verification.providerTransactionId ?? invoiceToken,
       rawProviderPayload: JSON.stringify({ webhook: payload, verification: JSON.parse(verification.rawPayload) }),
-    }).where(eq(transactions.id, transaction.id));
-
-    if (status === "success" && transaction.status !== "success") {
-      const userRows = await db.select().from(users).where(eq(users.id, transaction.userId)).limit(1);
-      const user = userRows[0];
-      const nextEnd = calculateSubscriptionEnd(user?.subscriptionEnd, transaction.planId as PremiumPlanId);
-      await db.update(users).set({ subscriptionEnd: nextEnd }).where(eq(users.id, transaction.userId));
-    }
+    });
+    if (activated) console.info("[PremiumWebhook] Abonnement prolongé", { transactionId: transaction.id, planId: transaction.planId });
 
     return res.json({ ok: true, status, verified: verification.confirmed, providerStatus: verification.status });
   } catch (error) {

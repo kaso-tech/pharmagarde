@@ -135,6 +135,17 @@ export function useAuth(options?: UseAuthOptions) {
     }
   }, []);
 
+  const logoutAllDevices = useCallback(async () => {
+    try {
+      await Api.logoutAllDevices();
+    } finally {
+      await Auth.removeSessionToken();
+      await Auth.clearUserInfo();
+      setUser(null);
+      setError(null);
+    }
+  }, []);
+
   const deleteAccount = useCallback(async (password: string) => {
     await Api.deleteAccount(password);
     // Le serveur a invalidé le compte : on efface la session locale comme pour une déconnexion.
@@ -191,6 +202,7 @@ export function useAuth(options?: UseAuthOptions) {
     login,
     register,
     logout,
+    logoutAllDevices,
     deleteAccount,
   };
 }

@@ -11,7 +11,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { initializePharmaGardeCache, registerPharmaGardeCacheRoutes, startPharmaGardeSchedulers } from "../pharmagarde-cache";
 import { handleLigdiCashWebhook, handlePremiumPaymentReturn, initPremiumPayment } from "../premium";
-import { clientIpKey, corsMiddleware, createRateLimiter, parseTrustProxy } from "./security";
+import { clientIpKey, corsMiddleware, createRateLimiter, parseTrustProxy, securityHeadersMiddleware } from "./security";
 
 const paymentInitRateLimit = createRateLimiter({
   name: "payment-init",
@@ -43,6 +43,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
+  app.disable("x-powered-by");
+  app.use(securityHeadersMiddleware);
   const server = createServer(app);
 
   // Register public REST routes immediately so /pharmacies and /healthcare cannot be masked by API middleware.
@@ -51,8 +53,8 @@ async function startServer() {
   // CORS limité aux origines autorisées (CORS_ALLOWED_ORIGINS) ; voir server/_core/security.ts.
   app.use(corsMiddleware);
 
-  app.use(express.json({ limit: "1mb" }));
-  app.use(express.urlencoded({ limit: "1mb", extended: true }));
+  app.use(express.json({ limit: "100kb" }));
+  app.use(express.urlencoded({ limit: "100kb", extended: true }));
 
   await initializePharmaGardeCache();
   registerStorageProxy(app);

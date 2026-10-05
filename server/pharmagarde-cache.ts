@@ -1,8 +1,10 @@
-import type { Express, Request, Response } from "express";
+import express, { type Express, type Request, type Response } from "express";
+import { timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { applyCorsHeaders } from "./_core/security";
+import { ESSENTIAL_MEDICINES, MEDICINES_NOTICE } from "./medicines-data";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
 export type CacheKind = "pharmacies" | "healthcare";
@@ -462,7 +464,10 @@ function maybeUnrefTimer(timer: ReturnType<typeof setInterval>) {
 function withCacheHeaders(req: Request, res: Response, kind: CacheKind) {
   applyCorsHeaders(req, res);
   const state = memoryCache[kind];
-  res.setHeader("Cache-Control", kind === "pharmacies" ? "public, max-age=300, stale-while-revalidate=86400" : "public, max-age=1800, stale-while-revalidate=604800");
+  // La réponse dépend de l'abonnement de l'appelant (3 résultats ou liste complète) : elle ne doit
+  // pas être partagée par un cache intermédiaire entre utilisateurs.
+  res.setHeader("Cache-Control", kind === "pharmacies" ? "private, max-age=300" : "private, max-age=1800");
+  res.setHeader("Vary", "Origin, Authorization, Cookie");
   if (state.updatedAt) res.setHeader("Last-Modified", new Date(state.updatedAt).toUTCString());
   if (state.expiresAt) res.setHeader("X-PharmaGarde-Cache-Expires-At", state.expiresAt);
   res.setHeader("X-PharmaGarde-Cache-Source", "server-local-cache-by-city");
@@ -503,14 +508,12 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
       cityKey: cityFilter.key ?? null,
       supportedCities: SUPPORTED_CITIES.map((city) => city.name),
       itemCount: items.length,
-      unrestrictedItemCount: allItems.length,
       totalItemCount: countBuckets(state.byCity),
       premiumRequiredForFullResults: !isPremium,
       freeResultLimit: isPremium ? null : PREMIUM_RESULT_LIMIT,
       updatedAt: state.updatedAt,
       expiresAt: state.expiresAt,
       stale: !isCacheFresh(kind),
-      lastError: state.lastError,
     },
   });
 }
@@ -526,18 +529,29 @@ async function sendMedicinesDataset(req: Request, res: Response) {
   }
 
   res.json({
-    medicaments: [],
-    medicines: [],
-    data: [],
-    meta: { premiumRequired: true, itemCount: 0 },
+    medicaments: ESSENTIAL_MEDICINES,
+    medicines: ESSENTIAL_MEDICINES,
+    data: ESSENTIAL_MEDICINES,
+    meta: { premiumRequired: true, itemCount: ESSENTIAL_MEDICINES.length, notice: MEDICINES_NOTICE },
   });
 }
 
-function isAdminRequest(req: Request) {
-  const configuredToken = process.env.PHARMAGARDE_ADMIN_TOKEN;
-  if (!configuredToken) return process.env.NODE_ENV !== "production";
-  const header = req.header("authorization") ?? "";
-  return header === `Bearer ${configuredToken}` || req.header("x-admin-token") === configuredToken;
+function safeEqual(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+/**
+ * S6 : la route d'administration exige PHARMAGARDE_ADMIN_TOKEN dans tous les environnements (sans
+ * jeton configuré, elle est fermée) et compare le jeton à temps constant.
+ */
+export function isAdminRequest(req: { header(name: string): string | undefined }, configuredToken = process.env.PHARMAGARDE_ADMIN_TOKEN?.trim()) {
+  if (!configuredToken) return false;
+  const authorization = req.header("authorization") ?? "";
+  const bearer = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
+  const headerToken = req.header("x-admin-token") ?? "";
+  return (bearer.length > 0 && safeEqual(bearer, configuredToken)) || (headerToken.length > 0 && safeEqual(headerToken, configuredToken));
 }
 
 export function registerPharmaGardeCacheRoutes(app: Express) {
@@ -549,7 +563,8 @@ export function registerPharmaGardeCacheRoutes(app: Express) {
   app.get("/medicaments", (req, res) => sendMedicinesDataset(req, res));
   app.get("/medicines", (req, res) => sendMedicinesDataset(req, res));
 
-  app.post("/admin/update-data", async (req, res) => {
+  // Route déclarée avant le parseur JSON global : on parse ici pour lire `kind` (B7).
+  app.post("/admin/update-data", express.json({ limit: "10kb" }), async (req, res) => {
     if (!isAdminRequest(req)) {
       res.status(401).json({ ok: false, error: "ADMIN_TOKEN_REQUIRED" });
       return;
