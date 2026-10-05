@@ -71,7 +71,7 @@ describe("auth token headers", () => {
   });
 
   it("le client tRPC utilise le helper Authorization centralisé pour toutes ses requêtes", async () => {
-    const source = await import("node:fs/promises").then((fs) => fs.readFile("/home/ubuntu/pharmagarde_bf_expo/lib/trpc.ts", "utf-8"));
+    const source = await import("node:fs/promises").then((fs) => fs.readFile("lib/trpc.ts", "utf-8"));
 
     expect(source).toContain("async headers() {");
     expect(source).toContain("return Auth.getAuthorizationHeader();");
