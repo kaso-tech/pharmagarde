@@ -50,7 +50,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     title: "Données techniques",
     paragraphs: [
       "Le serveur traite l'adresse IP de chaque requête pour limiter les tentatives abusives (connexion, inscription, paiement) ; ces compteurs restent uniquement en mémoire et expirent au bout d'une heure au plus. Notre hébergeur peut conserver des journaux techniques pour la sécurité du service.",
-      "L'affichage de la carte charge des fonds de carte auprès d'OpenFreeMap et, en mode satellite, d'Esri : ces services reçoivent l'adresse IP de votre appareil et la zone affichée.",
+      "L'affichage de la carte charge des fonds de carte auprès d'OpenFreeMap, de VersaTiles en secours et, si le mode satellite est proposé, du fournisseur d'imagerie satellite : ces services reçoivent l'adresse IP de votre appareil et la zone affichée.",
     ],
   },
   {

@@ -7,10 +7,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { PHARMAGARDE_CITIES } from "@/lib/pharmagarde/city-utils";
+import { availableMapPreferences, effectiveMapPreference } from "@/lib/pharmagarde/map-config";
 import { AppLanguage, MapPreference } from "@/lib/pharmagarde/types";
 
 const LANGUAGE_OPTIONS: readonly AppLanguage[] = ["FR", "EN"];
-const MAP_OPTIONS: readonly MapPreference[] = ["Standard", "Satellite"];
+// Le mode satellite n'est proposé que si un fournisseur d'imagerie sous licence est configuré.
+const MAP_OPTIONS: readonly MapPreference[] = availableMapPreferences();
 const CITY_OPTIONS = PHARMAGARDE_CITIES;
 
 type SelectorKey = "city" | "language" | "mapType";
@@ -81,7 +83,7 @@ export function MenuContent({ onClose }: MenuContentProps) {
             onValueChange={(enabled) => updatePreference("mode", enabled ? "Sombre" : "Clair")}
           />
           <DrawerSelectRow icon="translate" title="Langue" value={preferences.language} onPress={() => setSelector("language")} />
-          <DrawerSelectRow icon="map" title="Type de carte" value={preferences.mapType} onPress={() => setSelector("mapType")} />
+          <DrawerSelectRow icon="map" title="Type de carte" value={effectiveMapPreference(preferences.mapType)} onPress={() => setSelector("mapType")} />
           <DrawerSelectRow icon="location-city" title="Ville" value={preferences.city} onPress={() => setSelector("city")} />
         </DrawerSection>
 
@@ -179,7 +181,7 @@ export function MenuContent({ onClose }: MenuContentProps) {
         visible={selector === "mapType"}
         title="Choisir le type de carte"
         options={MAP_OPTIONS}
-        value={preferences.mapType}
+        value={effectiveMapPreference(preferences.mapType)}
         onClose={closeSelector}
         onSelect={(next) => {
           updatePreference("mapType", next);
