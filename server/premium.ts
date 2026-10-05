@@ -217,15 +217,12 @@ export async function getAuthenticatedDbUser(req: Request) {
     }
   }
 
+  // L'identité ne provient que d'une session JWT vérifiée : aucun en-tête client (ex. x-user-open-id)
+  // n'est accepté comme preuve d'identité, sinon n'importe qui pourrait se faire passer pour un abonné.
   const authUser = (req as Request & { user?: User }).user;
   if (authUser?.id) return authUser;
 
-  const openId = typeof req.header("x-user-open-id") === "string" ? req.header("x-user-open-id") : undefined;
-  if (!openId) return undefined;
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
+  return undefined;
 }
 
 function getLigdiCashConfig() {
