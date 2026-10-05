@@ -2,11 +2,10 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import MapLibreView, { type MapLibrePlace } from "@/components/pharmagarde/maplibre-view";
+import { effectiveMapPreference, MAP_ATTRIBUTION, MAP_FALLBACK_STYLE_URL, MAP_SATELLITE_STYLE_URL, MAP_STYLE_URL } from "@/lib/pharmagarde/map-config";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 import { Coordinates, HealthPlace, MapPreference } from "@/lib/pharmagarde/types";
 
-// Style vectoriel OpenFreeMap (gratuit, sans clé). Remplaçable par n'importe quel style MapLibre.
-const MAP_STYLE_URL = process.env.EXPO_PUBLIC_MAPLIBRE_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty";
 
 type PharmaMapProps = {
   places: HealthPlace[];
@@ -50,8 +49,11 @@ export function PharmaMap({ places, userLocation, mapType = "Standard", selected
       <MapLibreView
         places={mapPlaces}
         userLocation={mapUserLocation}
-        satellite={mapType === "Satellite"}
+        satellite={effectiveMapPreference(mapType) === "Satellite"}
         styleUrl={MAP_STYLE_URL}
+        fallbackStyleUrl={MAP_FALLBACK_STYLE_URL}
+        satelliteStyleUrl={MAP_SATELLITE_STYLE_URL}
+        attribution={MAP_ATTRIBUTION}
         selectedKey={selectedPlaceId ?? null}
         pharmacyColor={palette.brand}
         clinicColor={palette.clinic}

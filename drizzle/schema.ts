@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -17,6 +17,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   phone: varchar("phone", { length: 32 }).unique(),
   passwordHash: text("passwordHash"),
+  /** Date de vérification du numéro par code SMS ; null pour les comptes créés avant cette vérification. */
+  phoneVerifiedAt: timestamp("phoneVerifiedAt"),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   /** Subscription end date. A user is premium only when this value is in the future. */
@@ -42,7 +44,27 @@ export const transactions = mysqlTable("transactions", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+/**
+ * Codes à usage unique envoyés par SMS (vérification du numéro à l'inscription, réinitialisation du
+ * mot de passe). Seul un HMAC du code est stocké.
+ */
+export const verificationCodes = mysqlTable(
+  "verification_codes",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    phone: varchar("phone", { length: 32 }).notNull(),
+    purpose: mysqlEnum("purpose", ["register", "password_reset"]).notNull(),
+    codeHash: varchar("codeHash", { length: 128 }).notNull(),
+    attempts: int("attempts").default(0).notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    consumedAt: timestamp("consumedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("verification_codes_phone_purpose_idx").on(table.phone, table.purpose)],
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
+export type VerificationCode = typeof verificationCodes.$inferSelect;

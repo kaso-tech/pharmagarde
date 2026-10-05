@@ -29,6 +29,19 @@ async function callPhone(phone?: string) {
   await Linking.openURL(`tel:${phone.replace(/\s+/g, "")}`);
 }
 
+/** Avertissement affiché sur chaque fiche médicament et en tête du catalogue. */
+export const MEDICAL_DISCLAIMER = "Information indicative : ne remplace pas l’avis d’un médecin ou d’un pharmacien. Ne commencez, n’arrêtez ni ne modifiez un traitement sans avis professionnel. En cas d’urgence, contactez les secours ou rendez-vous au centre de santé le plus proche.";
+
+export function MedicalDisclaimer({ compact = false }: { compact?: boolean }) {
+  const palette = usePremiumPalette();
+  return (
+    <View accessibilityRole="text" style={[styles.disclaimer, { backgroundColor: palette.cardMuted, borderColor: palette.border }]}>
+      <MaterialIcons name="health-and-safety" size={compact ? 16 : 18} color={palette.danger} />
+      <Text style={[compact ? styles.disclaimerTextCompact : styles.disclaimerText, { color: palette.text }]}>{MEDICAL_DISCLAIMER}</Text>
+    </View>
+  );
+}
+
 export function formatMedicinePrice(priceApprox?: number) {
   return priceApprox !== undefined ? `${priceApprox.toLocaleString("fr-FR")} FCFA` : "Prix variable";
 }
@@ -204,6 +217,7 @@ export function MedicineCard({ medicine }: { medicine: Medicine }) {
             </Pressable>
           </View>
           {medicine.description ? <Text style={[styles.description, { color: palette.muted }]}>{medicine.description}</Text> : null}
+          <MedicalDisclaimer compact />
         </View>
       ) : null}
     </Pressable>
@@ -304,6 +318,9 @@ const styles = StyleSheet.create({
   medicineImage: { width: 48, height: 48, borderRadius: 17 },
   medicineFallback: { width: 48, height: 48, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   description: { marginTop: 12, fontSize: 13, lineHeight: 20, fontWeight: "600" },
+  disclaimer: { marginTop: 12, flexDirection: "row", gap: 8, alignItems: "flex-start", borderRadius: 12, borderWidth: 1, padding: 10 },
+  disclaimerText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: "600" },
+  disclaimerTextCompact: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: "600" },
   resultRow: { marginHorizontal: 16, marginTop: 10, borderRadius: 20, padding: 13, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 12, shadowColor: "#092A13", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   resultIcon: { width: 42, height: 42, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   resultText: { flex: 1 },

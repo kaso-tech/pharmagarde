@@ -2,7 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import maplibregl, { type StyleSpecification } from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import type { DOMProps } from "expo/dom";
 import { useEffect, useRef } from "react";
 
@@ -23,6 +23,11 @@ type MapLibreViewProps = {
   userLocation?: { latitude: number; longitude: number } | null;
   satellite: boolean;
   styleUrl: string;
+  /** Style chargé si `styleUrl` échoue avant d'avoir pu s'afficher. */
+  fallbackStyleUrl?: string;
+  /** Style satellite sous licence ; absent, le mode satellite retombe sur `styleUrl`. */
+  satelliteStyleUrl?: string | null;
+  attribution?: string;
   selectedKey?: string | null;
   pharmacyColor: string;
   clinicColor: string;
@@ -33,22 +38,8 @@ type MapLibreViewProps = {
 const DEFAULT_CENTER: [number, number] = [-1.5197, 12.3714];
 const PIN_PATH = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z";
 
-const SATELLITE_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    satellite: {
-      type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: "Imagerie © Esri, Maxar, Earthstar Geographics · Lieux © contributeurs OpenStreetMap",
-    },
-  },
-  layers: [{ id: "satellite", type: "raster", source: "satellite" }],
-};
-
-function styleFor(satellite: boolean, styleUrl: string) {
-  return satellite ? SATELLITE_STYLE : styleUrl;
+function styleFor(satellite: boolean, styleUrl: string, satelliteStyleUrl?: string | null) {
+  return satellite && satelliteStyleUrl ? satelliteStyleUrl : styleUrl;
 }
 
 function createPinElement(color: string) {
@@ -78,13 +69,14 @@ function createPopupContent(place: MapLibrePlace) {
   return container;
 }
 
-export default function MapLibreView({ places, userLocation, satellite, styleUrl, selectedKey, pharmacyColor, clinicColor, onSelectPlace }: MapLibreViewProps) {
+export default function MapLibreView({ places, userLocation, satellite, styleUrl, fallbackStyleUrl, satelliteStyleUrl, attribution, selectedKey, pharmacyColor, clinicColor, onSelectPlace }: MapLibreViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef(new Map<string, { marker: maplibregl.Marker; element: HTMLButtonElement; place: MapLibrePlace }>());
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
   const onSelectRef = useRef(onSelectPlace);
-  const appliedStyleRef = useRef({ satellite, styleUrl });
+  const appliedStyleRef = useRef(styleFor(satellite, styleUrl, satelliteStyleUrl));
+  const initialOptionsRef = useRef({ fallbackStyleUrl, attribution });
 
   useEffect(() => {
     onSelectRef.current = onSelectPlace;
@@ -92,13 +84,27 @@ export default function MapLibreView({ places, userLocation, satellite, styleUrl
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const { satellite: initialSatellite, styleUrl: initialStyleUrl } = appliedStyleRef.current;
+    const { fallbackStyleUrl: fallback, attribution: customAttribution } = initialOptionsRef.current;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: styleFor(initialSatellite, initialStyleUrl),
+      style: appliedStyleRef.current,
       center: DEFAULT_CENTER,
       zoom: 12,
-      attributionControl: { compact: true },
+      attributionControl: { compact: true, customAttribution },
+    });
+
+    // Bascule une seule fois vers le style de secours si le style demandé ne se charge pas
+    // (fournisseur indisponible). Les erreurs de tuiles après chargement sont ignorées ici.
+    let styleLoaded = false;
+    let usedFallback = false;
+    map.on("style.load", () => {
+      styleLoaded = true;
+    });
+    map.on("error", () => {
+      if (styleLoaded || usedFallback || !fallback || appliedStyleRef.current === fallback) return;
+      usedFallback = true;
+      appliedStyleRef.current = fallback;
+      map.setStyle(fallback);
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     mapRef.current = map;
@@ -113,11 +119,11 @@ export default function MapLibreView({ places, userLocation, satellite, styleUrl
   }, []);
 
   useEffect(() => {
-    const applied = appliedStyleRef.current;
-    if (applied.satellite === satellite && applied.styleUrl === styleUrl) return;
-    appliedStyleRef.current = { satellite, styleUrl };
-    mapRef.current?.setStyle(styleFor(satellite, styleUrl));
-  }, [satellite, styleUrl]);
+    const next = styleFor(satellite, styleUrl, satelliteStyleUrl);
+    if (appliedStyleRef.current === next) return;
+    appliedStyleRef.current = next;
+    mapRef.current?.setStyle(next);
+  }, [satellite, styleUrl, satelliteStyleUrl]);
 
   useEffect(() => {
     const map = mapRef.current;

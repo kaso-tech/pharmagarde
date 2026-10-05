@@ -20,7 +20,7 @@ La version Expo de **PharmaGarde BF** est pensée pour une utilisation mobile en
 | Accueil / Pharmacies | Cartes de pharmacies proches provenant de l’API, distance, téléphone éventuel, adresse éventuelle. | Rechargement, favori, appel, itinéraire, recherche globale. |
 | Cliniques | Cartes de cliniques proches provenant de l’API. | Rechargement, favori, appel, itinéraire. |
 | Médicaments | Liste des médicaments essentiels provenant de l’API, image distante si fournie, catégorie, type. | Favori, recherche globale. |
-| Carte | Carte MapLibre (tuiles OpenFreeMap, imagerie Esri en mode satellite) identique sur web et mobile, avec les points pharmacie/clinique. | Ouverture d’itinéraire, différenciation pharmacie/clinique. |
+| Carte | Carte MapLibre (OpenFreeMap, secours VersaTiles ; satellite seulement si un fournisseur sous licence est configuré) identique sur web et mobile, avec les points pharmacie/clinique. | Ouverture d’itinéraire, différenciation pharmacie/clinique. |
 | Favoris | Vue consolidée des favoris enregistrés localement. | Retrait rapide des favoris et rappel du type d’élément. |
 | Recherche | Résultats fusionnés pharmacies, cliniques et médicaments. | Recherche textuelle sans authentification. |
 | Menu latéral | Paramètres et écrans d’information demandés : mode, langue, type de carte, ville, nouvelle pharmacie, confidentialité, conditions, aide, contact, à propos, signalement, abonnement. | Navigation vers des contenus informatifs et actions non bloquantes. |

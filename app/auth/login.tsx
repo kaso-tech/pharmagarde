@@ -81,6 +81,10 @@ export default function LoginScreen() {
             {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Se connecter</Text>}
           </Pressable>
 
+          <Pressable onPress={() => router.push("/auth/mot-de-passe-oublie")} style={({ pressed }) => [styles.secondaryButton, { opacity: pressed ? 0.72 : 1 }]}>
+            <Text style={[styles.secondaryButtonText, { color: palette.muted }]}>Mot de passe oublié ?</Text>
+          </Pressable>
+
           <Pressable onPress={() => router.push("/auth/register")} style={({ pressed }) => [styles.secondaryButton, { opacity: pressed ? 0.72 : 1 }]}>
             <Text style={[styles.secondaryButtonText, { color: palette.brand }]}>Créer un compte</Text>
           </Pressable>

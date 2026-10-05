@@ -2,7 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { AppChrome, EmptyState, MedicineCard } from "@/components/pharmagarde/app-ui";
+import { AppChrome, EmptyState, MedicalDisclaimer, MedicineCard } from "@/components/pharmagarde/app-ui";
 import { useAuth } from "@/hooks/use-auth";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { Medicine } from "@/lib/pharmagarde/types";
@@ -41,6 +41,7 @@ export default function MedicinesScreen() {
         <Text style={styles.kicker}>Référentiel Burkina Faso</Text>
         <Text style={styles.title}>Médicaments essentiels</Text>
         <Text style={styles.description}>Catalogue indicatif de médicaments courants avec catégorie, forme pharmaceutique et prix approximatif en FCFA. Les prix peuvent varier selon la ville et la disponibilité.</Text>
+        <MedicalDisclaimer />
       </View>
     </View>
   );

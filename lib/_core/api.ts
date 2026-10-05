@@ -119,10 +119,33 @@ export async function exchangeOAuthCode(
   };
 }
 
-export async function register(payload: { phone: string; email?: string | null; password: string; confirmPassword?: string }): Promise<AuthApiResponse> {
+// Envoie par SMS le code qui prouve la possession du numéro avant l'inscription.
+export async function requestRegisterCode(phone: string): Promise<{ success: true }> {
+  return apiCall<{ success: true }>("/api/auth/register/request-code", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function requestPasswordReset(phone: string): Promise<{ success: true }> {
+  return apiCall<{ success: true }>("/api/auth/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function confirmPasswordReset(payload: { phone: string; code: string; password: string; confirmPassword: string }): Promise<{ success: true }> {
+  return apiCall<{ success: true }>("/api/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function register(payload: { phone: string; email?: string | null; password: string; confirmPassword?: string; code: string }): Promise<AuthApiResponse> {
   const body = {
     phone: payload.phone,
     password: payload.password,
+    code: payload.code,
     ...(payload.email ? { email: payload.email } : {}),
   };
 

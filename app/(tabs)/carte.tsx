@@ -1,6 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Animated, FlatList, Linking, PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { AppChrome, localPlaceTypeLabel } from "@/components/pharmagarde/app-ui";
@@ -167,8 +167,9 @@ export default function CarteScreen() {
   const [expandedPlaceId, setExpandedPlaceId] = useState<string | undefined>();
   const sheetHeight = Math.min(Math.max(height * 0.66, 440), 640);
   const snap = useMemo(() => ({ full: 0, mid: sheetHeight * 0.42, min: sheetHeight - 104 }), [sheetHeight]);
-  const translateY = useRef(new Animated.Value(snap.mid)).current;
-  const dragStart = useRef(snap.mid);
+  const [translateY] = useState(() => new Animated.Value(snap.mid));
+  // Position de départ du geste, lue et écrite uniquement dans les callbacks du PanResponder.
+  const [dragStart] = useState(() => ({ current: snap.mid }));
 
   const selectedPlace = visiblePlaces.find((place) => keyFor(place) === selectedId) ?? visiblePlaces[0];
 
@@ -194,7 +195,7 @@ export default function CarteScreen() {
       haptic.light();
       animateTo(nearest);
     },
-  }), [animateTo, snap.full, snap.mid, snap.min, translateY]);
+  }), [animateTo, dragStart, snap.full, snap.mid, snap.min, translateY]);
 
   const selectPlace = (place: HealthPlace) => {
     setSelectedId(keyFor(place));

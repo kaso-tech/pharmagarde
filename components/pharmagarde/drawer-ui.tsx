@@ -1,5 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
+import { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
 import { useColors } from "@/hooks/use-colors";
@@ -190,11 +190,12 @@ export function DrawerSelectionModal<T extends string>({
 }) {
   const palette = useDrawerPalette();
   const [mounted, setMounted] = useState(visible);
-  const progress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const [progress] = useState(() => new Animated.Value(visible ? 1 : 0));
+  // Monte la modale dès qu'elle devient visible (ajustement d'état pendant le rendu, sans effet).
+  if (visible && !mounted) setMounted(true);
 
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       Animated.timing(progress, {
         toValue: 1,
         duration: 190,

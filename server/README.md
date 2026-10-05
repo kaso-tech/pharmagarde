@@ -578,6 +578,9 @@ Keep this channel for owner-facing alerts; end-user messaging should flow throug
 | `GET /confidentialite` | Politique de confidentialité (URL à déclarer sur l'App Store et Google Play). Texte source : `shared/privacy-policy.ts`, partagé avec l'écran de l'app. |
 | `GET /compte/suppression` | Explique comment supprimer son compte (URL « suppression de compte » exigée par Google Play). |
 | `POST /api/auth/delete-account` | Supprime le compte connecté ; mot de passe requis pour les comptes téléphone/mot de passe. Données personnelles effacées, paiements conservés sans lien d'identité. |
+| `POST /api/auth/register/request-code` | Envoie par SMS le code de vérification du numéro ; `POST /api/auth/register` exige ensuite `code`. |
+| `POST /api/auth/password-reset/request` | Envoie un code de réinitialisation si le numéro a un compte (réponse identique sinon). |
+| `POST /api/auth/password-reset/confirm` | `{ phone, code, password, confirmPassword }` : change le mot de passe si le code est valide. |
 
 L'identité de l'app (nom, bundle ID `com.pharmagarde.app`, schéma `pharmagarde://`, e-mail de support) est définie dans `app-identity.js`.
 
@@ -601,6 +604,9 @@ Available environment variables:
 | `TRUST_PROXY` | Nombre de proxys de confiance devant le serveur (ex. `1`). Absent : `X-Forwarded-For` est ignoré. À régler pour que la limitation de débit voie la vraie IP du client. |
 | `PUBLIC_APP_URL` | URL publique de l'app, utilisée pour le retour de paiement Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
 | `PUBLIC_API_URL` | URL publique de l'API, utilisée pour le callback Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
+| `SMS_WEBHOOK_URL` | Webhook d'envoi des SMS (codes de vérification et de réinitialisation). Reçoit `POST` JSON `{ "to": "+226…", "message": "…", "sender": "…" }` ; toute réponse 2xx vaut succès. **Obligatoire en production** pour l'inscription et le mot de passe oublié ; en développement, sans webhook, le code s'affiche dans la console du serveur. |
+| `SMS_WEBHOOK_TOKEN` | Jeton envoyé en `Authorization: Bearer …` au webhook SMS (facultatif). |
+| `SMS_SENDER_NAME` | Nom d'expéditeur transmis au webhook (défaut `PharmaGarde`). |
 | `OSM_OVERPASS_URL` | Endpoint Overpass pour collecter pharmacies et structures de santé OpenStreetMap (défaut : `https://overpass-api.de/api/interpreter`). En production, préférer une instance dédiée. |
 | `PHARMAGARDE_OSM_RADIUS_METERS` | Rayon de collecte autour de chaque ville (défaut `15000`). |
 | `PHARMAGARDE_OSM_REQUEST_DELAY_MS` | Pause entre deux requêtes Overpass (défaut `1000`), pour respecter la politique d'usage de l'instance publique. |
@@ -612,6 +618,9 @@ Expo runtime variables (prefixed with `EXPO_PUBLIC_`):
 | `EXPO_PUBLIC_APP_ID` | App ID for OAuth |
 | `EXPO_PUBLIC_API_BASE_URL` | API server URL |
 | `EXPO_PUBLIC_OAUTH_PORTAL_URL` | Login portal URL |
+| `EXPO_PUBLIC_MAPLIBRE_STYLE_URL` | Style de carte principal (défaut OpenFreeMap). |
+| `EXPO_PUBLIC_MAPLIBRE_FALLBACK_STYLE_URL` | Style de secours si le principal est indisponible (défaut VersaTiles). |
+| `EXPO_PUBLIC_MAPLIBRE_SATELLITE_STYLE_URL` | Style satellite d'un fournisseur sous licence (ex. MapTiler avec clé). Absent : le mode satellite est masqué. |
 
 ---
 

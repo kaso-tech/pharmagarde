@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "expo-router";
-import { PropsWithChildren, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { PropsWithChildren, ReactNode, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -158,13 +158,14 @@ function DrawerBackdrop({ dark }: { dark: boolean }) {
 function DrawerOverlay({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { width } = useWindowDimensions();
   const palette = usePremiumPalette();
-  const progress = useRef(new Animated.Value(0)).current;
+  const [progress] = useState(() => new Animated.Value(0));
   const [mounted, setMounted] = useState(visible);
   const drawerWidth = Math.min(Math.max(width * 0.82, 320), width * 0.88, 420);
+  // Monte le tiroir dès qu'il devient visible (ajustement d'état pendant le rendu, sans effet).
+  if (visible && !mounted) setMounted(true);
 
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       Animated.timing(progress, { toValue: 1, duration: 260, useNativeDriver: true }).start();
       return;
     }
@@ -195,7 +196,7 @@ export function GlobalAppShell({ children, subtitle, showFooter = true, rightAcc
   const pathname = usePathname();
   const palette = usePremiumPalette();
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const contentOpacity = useRef(new Animated.Value(1)).current;
+  const [contentOpacity] = useState(() => new Animated.Value(1));
   const title = useMemo(() => titleForPath(pathname, subtitle), [pathname, subtitle]);
 
   useEffect(() => {

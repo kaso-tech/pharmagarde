@@ -4,6 +4,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
+import * as Api from "@/lib/_core/api";
 import { formatBurkinaPhone, normalizeEmail, normalizePhone, validateRegisterForm } from "@/lib/pharmagarde/auth-validation";
 import { usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 
@@ -20,17 +21,41 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // L5 : un code SMS prouve la possession du numéro avant la création du compte.
+  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   const errors = useMemo(() => validateRegisterForm({ phone, email, password, confirmPassword }), [phone, email, password, confirmPassword]);
   const isValid = !errors.phone && !errors.email && !errors.password && !errors.confirmPassword;
 
-  const submit = async () => {
+  const normalizedPhone = normalizePhone(phone);
+  const codeStep = codeSentTo !== null && codeSentTo === normalizedPhone;
+  const codeValid = /^\d{6}$/.test(code.replace(/\s+/g, ""));
+
+  const requestCode = async () => {
     if (!isValid || loading) return;
     setLoading(true);
     setSubmitError(null);
     setSuccess(null);
     try {
-      await register({ phone: normalizePhone(phone), email: normalizeEmail(email), password, confirmPassword, rememberMe });
+      await Api.requestRegisterCode(normalizedPhone);
+      setCodeSentTo(normalizedPhone);
+      setCode("");
+      setSuccess(`Code envoyé par SMS au ${formatBurkinaPhone(phone)}.`);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Envoi du code impossible.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submit = async () => {
+    if (!isValid || !codeValid || loading) return;
+    setLoading(true);
+    setSubmitError(null);
+    setSuccess(null);
+    try {
+      await register({ phone: normalizedPhone, email: normalizeEmail(email), password, confirmPassword, code, rememberMe });
       setSuccess("Compte créé avec succès. Redirection en cours…");
       setTimeout(() => router.replace("/(tabs)"), 650);
     } catch (error) {
@@ -64,12 +89,27 @@ export default function RegisterScreen() {
               <Switch value={rememberMe} onValueChange={setRememberMe} trackColor={{ false: palette.border, true: palette.softGreen }} thumbColor={rememberMe ? palette.brand : "#f4f4f5"} />
             </View>
 
+            {codeStep ? (
+              <Field label="Code reçu par SMS" value={code} onChangeText={setCode} placeholder="6 chiffres" keyboardType="phone-pad" helper="Le code expire après 10 minutes." />
+            ) : null}
+
             {submitError ? <Text style={styles.errorBanner}>{submitError}</Text> : null}
             {success ? <Text style={styles.successBanner}>{success}</Text> : null}
 
-            <Pressable onPress={submit} disabled={!isValid || loading} style={({ pressed }) => [styles.primaryButton, { backgroundColor: isValid ? palette.brand : palette.border, opacity: pressed ? 0.86 : 1 }]}> 
-              {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Créer mon compte</Text>}
-            </Pressable>
+            {codeStep ? (
+              <>
+                <Pressable onPress={submit} disabled={!isValid || !codeValid || loading} style={({ pressed }) => [styles.primaryButton, { backgroundColor: isValid && codeValid ? palette.brand : palette.border, opacity: pressed ? 0.86 : 1 }]}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Créer mon compte</Text>}
+                </Pressable>
+                <Pressable onPress={requestCode} disabled={loading} style={({ pressed }) => [styles.secondaryButton, { opacity: pressed ? 0.72 : 1 }]}>
+                  <Text style={[styles.secondaryButtonText, { color: palette.brand }]}>Renvoyer le code</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable onPress={requestCode} disabled={!isValid || loading} style={({ pressed }) => [styles.primaryButton, { backgroundColor: isValid ? palette.brand : palette.border, opacity: pressed ? 0.86 : 1 }]}>
+                {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Recevoir le code par SMS</Text>}
+              </Pressable>
+            )}
 
             <Pressable onPress={() => router.push("/auth/login")} style={({ pressed }) => [styles.secondaryButton, { opacity: pressed ? 0.72 : 1 }]}> 
               <Text style={[styles.secondaryButtonText, { color: palette.brand }]}>J’ai déjà un compte</Text>
