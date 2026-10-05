@@ -182,3 +182,10 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   if (!db) throw new Error("DATABASE_UNAVAILABLE");
   await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
 }
+
+/** Révoque toutes les sessions ouvertes du compte (les jetons émis avant maintenant sont refusés). */
+export async function revokeUserSessions(userId: number, at = new Date()) {
+  const db = await getDb();
+  if (!db) throw new Error("DATABASE_UNAVAILABLE");
+  await db.update(users).set({ sessionsValidAfter: at }).where(eq(users.id, userId));
+}

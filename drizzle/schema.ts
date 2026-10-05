@@ -19,6 +19,8 @@ export const users = mysqlTable("users", {
   passwordHash: text("passwordHash"),
   /** Date de vérification du numéro par code SMS ; null pour les comptes créés avant cette vérification. */
   phoneVerifiedAt: timestamp("phoneVerifiedAt"),
+  /** Les jetons de session émis avant cette date sont refusés (déconnexion de tous les appareils). */
+  sessionsValidAfter: timestamp("sessionsValidAfter"),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   /** Subscription end date. A user is premium only when this value is in the future. */

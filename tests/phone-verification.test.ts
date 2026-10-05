@@ -114,12 +114,14 @@ describe("webhook SMS générique", () => {
 
 const getUserByPhone = vi.fn();
 const updateUserPassword = vi.fn();
+const revokeUserSessions = vi.fn();
 const issueVerificationCodeMock = vi.fn();
 const verifyCodeMock = vi.fn();
 
 vi.mock("../server/db", () => ({
   getUserByPhone: (phone: string) => getUserByPhone(phone),
   updateUserPassword: (id: number, hash: string) => updateUserPassword(id, hash),
+  revokeUserSessions: (id: number) => revokeUserSessions(id),
 }));
 // Les routes appellent issueVerificationCode/verifyCode sans store (arguments par défaut) : ces
 // appels-là sont simulés. Les tests unitaires ci-dessus passent un store explicite et gardent
@@ -175,6 +177,7 @@ describe("routes SMS (L4, L5)", async () => {
   beforeEach(() => {
     getUserByPhone.mockReset();
     updateUserPassword.mockReset();
+    revokeUserSessions.mockReset();
     issueVerificationCodeMock.mockReset();
     verifyCodeMock.mockReset();
   });
@@ -214,6 +217,8 @@ describe("routes SMS (L4, L5)", async () => {
     const accepted = await call(routes["/api/auth/password-reset/confirm"], { phone: "+22670123456", code: "123456", password: "nouveau-mdp", confirmPassword: "nouveau-mdp" });
     expect(accepted.statusCode).toBe(200);
     expect(updateUserPassword).toHaveBeenCalledWith(9, expect.stringMatching(/^scrypt:/));
+    // S7 : toutes les sessions ouvertes sont révoquées après la réinitialisation.
+    expect(revokeUserSessions).toHaveBeenCalledWith(9);
   });
 
   it("L4 : refuse un nouveau mot de passe trop court avant de consommer le code", async () => {

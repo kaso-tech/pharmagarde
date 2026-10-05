@@ -20,6 +20,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     phone: "+22670000000",
     passwordHash: null,
     phoneVerifiedAt: null,
+    sessionsValidAfter: null,
     name: "Sample User",
     loginMethod: "manus",
     role: "user",

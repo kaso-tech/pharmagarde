@@ -1,6 +1,6 @@
-import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
+import { COOKIE_NAME, SESSION_TTL_MS } from "../../shared/const.js";
 import type { Express, Request, Response } from "express";
-import { createLocalAuthUser, getUserByEmail, getUserByOpenId, getUserByPhone, getUserByPhoneOrEmail, upsertUser } from "../db";
+import { createLocalAuthUser, getUserByEmail, getUserByOpenId, getUserByPhone, getUserByPhoneOrEmail, revokeUserSessions, upsertUser } from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { buildLocalOpenId, hashPassword, validateLoginPayload, validateRegisterPayload, verifyPassword } from "./local-auth";
@@ -37,42 +37,6 @@ const registerRateLimit = createRateLimiter({
   key: clientIpKey,
   message: "Trop de créations de compte depuis cette connexion. Réessayez plus tard.",
 });
-
-function getQueryParam(req: Request, key: string): string | undefined {
-  const value = req.query[key];
-  return typeof value === "string" ? value : undefined;
-}
-
-async function syncUser(userInfo: {
-  openId?: string | null;
-  name?: string | null;
-  email?: string | null;
-  loginMethod?: string | null;
-  platform?: string | null;
-}) {
-  if (!userInfo.openId) {
-    throw new Error("openId missing from user info");
-  }
-
-  const lastSignedIn = new Date();
-  await upsertUser({
-    openId: userInfo.openId,
-    name: userInfo.name || null,
-    email: userInfo.email ?? null,
-    loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-    lastSignedIn,
-  });
-  const saved = await getUserByOpenId(userInfo.openId);
-  return (
-    saved ?? {
-      openId: userInfo.openId,
-      name: userInfo.name,
-      email: userInfo.email,
-      loginMethod: userInfo.loginMethod ?? null,
-      lastSignedIn,
-    }
-  );
-}
 
 function buildUserResponse(
   user:
@@ -145,9 +109,9 @@ export function registerOAuthRoutes(app: Express) {
           return;
         }
 
-        const token = await sdk.createSessionToken(openId, { name: validation.phone, expiresInMs: ONE_YEAR_MS });
+        const token = await sdk.createSessionToken(openId, { name: validation.phone, expiresInMs: SESSION_TTL_MS });
         const cookieOptions = getSessionCookieOptions(req);
-        res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: SESSION_TTL_MS });
         res.status(201).json({ token, user: buildUserResponse(user) });
       } catch (e) {
         console.error(e);
@@ -173,9 +137,9 @@ export function registerOAuthRoutes(app: Express) {
 
         await upsertUser({ openId: user.openId, lastSignedIn: new Date() });
         const refreshedUser = (await getUserByOpenId(user.openId)) ?? user;
-        const token = await sdk.createSessionToken(user.openId, { name: user.phone ?? user.email ?? user.openId, expiresInMs: ONE_YEAR_MS });
+        const token = await sdk.createSessionToken(user.openId, { name: user.phone ?? user.email ?? user.openId, expiresInMs: SESSION_TTL_MS });
         const cookieOptions = getSessionCookieOptions(req);
-        res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: SESSION_TTL_MS });
         res.json({ token, user: buildUserResponse(refreshedUser) });
       } catch (error) {
         console.error("[Auth] login failed", error);
@@ -186,79 +150,6 @@ export function registerOAuthRoutes(app: Express) {
 
   registerLocalAuthRoutes("/auth");
   registerLocalAuthRoutes("/api/auth");
-  app.get("/api/oauth/callback", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
-
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      const user = await syncUser(userInfo);
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      // Redirect to the frontend callback route with the session token so the app can
-      // persist it and attach Authorization: Bearer <token> to every protected tRPC call.
-      // The cookie remains set as a compatibility fallback for browser-based sessions.
-      const frontendUrl =
-        process.env.EXPO_WEB_PREVIEW_URL ||
-        process.env.EXPO_PACKAGER_PROXY_URL ||
-        "http://localhost:8081";
-      const callbackUrl = new URL("/oauth/callback", frontendUrl);
-      callbackUrl.searchParams.set("sessionToken", sessionToken);
-      callbackUrl.searchParams.set(
-        "user",
-        Buffer.from(JSON.stringify(buildUserResponse(user)), "utf-8").toString("base64"),
-      );
-      res.redirect(302, callbackUrl.toString());
-    } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
-    }
-  });
-
-  app.get("/api/oauth/mobile", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
-
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      const user = await syncUser(userInfo);
-
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      res.json({
-        app_session_id: sessionToken,
-        user: buildUserResponse(user),
-      });
-    } catch (error) {
-      console.error("[OAuth] Mobile exchange failed", error);
-      res.status(500).json({ error: "OAuth mobile exchange failed" });
-    }
-  });
-
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     const cookieOptions = getSessionCookieOptions(req);
     res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -273,6 +164,20 @@ export function registerOAuthRoutes(app: Express) {
     } catch (error) {
       console.error("[Auth] /api/auth/me failed:", error);
       res.status(401).json({ error: "Not authenticated", user: null });
+    }
+  });
+
+  // Déconnecte tous les appareils : les jetons émis jusqu'ici sont refusés (S7).
+  app.post("/api/auth/logout-all", async (req: Request, res: Response) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      await revokeUserSessions(user.id);
+      const cookieOptions = getSessionCookieOptions(req);
+      res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Auth] /api/auth/logout-all failed:", error instanceof Error ? error.message : error);
+      res.status(401).json({ error: "Connexion requise." });
     }
   });
 
@@ -294,7 +199,7 @@ export function registerOAuthRoutes(app: Express) {
 
       // Set cookie for this domain (3000-xxx)
       const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: SESSION_TTL_MS });
 
       res.json({ success: true, user: buildUserResponse(user) });
     } catch (error) {

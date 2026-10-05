@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 import { hashPassword, isValidPhone, MIN_PASSWORD_LENGTH, normalizePhone } from "./_core/local-auth";
 import { clientIpKey, createRateLimiter } from "./_core/security";
 import { SmsUnavailableError } from "./_core/sms";
-import { getUserByPhone, updateUserPassword } from "./db";
+import { getUserByPhone, revokeUserSessions, updateUserPassword } from "./db";
 import { issueVerificationCode, VERIFY_ERROR_MESSAGES, verifyCode } from "./verification-codes";
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
@@ -120,6 +120,8 @@ async function handlePasswordResetConfirm(req: Request, res: Response) {
       return;
     }
     await updateUserPassword(user.id, hashPassword(password));
+    // Un mot de passe réinitialisé ferme toutes les sessions ouvertes, y compris celles d'un tiers.
+    await revokeUserSessions(user.id);
     res.json({ success: true });
   } catch (error) {
     sendFailure(res, error, "Réinitialisation du mot de passe impossible");

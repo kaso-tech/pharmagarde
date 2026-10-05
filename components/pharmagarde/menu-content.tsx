@@ -53,7 +53,7 @@ export function MenuContent({ onClose }: MenuContentProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { preferences, updatePreference } = usePharmaGarde();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, logoutAllDevices } = useAuth();
   const colors = useColors();
   const [selector, setSelector] = useState<SelectorKey | null>(null);
 
@@ -66,6 +66,12 @@ export function MenuContent({ onClose }: MenuContentProps) {
 
   const handleLogout = async () => {
     await logout();
+    onClose();
+    router.replace("/(tabs)" as never);
+  };
+
+  const handleLogoutAllDevices = async () => {
+    await logoutAllDevices().catch(() => undefined);
     onClose();
     router.replace("/(tabs)" as never);
   };
@@ -128,6 +134,12 @@ export function MenuContent({ onClose }: MenuContentProps) {
                 title="Se déconnecter"
                 active={false}
                 onPress={handleLogout}
+              />
+              <DrawerActionRow
+                icon="devices"
+                title="Déconnecter tous mes appareils"
+                active={false}
+                onPress={handleLogoutAllDevices}
               />
               <DrawerActionRow
                 icon="person-remove"
