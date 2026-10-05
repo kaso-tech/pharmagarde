@@ -38,7 +38,7 @@ describe("abonnement premium backend", () => {
   it("expose les routes /payment/init, /payment/webhook et le statut premium côté serveur", () => {
     const entry = read("server/_core/index.ts");
     const routers = read("server/routers.ts");
-    expect(entry).toContain('app.post("/payment/init", initPremiumPayment)');
+    expect(entry).toContain('app.post("/payment/init", paymentInitRateLimit, initPremiumPayment)');
     expect(entry).toContain('app.get("/pharmagarde/abonnement", handlePremiumPaymentReturn)');
     expect(entry).toContain('app.post("/payment/callback", handleLigdiCashWebhook)');
     expect(entry).toContain('app.post("/payment/webhook", handleLigdiCashWebhook)');
@@ -109,7 +109,7 @@ describe("abonnement premium backend", () => {
     expect(premium).toContain("callback_url: input.callbackUrl");
     expect(premium).toContain("return_url: input.returnUrl");
     expect(premium).toContain("custom_data: { reference: input.reference, transaction_id: input.reference }");
-    expect(premium).toContain("const callbackUrl = `${callbackBaseUrl}/payment/callback`");
+    expect(premium).toContain("const callbackUrl = `${publicUrls.apiUrl}/payment/callback`");
   });
 
   it("vérifie le statut auprès de Ligdi Cash avant toute activation d’abonnement", () => {

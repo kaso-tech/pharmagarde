@@ -114,8 +114,9 @@ describe("cache backend PharmaGarde", () => {
       pharmacies: [{ id: "ph-1", name: "Pharmacie Centrale", city: "Ouagadougou" }],
       meta: { cache: "server-local-cache-by-city", kind: "pharmacies", itemCount: 1, totalItemCount: 1, stale: false },
     });
-    expect(healthcareResponse.headers["Access-Control-Allow-Origin"]).toBe("https://preview.example");
-    expect(healthcareResponse.headers["Access-Control-Allow-Credentials"]).toBe("true");
+    // Origine non autorisée : aucun en-tête CORS (voir server/_core/security.ts).
+    expect(healthcareResponse.headers["Access-Control-Allow-Origin"]).toBeUndefined();
+    expect(healthcareResponse.headers["Access-Control-Allow-Credentials"]).toBeUndefined();
     expect(healthcareResponse.body).toMatchObject({
       healthcare: [{ id: "cl-1", name: "Clinique du Centre", city: "Ouagadougou" }],
       meta: { cache: "server-local-cache-by-city", kind: "healthcare", itemCount: 1, totalItemCount: 1, stale: false },

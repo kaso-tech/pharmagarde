@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { applyCorsHeaders } from "./_core/security";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
 export type CacheKind = "pharmacies" | "healthcare";
@@ -647,16 +648,8 @@ function maybeUnrefTimer(timer: ReturnType<typeof setInterval>) {
   candidate.unref?.();
 }
 
-function withPublicCorsHeaders(req: Request, res: Response) {
-  const origin = req.headers?.origin;
-  if (origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-}
-
 function withCacheHeaders(req: Request, res: Response, kind: CacheKind) {
-  withPublicCorsHeaders(req, res);
+  applyCorsHeaders(req, res);
   const state = memoryCache[kind];
   res.setHeader("Cache-Control", kind === "pharmacies" ? "public, max-age=300, stale-while-revalidate=86400" : "public, max-age=1800, stale-while-revalidate=604800");
   if (state.updatedAt) res.setHeader("Last-Modified", new Date(state.updatedAt).toUTCString());
@@ -711,7 +704,7 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
 
 async function sendMedicinesDataset(req: Request, res: Response) {
   const isPremium = await getPremiumAccessFromRequest(req);
-  withPublicCorsHeaders(req, res);
+  applyCorsHeaders(req, res);
   res.setHeader("Cache-Control", "private, no-store");
   res.setHeader("X-PharmaGarde-Premium", isPremium ? "true" : "false");
   if (!isPremium) {

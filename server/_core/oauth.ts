@@ -4,6 +4,38 @@ import { createLocalAuthUser, getUserByEmail, getUserByOpenId, getUserByPhone, g
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { buildLocalOpenId, hashPassword, validateLoginPayload, validateRegisterPayload, verifyPassword } from "./local-auth";
+import { clientIpKey, createRateLimiter } from "./security";
+
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+
+// Partagés entre /auth et /api/auth pour que les deux chemins consomment le même quota.
+const loginIpRateLimit = createRateLimiter({
+  name: "login-ip",
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 30,
+  key: clientIpKey,
+  message: "Trop de tentatives de connexion. Réessayez dans quelques minutes.",
+});
+
+// Limite par compte visé : bloque la force brute sur un numéro même si l'attaquant change d'IP.
+const loginAccountRateLimit = createRateLimiter({
+  name: "login-account",
+  windowMs: FIFTEEN_MINUTES_MS,
+  max: 10,
+  key: (req) => {
+    const validation = validateLoginPayload(req.body);
+    return validation.ok ? validation.identifier : undefined;
+  },
+  message: "Trop de tentatives de connexion pour ce compte. Réessayez dans quelques minutes.",
+});
+
+const registerRateLimit = createRateLimiter({
+  name: "register-ip",
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  key: clientIpKey,
+  message: "Trop de créations de compte depuis cette connexion. Réessayez plus tard.",
+});
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -66,8 +98,7 @@ function buildUserResponse(
 export function registerOAuthRoutes(app: Express) {
 
   const registerLocalAuthRoutes = (path: string) => {
-    app.post(`${path}/register`, async (req: Request, res: Response) => {
-      console.log("[Auth] register req.body", req.body);
+    app.post(`${path}/register`, registerRateLimit, async (req: Request, res: Response) => {
       const validation = validateRegisterPayload(req.body);
       if (!validation.ok) {
         res.status(400).json({ error: "Validation échouée", errors: validation.errors });
@@ -116,7 +147,7 @@ export function registerOAuthRoutes(app: Express) {
       }
     });
 
-    app.post(`${path}/login`, async (req: Request, res: Response) => {
+    app.post(`${path}/login`, loginIpRateLimit, loginAccountRateLimit, async (req: Request, res: Response) => {
       const validation = validateLoginPayload(req.body);
       if (!validation.ok) {
         res.status(400).json({ error: "Validation échouée", errors: validation.errors });

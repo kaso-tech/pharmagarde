@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { transactions, users, type InsertTransaction, type User } from "../drizzle/schema";
 import { getDb } from "./db";
+import { getPublicPaymentUrls } from "./_core/security";
 import { sdk } from "./_core/sdk";
 
 export type PremiumPlanId = "week" | "month" | "quarter" | "semester";
@@ -346,13 +347,19 @@ export async function initPremiumPayment(req: Request, res: Response) {
     const user = await getAuthenticatedDbUser(req);
     if (!user) return res.status(401).json({ error: "Connexion requise pour souscrire à Premium." });
 
+    let publicUrls: ReturnType<typeof getPublicPaymentUrls>;
+    try {
+      publicUrls = getPublicPaymentUrls();
+    } catch (error) {
+      console.error("[PremiumPayment] URLs publiques invalides", error instanceof Error ? error.message : error);
+      return res.status(503).json({ error: "Paiement indisponible : configuration serveur incomplète." });
+    }
+
     const { planId } = paymentInitSchema.parse(req.body ?? {});
     const plan = PREMIUM_PLANS[planId];
     const reference = `pg-${user.id}-${planId}-${Date.now()}`;
-    const publicBaseUrl = process.env.PUBLIC_APP_URL ?? `${req.protocol}://${req.get("host")}`;
-    const callbackBaseUrl = process.env.PUBLIC_API_URL ?? `${req.protocol}://${req.get("host")}`;
-    const returnUrl = `${publicBaseUrl}/pharmagarde/abonnement?paymentReference=${encodeURIComponent(reference)}`;
-    const callbackUrl = `${callbackBaseUrl}/payment/callback`;
+    const returnUrl = `${publicUrls.appUrl}/pharmagarde/abonnement?paymentReference=${encodeURIComponent(reference)}`;
+    const callbackUrl = `${publicUrls.apiUrl}/payment/callback`;
 
     const payment = await createLigdiCashPayment({
       amount: plan.amount,

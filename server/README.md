@@ -586,6 +586,11 @@ Available environment variables:
 | `OWNER_NAME` | Owner's display name |
 | `BUILT_IN_FORGE_API_URL` | Manus API endpoint |
 | `BUILT_IN_FORGE_API_KEY` | Manus API key |
+| `CORS_ALLOWED_ORIGINS` | Origines web autorisées à appeler l'API avec credentials, séparées par des virgules (ex. `https://app.pharmagarde.bf`). Hors production, `localhost` est toujours autorisé. |
+| `SESSION_COOKIE_SAMESITE` | `lax` par défaut ; `none` seulement pour une prévisualisation en iframe cross-site (HTTPS requis). |
+| `TRUST_PROXY` | Nombre de proxys de confiance devant le serveur (ex. `1`). Absent : `X-Forwarded-For` est ignoré. À régler pour que la limitation de débit voie la vraie IP du client. |
+| `PUBLIC_APP_URL` | URL publique de l'app, utilisée pour le retour de paiement Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
+| `PUBLIC_API_URL` | URL publique de l'API, utilisée pour le callback Ligdi Cash. **Obligatoire** pour encaisser (HTTPS en production). |
 
 Expo runtime variables (prefixed with `EXPO_PUBLIC_`):
 

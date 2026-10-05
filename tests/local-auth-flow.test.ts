@@ -59,8 +59,8 @@ describe("authentification locale PharmaGarde", () => {
     expect(validation.validateRegisterForm({
       phone: "70 12 34 56",
       email: "patient@example.com",
-      password: "secret1",
-      confirmPassword: "secret1",
+      password: "secret12",
+      confirmPassword: "secret12",
     })).toEqual({});
 
     expect(validation.validateRegisterForm({
@@ -71,7 +71,7 @@ describe("authentification locale PharmaGarde", () => {
     })).toMatchObject({
       phone: "Téléphone obligatoire.",
       email: "Adresse email invalide.",
-      password: "Le mot de passe doit contenir au moins 6 caractères.",
+      password: "Le mot de passe doit contenir au moins 8 caractères.",
       confirmPassword: "La confirmation doit correspondre au mot de passe.",
     });
   });
