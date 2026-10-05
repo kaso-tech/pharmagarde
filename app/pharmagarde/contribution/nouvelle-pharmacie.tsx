@@ -5,7 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { AppChrome } from "@/components/pharmagarde/app-ui";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 
-const BRAND_GREEN = "#03C04A";
+const BRAND_GREEN = "#008000";
 
 type PharmacyForm = {
   name: string;

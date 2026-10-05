@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Coordinates, HealthPlace, MapPreference } from "@/lib/pharmagarde/types";
 
-const GREEN = "#03C04A";
+const GREEN = "#008000";
 const BLUE = "#0B74DE";
 const DEFAULT_CENTER = { latitude: 12.3714, longitude: -1.5197 };
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";

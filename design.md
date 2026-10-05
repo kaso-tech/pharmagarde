@@ -7,7 +7,7 @@ La version Expo de **PharmaGarde BF** est pensée pour une utilisation mobile en
 | Élément de design | Décision |
 |---|---|
 | Style | Mobile moderne inspiré des interfaces iOS : surfaces claires, cartes arrondies, typographie lisible, actions immédiates. |
-| Couleur principale | **#03C04A**, vert santé demandé pour les actions prioritaires et les éléments actifs. |
+| Couleur principale | **#008000**, vert santé demandé pour les actions prioritaires et les éléments actifs. |
 | Couleur secondaire | **#0B74DE**, bleu clinique utilisé pour distinguer les cliniques et les repères médicaux non pharmaceutiques. |
 | Fond | **#F6FBF8**, fond vert très pâle pour réduire la fatigue visuelle. |
 | Texte principal | **#102016**, contraste fort sur fond clair. |

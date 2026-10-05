@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 
 import { AppChrome } from "@/components/pharmagarde/app-ui";
 
-const BRAND_GREEN = "#03C04A";
+const BRAND_GREEN = "#008000";
 
 const CATEGORIES = ["Information incorrecte", "Pharmacie fermée", "Position carte", "Prix médicament", "Autre"];
 
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   chip: { borderRadius: 10, borderWidth: 1, borderColor: "#D6EBDD", backgroundColor: "#FFFFFF", paddingHorizontal: 12, paddingVertical: 8 },
   activeChip: { backgroundColor: "#EAF8EF", borderColor: BRAND_GREEN },
   chipText: { color: "#475467", fontSize: 13, fontWeight: "800" },
-  activeChipText: { color: "#02983B" },
+  activeChipText: { color: "#006400" },
   successBox: { flexDirection: "row", alignItems: "flex-start", gap: 9, borderRadius: 10, padding: 12, backgroundColor: "#EAF8EF", borderWidth: 1, borderColor: "#CBE7D3" },
   successText: { flex: 1, color: "#102016", fontSize: 13, lineHeight: 19, fontWeight: "700" },
   button: { minHeight: 50, borderRadius: 10, backgroundColor: BRAND_GREEN, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9 },

@@ -414,7 +414,7 @@ function renderPaymentReturnPage(params: { paymentReference?: string; reference?
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4fbf7; color: #102016; }
     main { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
     section { width: min(440px, 100%); background: #fff; border-radius: 28px; box-shadow: 0 18px 50px rgba(10, 126, 80, .14); padding: 28px; text-align: center; }
-    .badge { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 22px; display: grid; place-items: center; background: #10c85a; color: #fff; font-size: 34px; font-weight: 800; }
+    .badge { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 22px; display: grid; place-items: center; background: #008000; color: #fff; font-size: 34px; font-weight: 800; }
     h1 { font-size: 24px; line-height: 1.2; margin: 0 0 12px; }
     p { color: #53645a; line-height: 1.55; margin: 0 0 14px; }
     dl { margin: 18px 0 0; text-align: left; background: #f4fbf7; border-radius: 18px; padding: 16px; }

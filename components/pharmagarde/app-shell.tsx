@@ -78,7 +78,7 @@ function AppHeader({ title, onOpenMenu, rightAccessory, hideSearch = false }: { 
         <Pressable
           accessibilityRole="search"
           accessibilityLabel="Ouvrir la recherche"
-          android_ripple={{ color: "rgba(3, 192, 74, 0.12)" }}
+          android_ripple={{ color: "rgba(0, 128, 0, 0.12)" }}
           style={({ pressed }) => [styles.searchPill, styles.searchPillOnGreen, pressed ? styles.pressedScale : undefined]}
           onPress={openSearch}
         >

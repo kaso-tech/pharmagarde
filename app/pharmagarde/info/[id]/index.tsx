@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AppChrome } from "@/components/pharmagarde/app-ui";
 
-const BRAND_GREEN = "#03C04A";
+const BRAND_GREEN = "#008000";
 
 type InfoPage = {
   title: string;
@@ -60,7 +60,7 @@ const INFO_PAGES: Record<string, InfoPage> = {
     intro: "PharmaGarde BF vise à faciliter l’accès à l’information de proximité sur les pharmacies, cliniques et médicaments essentiels au Burkina Faso.",
     points: [
       "L’expérience mobile est pensée pour une utilisation simple, rapide et à une main.",
-      "La couleur #03C04A représente la santé, la disponibilité et la confiance.",
+      "La couleur #008000 représente la santé, la disponibilité et la confiance.",
       "Le modèle est prêt pour une évolution vers des données communautaires validées.",
     ],
   },

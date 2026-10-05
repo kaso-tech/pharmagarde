@@ -6,7 +6,7 @@ import { AppChrome } from "@/components/pharmagarde/app-ui";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { PHARMAGARDE_CITIES } from "@/lib/pharmagarde/city-utils";
 
-const BRAND_GREEN = "#03C04A";
+const BRAND_GREEN = "#008000";
 
 
 export default function CitySelectionScreen() {
@@ -26,7 +26,7 @@ export default function CitySelectionScreen() {
         <Pressable
           accessibilityRole="button"
           disabled={refreshingLocation}
-          android_ripple={{ color: "rgba(3,192,74,0.12)", borderless: false }}
+          android_ripple={{ color: "rgba(0,128,0,0.12)", borderless: false }}
           style={({ pressed }) => [styles.currentLocationButton, pressed && styles.pressed, refreshingLocation && styles.disabledButton]}
           onPress={requestLocation}
         >
@@ -44,7 +44,7 @@ export default function CitySelectionScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                android_ripple={{ color: "rgba(3,192,74,0.12)", borderless: false }}
+                android_ripple={{ color: "rgba(0,128,0,0.12)", borderless: false }}
                 style={({ pressed }) => [styles.cityRow, selected && styles.selectedRow, pressed && styles.pressed]}
                 onPress={() => selectCity(item)}
               >
@@ -76,5 +76,5 @@ const styles = StyleSheet.create({
   icon: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF8EF", alignItems: "center", justifyContent: "center" },
   selectedIcon: { backgroundColor: BRAND_GREEN },
   cityText: { flex: 1, color: "#102016", fontSize: 16, lineHeight: 22, fontWeight: "900" },
-  selectedText: { color: "#02983B" },
+  selectedText: { color: "#006400" },
 });

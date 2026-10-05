@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { Medicine } from "@/lib/pharmagarde/types";
 
-const BRAND_GREEN = "#03C04A";
+const BRAND_GREEN = "#008000";
 
 export default function MedicinesScreen() {
   const { isAuthenticated, loading: authLoading } = useAuth();

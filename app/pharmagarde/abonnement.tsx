@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { PREMIUM_PLANS, type PremiumPlanId } from "@/lib/pharmagarde/premium";
 
-const BRAND_GREEN = "#03C04A";
+const BRAND_GREEN = "#008000";
 const DARK_GREEN = "#102016";
 
 const BENEFITS = [
