@@ -1,4 +1,4 @@
-import { index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { double, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -47,6 +47,45 @@ export const transactions = mysqlTable("transactions", {
 });
 
 /**
+ * Surcharges administratives de l'annuaire versionné et du cache établissements.
+ * Une ligne archived masque l'élément source sans effacer son historique.
+ */
+export const directoryEntries = mysqlTable(
+  "directory_entries",
+  {
+    id: varchar("id", { length: 128 }).primaryKey(),
+    kind: mysqlEnum("kind", ["pharmacy", "healthcare"]).notNull(),
+    status: mysqlEnum("status", ["active", "archived"]).default("active").notNull(),
+    city: varchar("city", { length: 96 }),
+    name: varchar("name", { length: 255 }),
+    phone: varchar("phone", { length: 40 }),
+    address: text("address"),
+    latitude: double("latitude"),
+    longitude: double("longitude"),
+    dutyGroup: int("dutyGroup"),
+    establishmentType: varchar("establishmentType", { length: 64 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [index("directory_entries_kind_city_idx").on(table.kind, table.city), index("directory_entries_status_idx").on(table.status)],
+);
+
+/** Journal des accès administratifs et des mutations sensibles, sans secret ni charge de paiement. */
+export const auditLogs = mysqlTable(
+  "audit_logs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    actorUserId: int("actorUserId").notNull().references(() => users.id),
+    action: varchar("action", { length: 96 }).notNull(),
+    targetType: varchar("targetType", { length: 64 }).notNull(),
+    targetId: varchar("targetId", { length: 128 }),
+    metadata: text("metadata"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("audit_logs_actor_created_idx").on(table.actorUserId, table.createdAt), index("audit_logs_action_created_idx").on(table.action, table.createdAt)],
+);
+
+/**
  * Codes à usage unique envoyés par SMS (vérification du numéro à l'inscription, réinitialisation du
  * mot de passe). Seul un HMAC du code est stocké.
  */
@@ -69,4 +108,7 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
+export type DirectoryEntry = typeof directoryEntries.$inferSelect;
+export type InsertDirectoryEntry = typeof directoryEntries.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
 export type VerificationCode = typeof verificationCodes.$inferSelect;

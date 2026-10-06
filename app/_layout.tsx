@@ -105,6 +105,7 @@ export default function RootLayout() {
           <PharmaGardeProvider>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="admin" />
               <Stack.Screen name="pharmagarde/menu" options={{ presentation: "modal" }} />
               <Stack.Screen name="pharmagarde/ville" options={{ presentation: "modal" }} />
               <Stack.Screen name="pharmagarde/contribution/nouvelle-pharmacie" options={{ presentation: "modal" }} />

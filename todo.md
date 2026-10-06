@@ -490,3 +490,12 @@
 - [x] Adapter les tests Vitest pour mocker l’API Ligdi Cash externe sans réintroduire de paiement mock applicatif.
 - [x] Valider TypeScript, Vitest, l’état serveur, puis pousser vers `kadersore/pharmagarde-backend`.
 
+
+
+## Console d’administration sécurisée
+
+- [x] Concevoir une zone Expo Router séparée sous `/admin` avec tiroir gauche adapté au mobile et déconnexion dédiée.
+- [x] Ajouter les procédures tRPC d’administration avec contrôle serveur strict du rôle `admin`.
+- [x] Ajouter tableau de bord, annuaire, utilisateurs, suivi Premium/transactions et journal d’audit.
+- [x] Implémenter l’archivage logique confirmé, contrôlé côté serveur et audité ; ne pas exposer de charge brute ou d’URL de paiement.
+- [x] Préparer la migration additive `0006_admin_console` sans l’appliquer, puis valider TypeScript et Vitest.

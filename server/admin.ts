@@ -1,0 +1,296 @@
+import { TRPCError } from "@trpc/server";
+import { count, desc, eq, gt, isNotNull, like, or } from "drizzle-orm";
+import { z } from "zod";
+
+import { auditLogs, directoryEntries, transactions, users } from "../drizzle/schema";
+import { getDb } from "./db";
+import { directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
+import { adminProcedure, router } from "./_core/trpc";
+
+const pageSchema = z.object({
+  limit: z.number().int().min(1).max(100).default(50),
+});
+
+const directoryListSchema = pageSchema.extend({
+  kind: z.enum(["all", "pharmacy", "healthcare"]).default("all"),
+  search: z.string().trim().max(120).optional(),
+});
+
+const userListSchema = pageSchema.extend({
+  search: z.string().trim().max(120).optional(),
+});
+
+const activitySchema = z.object({
+  area: z.enum(["dashboard", "directory", "users", "premium", "audit"]),
+});
+
+function failIfNoDb<T>(db: T | null): T {
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de données indisponible." });
+  return db;
+}
+
+function serializeDate(value: Date | string | null | undefined) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+
+function safeMetadata(value: Record<string, string | number | boolean | null | undefined>) {
+  return JSON.stringify(Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)));
+}
+
+function parseMetadata(value: string | null) {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeAudit(
+  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
+  input: { actorUserId: number; action: string; targetType: string; targetId?: string | null; metadata?: Record<string, string | number | boolean | null | undefined> },
+) {
+  await db.insert(auditLogs).values({
+    actorUserId: input.actorUserId,
+    action: input.action,
+    targetType: input.targetType,
+    targetId: input.targetId ?? null,
+    metadata: input.metadata ? safeMetadata(input.metadata) : null,
+  });
+}
+
+async function readAdminDirectory(input: z.infer<typeof directoryListSchema>) {
+  const db = failIfNoDb(await getDb());
+  const [baseItems, overrides] = await Promise.all([getBaseAdminDirectoryItems(), db.select().from(directoryEntries)]);
+  return filterAdminDirectoryItems(mergeAdminDirectoryItems(baseItems, overrides), input).slice(0, input.limit);
+}
+
+export const adminRouter = router({
+  access: adminProcedure.query(({ ctx }) => ({
+    id: ctx.user.id,
+    role: "admin" as const,
+    phone: ctx.user.phone,
+    email: ctx.user.email,
+  })),
+
+  activity: adminProcedure.input(activitySchema).mutation(async ({ ctx, input }) => {
+    const db = failIfNoDb(await getDb());
+    await writeAudit(db, {
+      actorUserId: ctx.user.id,
+      action: `admin.${input.area}.viewed`,
+      targetType: "admin_console",
+      targetId: input.area,
+    });
+    return { ok: true };
+  }),
+
+  dashboard: adminProcedure.query(async () => {
+    const db = failIfNoDb(await getDb());
+    const [allUsers, verifiedUsers, premiumUsers, allTransactions, pendingTransactions, baseItems, overrides] = await Promise.all([
+      db.select({ value: count() }).from(users),
+      db.select({ value: count() }).from(users).where(isNotNull(users.phoneVerifiedAt)),
+      db.select({ value: count() }).from(users).where(gt(users.subscriptionEnd, new Date())),
+      db.select({ value: count() }).from(transactions),
+      db.select({ value: count() }).from(transactions).where(eq(transactions.status, "pending")),
+      getBaseAdminDirectoryItems(),
+      db.select().from(directoryEntries),
+    ]);
+
+    const directoryCount = mergeAdminDirectoryItems(baseItems, overrides).length;
+    return {
+      users: allUsers[0]?.value ?? 0,
+      verifiedUsers: verifiedUsers[0]?.value ?? 0,
+      premiumUsers: premiumUsers[0]?.value ?? 0,
+      transactions: allTransactions[0]?.value ?? 0,
+      pendingTransactions: pendingTransactions[0]?.value ?? 0,
+      directoryEntries: directoryCount,
+    };
+  }),
+
+  directory: router({
+    list: adminProcedure.input(directoryListSchema).query(({ input }) => readAdminDirectory(input)),
+
+    upsert: adminProcedure.input(directoryUpsertSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const entry = normalizeDirectoryUpsert(input);
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(directoryEntries)
+          .values(entry)
+          .onDuplicateKeyUpdate({
+            set: {
+              kind: entry.kind,
+              status: "active",
+              city: entry.city,
+              name: entry.name,
+              phone: entry.phone,
+              address: entry.address,
+              latitude: entry.latitude,
+              longitude: entry.longitude,
+              dutyGroup: entry.dutyGroup,
+              establishmentType: entry.establishmentType,
+            },
+          });
+        await tx.insert(auditLogs).values({
+          actorUserId: ctx.user.id,
+          action: "directory.upserted",
+          targetType: entry.kind,
+          targetId: entry.id,
+          metadata: safeMetadata({ kind: entry.kind, city: entry.city, source: "admin_console" }),
+        });
+      });
+      return { id: entry.id, status: "active" as const };
+    }),
+
+    archive: adminProcedure
+      .input(z.object({ id: z.string().trim().min(3).max(128), kind: z.enum(["pharmacy", "healthcare"]) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = failIfNoDb(await getDb());
+        await db.transaction(async (tx) => {
+          const existing = await tx.select().from(directoryEntries).where(eq(directoryEntries.id, input.id)).limit(1);
+          const current = existing[0];
+          if (current && current.kind !== input.kind) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Le type d’établissement ne correspond pas à la surcharge existante." });
+          }
+          await tx
+            .insert(directoryEntries)
+            .values({
+              id: input.id,
+              kind: input.kind,
+              status: "archived",
+              city: current?.city ?? null,
+              name: current?.name ?? null,
+              phone: current?.phone ?? null,
+              address: current?.address ?? null,
+              latitude: current?.latitude ?? null,
+              longitude: current?.longitude ?? null,
+              dutyGroup: current?.dutyGroup ?? null,
+              establishmentType: current?.establishmentType ?? null,
+            })
+            .onDuplicateKeyUpdate({ set: { status: "archived" } });
+          await tx.insert(auditLogs).values({
+            actorUserId: ctx.user.id,
+            action: "directory.archived",
+            targetType: input.kind,
+            targetId: input.id,
+            metadata: safeMetadata({ kind: input.kind, source: "admin_console" }),
+          });
+        });
+        return { id: input.id, status: "archived" as const };
+      }),
+  }),
+
+  users: router({
+    list: adminProcedure.input(userListSchema).query(async ({ input }) => {
+      const db = failIfNoDb(await getDb());
+      const pattern = input.search ? `%${input.search.replace(/[\\%_]/g, "\\$&")}%` : null;
+      const rows = pattern
+        ? await db
+            .select({
+              id: users.id,
+              name: users.name,
+              email: users.email,
+              phone: users.phone,
+              role: users.role,
+              phoneVerifiedAt: users.phoneVerifiedAt,
+              subscriptionEnd: users.subscriptionEnd,
+              createdAt: users.createdAt,
+              lastSignedIn: users.lastSignedIn,
+            })
+            .from(users)
+            .where(or(like(users.name, pattern), like(users.email, pattern), like(users.phone, pattern)))
+            .orderBy(desc(users.createdAt))
+            .limit(input.limit)
+        : await db
+            .select({
+              id: users.id,
+              name: users.name,
+              email: users.email,
+              phone: users.phone,
+              role: users.role,
+              phoneVerifiedAt: users.phoneVerifiedAt,
+              subscriptionEnd: users.subscriptionEnd,
+              createdAt: users.createdAt,
+              lastSignedIn: users.lastSignedIn,
+            })
+            .from(users)
+            .orderBy(desc(users.createdAt))
+            .limit(input.limit);
+
+      return rows.map((user) => ({
+        ...user,
+        phoneVerifiedAt: serializeDate(user.phoneVerifiedAt),
+        subscriptionEnd: serializeDate(user.subscriptionEnd),
+        createdAt: serializeDate(user.createdAt),
+        lastSignedIn: serializeDate(user.lastSignedIn),
+        verificationStatus: user.phoneVerifiedAt ? "verified" as const : "unverified" as const,
+      }));
+    }),
+  }),
+
+  premium: router({
+    transactions: adminProcedure.input(pageSchema).query(async ({ input }) => {
+      const db = failIfNoDb(await getDb());
+      const rows = await db
+        .select({
+          id: transactions.id,
+          userId: transactions.userId,
+          provider: transactions.provider,
+          merchantReference: transactions.merchantReference,
+          planId: transactions.planId,
+          amount: transactions.amount,
+          currency: transactions.currency,
+          status: transactions.status,
+          createdAt: transactions.createdAt,
+          updatedAt: transactions.updatedAt,
+          userName: users.name,
+          userPhone: users.phone,
+          userEmail: users.email,
+          subscriptionEnd: users.subscriptionEnd,
+        })
+        .from(transactions)
+        .leftJoin(users, eq(transactions.userId, users.id))
+        .orderBy(desc(transactions.createdAt))
+        .limit(input.limit);
+
+      return rows.map((transaction) => ({
+        ...transaction,
+        createdAt: serializeDate(transaction.createdAt),
+        updatedAt: serializeDate(transaction.updatedAt),
+        subscriptionEnd: serializeDate(transaction.subscriptionEnd),
+      }));
+    }),
+  }),
+
+  audit: router({
+    list: adminProcedure.input(pageSchema).query(async ({ input }) => {
+      const db = failIfNoDb(await getDb());
+      const rows = await db
+        .select({
+          id: auditLogs.id,
+          action: auditLogs.action,
+          targetType: auditLogs.targetType,
+          targetId: auditLogs.targetId,
+          metadata: auditLogs.metadata,
+          createdAt: auditLogs.createdAt,
+          actorUserId: auditLogs.actorUserId,
+          actorName: users.name,
+          actorPhone: users.phone,
+          actorEmail: users.email,
+        })
+        .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.actorUserId, users.id))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(input.limit);
+
+      return rows.map((event) => ({
+        ...event,
+        createdAt: serializeDate(event.createdAt),
+        metadata: parseMetadata(event.metadata),
+      }));
+    }),
+  }),
+});

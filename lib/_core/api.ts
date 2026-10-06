@@ -8,6 +8,7 @@ export type AuthApiUser = {
   email: string | null;
   phone?: string | null;
   loginMethod: string | null;
+  role: "user" | "admin";
   lastSignedIn: string;
 };
 
@@ -165,6 +166,7 @@ export async function getMe(): Promise<{
   email: string | null;
   phone?: string | null;
   loginMethod: string | null;
+  role: "user" | "admin";
   lastSignedIn: string;
 } | null> {
   try {

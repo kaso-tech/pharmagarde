@@ -46,6 +46,7 @@ function buildUserResponse(
         name?: string | null;
         email?: string | null;
         loginMethod?: string | null;
+        role?: "user" | "admin";
         lastSignedIn?: Date | null;
       },
 ) {
@@ -56,6 +57,7 @@ function buildUserResponse(
     email: user?.email ?? null,
     phone: (user as any)?.phone ?? null,
     loginMethod: user?.loginMethod ?? null,
+    role: (user as any)?.role === "admin" ? "admin" : "user",
     lastSignedIn: (user?.lastSignedIn ?? new Date()).toISOString(),
   };
 }

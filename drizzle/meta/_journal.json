@@ -43,6 +43,13 @@
       "when": 1791197929294,
       "tag": "0005_session_revocation",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1791290061619,
+      "tag": "0006_admin_console",
+      "breakpoints": true
     }
   ]
 }

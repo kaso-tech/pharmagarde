@@ -215,6 +215,7 @@ function normalizeAuthUser(user: Api.AuthApiUser): Auth.User {
     email: user.email,
     phone: user.phone ?? null,
     loginMethod: user.loginMethod,
+    role: user.role === "admin" ? "admin" : "user",
     lastSignedIn: new Date(user.lastSignedIn || Date.now()),
   };
 }
