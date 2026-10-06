@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { auditLogs, directoryEntries, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
+import { reloadDirectoryOverrides } from "./directory-overrides";
 import { directoryArchiveSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
 import { adminProcedure, router } from "./_core/trpc";
 
@@ -142,6 +143,8 @@ export const adminRouter = router({
           metadata: safeMetadata({ kind: entry.kind, city: entry.city, source: "admin_console" }),
         });
       });
+      // Publication immédiate dans /pharmacies et /healthcare.
+      await reloadDirectoryOverrides();
       return { id: entry.id, status: "active" as const };
     }),
 
@@ -188,6 +191,7 @@ export const adminRouter = router({
             metadata: safeMetadata({ kind: input.kind, confirmation: input.confirmArchive, source: "admin_console" }),
           });
         });
+        await reloadDirectoryOverrides();
         return { id: input.id, status: "archived" as const };
       }),
   }),

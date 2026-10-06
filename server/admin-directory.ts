@@ -171,11 +171,13 @@ export function mergeAdminDirectoryItems(baseItems: AdminDirectoryItem[], overri
       status: "active",
       city: override.city ?? current?.city ?? "Non renseignée",
       name: override.name ?? current?.name ?? override.id,
-      phone: override.phone ?? current?.phone ?? null,
-      address: override.address ?? current?.address ?? null,
-      latitude: override.latitude ?? current?.latitude ?? null,
-      longitude: override.longitude ?? current?.longitude ?? null,
-      dutyGroup: override.dutyGroup ?? current?.dutyGroup ?? null,
+      // Même règle que les routes publiques (server/directory-overrides.ts) : une surcharge est un
+      // enregistrement complet, un champ vidé dans la console l'est aussi pour les utilisateurs.
+      phone: override.phone ?? null,
+      address: override.address ?? null,
+      latitude: override.latitude ?? null,
+      longitude: override.longitude ?? null,
+      dutyGroup: kind === "pharmacy" ? override.dutyGroup ?? null : null,
       establishmentType: override.establishmentType ?? current?.establishmentType ?? (kind === "pharmacy" ? "Pharmacie" : "Centre de santé"),
       source: "admin",
       managed: true,

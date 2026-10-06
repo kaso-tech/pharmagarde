@@ -23,6 +23,8 @@ Elle ne modifie aucune table ni contrainte issue des migrations `0000` à `0005`
 
 L’annuaire versionné reste la source initiale des pharmacies. Les surcharges DB s’y appliquent à la lecture, ce qui permet de modifier ou archiver un enregistrement sans écrire dans le système de fichiers de production. Les établissements de santé présents dans le cache restent consultables et peuvent recevoir les mêmes surcharges.
 
+Ces surcharges sont publiées dans l’application : les routes `/pharmacies` et `/healthcare` les appliquent (`server/directory-overrides.ts`). Une fiche archivée disparaît, une fiche modifiée remplace l’originale (un champ vidé dans la console est vidé pour les utilisateurs) et une fiche créée est ajoutée. Le serveur relit les surcharges après chaque enregistrement ou archivage, et au plus tard chaque minute pour les autres instances. Les applications peuvent garder une réponse en cache jusqu’à 5 minutes pour les pharmacies et 30 minutes pour les structures de santé (`Cache-Control`).
+
 ## API tRPC
 
 | Domaine | Procédures |
