@@ -63,7 +63,7 @@ Les identifiants Mobile Money ou bancaires ne transitent jamais par PharmaGarde 
 | Prestataire SMS (via `SMS_WEBHOOK_URL`) | Sous-traitant | Numéro de téléphone, texte du SMS avec le code | **[À COMPLÉTER]** |
 | OpenFreeMap, VersaTiles (fonds de carte) | Fournisseurs de tuiles | Adresse IP, zone affichée | Union européenne |
 | Fournisseur satellite, s'il est activé (`EXPO_PUBLIC_MAPLIBRE_SATELLITE_STYLE_URL`) | Fournisseur de tuiles | Adresse IP, zone affichée | **[À COMPLÉTER]** |
-| OpenStreetMap / Overpass | Source des lieux de santé | Aucune donnée personnelle (requêtes serveur par ville) | Union européenne |
+| OpenStreetMap / Overpass | Source des structures de santé (les pharmacies viennent de l'annuaire PharmaGarde) | Aucune donnée personnelle (requêtes serveur par ville) | Union européenne |
 
 Aucune donnée n'est vendue, louée ni utilisée à des fins publicitaires.
 

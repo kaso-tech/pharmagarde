@@ -103,6 +103,7 @@ function normalizePlace(raw: Record<string, unknown>, type: "pharmacy" | "clinic
     isOpen: getBoolean(raw, ["isOpen", "open", "ouvert", "garde", "onDuty"]),
     establishmentType: getString(raw, ["establishmentType", "establishment_type", "typeEtablissement", "type_etablissement", "localType", "local_type", "type"]),
     openingHours: getString(raw, ["openingHours", "opening_hours", "horaires"]),
+    dutyGroup: getNumber(raw, ["dutyGroup", "groupe", "groupeGarde"]),
   };
 }
 

@@ -19,7 +19,7 @@ export const MAP_FALLBACK_STYLE_URL = process.env.EXPO_PUBLIC_MAPLIBRE_FALLBACK_
  */
 export const MAP_SATELLITE_STYLE_URL = process.env.EXPO_PUBLIC_MAPLIBRE_SATELLITE_STYLE_URL || null;
 
-export const MAP_ATTRIBUTION = "Lieux © contributeurs OpenStreetMap";
+export const MAP_ATTRIBUTION = "Pharmacies : annuaire PharmaGarde · Structures de santé © contributeurs OpenStreetMap";
 
 export function availableMapPreferences(): MapPreference[] {
   return MAP_SATELLITE_STYLE_URL ? ["Standard", "Satellite"] : ["Standard"];

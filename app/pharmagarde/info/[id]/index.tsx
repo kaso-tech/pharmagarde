@@ -63,7 +63,8 @@ const INFO_PAGES: Record<string, InfoPage> = {
       "L’expérience mobile est pensée pour une utilisation simple, rapide et à une main.",
       "La couleur #008000 représente la santé, la disponibilité et la confiance.",
       "Le modèle est prêt pour une évolution vers des données communautaires validées.",
-      "Données des pharmacies et structures de santé : © contributeurs OpenStreetMap, sous licence ODbL (openstreetmap.org/copyright).",
+      "Pharmacies : annuaire PharmaGarde, établi à partir de l’annuaire de l’Ordre national des pharmaciens du Burkina Faso.",
+      "Structures de santé : © contributeurs OpenStreetMap, sous licence ODbL (openstreetmap.org/copyright).",
     ],
   },
 };

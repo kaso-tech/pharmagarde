@@ -276,7 +276,45 @@ describe("cache backend PharmaGarde", () => {
     expect(isCacheFresh("pharmacies")).toBe(false);
   });
 
-  it("collecte OpenStreetMap via Overpass, normalise, classe, dédoublonne et stocke par ville", async () => {
+  it("sert les pharmacies depuis l'annuaire PharmaGarde, sans aucun appel réseau", async () => {
+    const cacheDir = await mkdtemp(path.join(tmpdir(), "pharmagarde-directory-"));
+    const directoryPath = path.join(cacheDir, "pharmacies.json");
+    await writeFile(
+      directoryPath,
+      JSON.stringify({
+        version: 1,
+        updatedAt: "2026-10-06T00:00:00.000Z",
+        pharmacies: [
+          { id: "ph-ouagadougou-archanges", city: "Ouagadougou", name: "Pharmacie Archanges", phone: "+226 79 20 01 83", dutyGroup: 1, address: "Pissy, face à la station OTAM", latitude: 12.3316319, longitude: -1.584736 },
+          { id: "ph-bobo-dioulasso-abby", city: "Bobo-Dioulasso", name: "Pharmacie Abby", phone: "+226 20 97 63 64", dutyGroup: 4, latitude: 11.180476, longitude: -4.351685 },
+          { id: "ph-bobo-dioulasso-diyama", city: "Bobo-Dioulasso", name: "Pharmacie Diyama", phone: "+226 70 17 28 23", dutyGroup: null, latitude: 11.159913, longitude: -4.24092 },
+        ],
+      }),
+      "utf8",
+    );
+    process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    process.env.PHARMAGARDE_PHARMACY_DIRECTORY = directoryPath;
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const { getCacheState, updateCachedDataset, registerPharmaGardeCacheRoutes } = await import("../server/pharmagarde-cache");
+    const result = await updateCachedDataset("pharmacies", true);
+
+    expect(result).toMatchObject({ ok: true, itemCount: 3 });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getCacheState("pharmacies").byCity.ouagadougou).toEqual([
+      expect.objectContaining({ id: "ph-ouagadougou-archanges", name: "Pharmacie Archanges", type: "Pharmacie", category: "pharmacy", source: "annuaire", dutyGroup: 1, phone: "+226 79 20 01 83", address: "Pissy, face à la station OTAM" }),
+    ]);
+    expect(getCacheState("pharmacies").byCity["bobo-dioulasso"].map((item) => item.dutyGroup)).toEqual([4, null]);
+    expect(getCacheState("pharmacies").byCity.kaya).toEqual([]);
+
+    const routes = createRouteMap(registerPharmaGardeCacheRoutes as never);
+    const response = new FakeResponse();
+    await routes["GET /pharmacies"]?.({ header: () => undefined, query: { city: "Ouagadougou" } }, response);
+    expect(response.body).toMatchObject({ meta: { source: "annuaire", attribution: expect.stringContaining("Ordre national des pharmaciens") } });
+    delete process.env.PHARMAGARDE_PHARMACY_DIRECTORY;
+  });
+
+  it("collecte les structures de santé (et elles seules) via Overpass, normalise, classe et stocke par ville", async () => {
     const cacheDir = await mkdtemp(path.join(tmpdir(), "pharmagarde-osm-cache-"));
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
     process.env.PHARMAGARDE_OSM_REQUEST_DELAY_MS = "0";
@@ -291,50 +329,24 @@ describe("cache backend PharmaGarde", () => {
       queries.push(query);
       const [, lat, lon] = /around:\d+,(-?[\d.]+),(-?[\d.]+)/.exec(query) ?? [];
       const base = { lat: Number(lat), lon: Number(lon) };
-
-      const elements = query.includes('"amenity"="pharmacy"')
-        ? [
-            { type: "node", id: 1, ...base, tags: { amenity: "pharmacy", name: "Pharmacie Wend-Panga", phone: "+226 25 30 00 00", opening_hours: "24/7", "addr:street": "Avenue Kwame Nkrumah", "addr:city": "Ouagadougou" } },
-            // Même pharmacie cartographiée aussi comme bâtiment : doit être dédoublonnée.
-            { type: "way", id: 2, center: base, tags: { amenity: "pharmacy", name: "Pharmacie Wend-Panga" } },
-            { type: "node", id: 3, lat: base.lat + 0.01, lon: base.lon, tags: { amenity: "pharmacy" } },
-            { type: "node", id: 4, lat: base.lat + 0.02, lon: base.lon, tags: { amenity: "pharmacy", name: "Pharmacie vétérinaire du Kadiogo" } },
-            { type: "node", id: 5, tags: { amenity: "pharmacy", name: "Sans coordonnées" } },
-          ]
-        : [
-            { type: "way", id: 10, center: base, tags: { amenity: "hospital", name: "CHU Yalgado Ouédraogo" } },
-            { type: "node", id: 11, lat: base.lat + 0.01, lon: base.lon, tags: { amenity: "clinic", name: "Clinique Sandof" } },
-            { type: "node", id: 12, lat: base.lat + 0.02, lon: base.lon, tags: { healthcare: "centre", name: "CSPS Secteur 15" } },
-            { type: "node", id: 13, lat: base.lat + 0.03, lon: base.lon, tags: { amenity: "doctors" } },
-          ];
+      const elements = [
+        { type: "way", id: 10, center: base, tags: { amenity: "hospital", name: "CHU Yalgado Ouédraogo" } },
+        // Même établissement cartographié aussi comme point : doit être dédoublonné.
+        { type: "node", id: 14, ...base, tags: { amenity: "hospital", name: "CHU Yalgado Ouédraogo" } },
+        { type: "node", id: 11, lat: base.lat + 0.01, lon: base.lon, tags: { amenity: "clinic", name: "Clinique Sandof", phone: "+226 25 00 00 00" } },
+        { type: "node", id: 12, lat: base.lat + 0.02, lon: base.lon, tags: { healthcare: "centre", name: "CSPS Secteur 15" } },
+        { type: "node", id: 13, lat: base.lat + 0.03, lon: base.lon, tags: { amenity: "doctors" } },
+        { type: "node", id: 15, lat: base.lat + 0.04, lon: base.lon, tags: { amenity: "clinic", name: "Clinique vétérinaire du Kadiogo" } },
+        { type: "node", id: 16, tags: { amenity: "clinic", name: "Sans coordonnées" } },
+      ];
       return { ok: true, json: async () => ({ elements }) } as Response;
     });
 
-    const pharmaciesResult = await updateCachedDataset("pharmacies", true);
     const healthcareResult = await updateCachedDataset("healthcare", true);
 
-    expect(pharmaciesResult.ok).toBe(true);
     expect(healthcareResult.ok).toBe(true);
-    // Une requête Overpass par ville et par type de données, sans aucun appel Google.
-    expect(fetchMock).toHaveBeenCalledTimes(SUPPORTED_CITIES.length * 2);
-    expect(queries.every((query) => query.startsWith("[out:json]") && query.includes("out center tags;"))).toBe(true);
-
-    const pharmacies = getCacheState("pharmacies").byCity.ouagadougou;
-    expect(pharmacies).toHaveLength(2);
-    expect(pharmacies[0]).toMatchObject({
-      id: "osm-node-1",
-      osmId: "node/1",
-      source: "osm",
-      type: "Pharmacie",
-      category: "pharmacy",
-      name: "Pharmacie Wend-Panga",
-      city: "Ouagadougou",
-      phone: "+226 25 30 00 00",
-      address: "Avenue Kwame Nkrumah, Ouagadougou",
-      openingHours: "24/7",
-      isOpen: true,
-    });
-    expect(pharmacies[1]).toMatchObject({ name: "Pharmacie (nom non renseigné)", isOpen: undefined });
+    expect(fetchMock).toHaveBeenCalledTimes(SUPPORTED_CITIES.length);
+    expect(queries.every((query) => query.startsWith("[out:json]") && query.includes("out center tags;") && !query.includes("pharmacy"))).toBe(true);
 
     const healthcare = getCacheState("healthcare").byCity.ouagadougou;
     expect(healthcare.map((item) => [item.name, item.type])).toEqual([
@@ -342,6 +354,7 @@ describe("cache backend PharmaGarde", () => {
       ["Clinique Sandof", "Clinique"],
       ["CSPS Secteur 15", "CSPS"],
     ]);
+    expect(healthcare[1]).toMatchObject({ id: "osm-node-11", osmId: "node/11", source: "osm", phone: "+226 25 00 00 00" });
     expect(getCacheState("healthcare").byCity["bobo-dioulasso"].every((item) => item.city === "Bobo-Dioulasso")).toBe(true);
   });
 
@@ -353,7 +366,7 @@ describe("cache backend PharmaGarde", () => {
     const { updateCachedDataset } = await import("../server/pharmagarde-cache");
     vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: false, status: 429, statusText: "Too Many Requests", json: async () => ({}) } as Response);
 
-    const result = await updateCachedDataset("pharmacies", true);
+    const result = await updateCachedDataset("healthcare", true);
     expect(result.ok).toBe(false);
     expect(result.error).toContain("Overpass a répondu 429");
   });

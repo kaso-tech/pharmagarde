@@ -58,7 +58,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     title: "Destinataires",
     paragraphs: [
       "Vos données ne sont ni vendues ni utilisées à des fins publicitaires. Elles sont accessibles uniquement à l'équipe qui exploite le service, à notre hébergeur, à Ligdi Cash pour les paiements et à notre prestataire SMS pour l'envoi des codes de vérification.",
-      "Les informations sur les pharmacies et structures de santé proviennent d'OpenStreetMap (© contributeurs OpenStreetMap, licence ODbL) ; aucune donnée personnelle n'y est transmise.",
+      "La liste des pharmacies est un annuaire tenu par PharmaGarde à partir de l'annuaire de l'Ordre national des pharmaciens du Burkina Faso. Les structures de santé proviennent d'OpenStreetMap (© contributeurs OpenStreetMap, licence ODbL) ; aucune donnée personnelle n'y est transmise.",
     ],
   },
   {

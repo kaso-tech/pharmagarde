@@ -571,6 +571,22 @@ Keep this channel for owner-facing alerts; end-user messaging should flow throug
 
 ---
 
+## Annuaire des pharmacies
+
+Les pharmacies affichées viennent uniquement de `server/data/pharmacies.json`, versionné dans le dépôt : aucune API de Google ni d'une autre plateforme n'est appelée pour elles. Les structures de santé (hôpitaux, cliniques, CSPS) viennent encore d'OpenStreetMap.
+
+Pour ajouter ou mettre à jour une ville :
+
+1. Compléter le tableur (feuille « Pharmacies »). Colonnes lues : `Ville`, `Pharmacie`, `Téléphone`, `Groupe`, `Situation géographique`, `Latitude`, `Longitude`. Les autres colonnes sont ignorées.
+2. Lancer `pnpm import:pharmacies chemin/vers/fichier.xlsx`.
+3. Relire le rapport (lignes ignorées, avertissements), puis committer `server/data/pharmacies.json`.
+
+Règles d'import :
+- Les villes présentes dans le fichier remplacent leurs pharmacies ; les autres villes déjà importées sont conservées, ce qui permet d'ajouter une ville à la fois.
+- Les lignes sans coordonnées, hors du Burkina Faso, avec un téléphone invalide ou une ville non prise en charge par l'app sont ignorées et listées.
+- `Groupe` (1 à 4) devient `dutyGroup`, utilisé pour la programmation des gardes ; une valeur absente est signalée.
+- L'identifiant (`ph-<ville>-<nom>`) dépend de la ville et du nom : renommer une pharmacie change son identifiant et retire des favoris celle de l'ancien nom.
+
 ## Pages publiques et suppression de compte
 
 | Route | Usage |
@@ -609,7 +625,8 @@ Available environment variables:
 | `SMS_WEBHOOK_URL` | Webhook d'envoi des SMS (codes de vérification et de réinitialisation). Reçoit `POST` JSON `{ "to": "+226…", "message": "…", "sender": "…" }` ; toute réponse 2xx vaut succès. **Obligatoire en production** pour l'inscription et le mot de passe oublié ; en développement, sans webhook, le code s'affiche dans la console du serveur. |
 | `SMS_WEBHOOK_TOKEN` | Jeton envoyé en `Authorization: Bearer …` au webhook SMS (facultatif). |
 | `SMS_SENDER_NAME` | Nom d'expéditeur transmis au webhook (défaut `PharmaGarde`). |
-| `OSM_OVERPASS_URL` | Endpoint Overpass pour collecter pharmacies et structures de santé OpenStreetMap (défaut : `https://overpass-api.de/api/interpreter`). En production, préférer une instance dédiée. |
+| `PHARMAGARDE_PHARMACY_DIRECTORY` | Chemin de l'annuaire des pharmacies (défaut `server/data/pharmacies.json`). |
+| `OSM_OVERPASS_URL` | Endpoint Overpass pour collecter les structures de santé OpenStreetMap (défaut : `https://overpass-api.de/api/interpreter`). En production, préférer une instance dédiée. |
 | `PHARMAGARDE_OSM_RADIUS_METERS` | Rayon de collecte autour de chaque ville (défaut `15000`). |
 | `PHARMAGARDE_OSM_REQUEST_DELAY_MS` | Pause entre deux requêtes Overpass (défaut `1000`), pour respecter la politique d'usage de l'instance publique. |
 

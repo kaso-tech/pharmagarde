@@ -1,0 +1,3077 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-06T11:04:42.729Z",
+  "pharmacies": [
+    {
+      "id": "ph-bobo-dioulasso-abby",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Abby",
+      "phone": "+226 20 97 63 64",
+      "dutyGroup": 4,
+      "address": "Belle-ville à 100m de la Station Shell",
+      "latitude": 11.180476,
+      "longitude": -4.351685
+    },
+    {
+      "id": "ph-bobo-dioulasso-adama-traore",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Adama Traore",
+      "phone": "+226 76 44 43 06",
+      "dutyGroup": 4,
+      "address": "Route de Leguema, face cite SONATUR sect32",
+      "latitude": 11.176572,
+      "longitude": -4.313346
+    },
+    {
+      "id": "ph-bobo-dioulasso-aeroport",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Aeroport",
+      "phone": "+226 20 97 50 14",
+      "dutyGroup": 2,
+      "address": "Face à la Brakina",
+      "latitude": 11.1663043,
+      "longitude": -4.3120946
+    },
+    {
+      "id": "ph-bobo-dioulasso-amine",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Amine",
+      "phone": "+226 20 97 19 97",
+      "dutyGroup": 4,
+      "address": "Sect. 22 à 300m côté Ouest CMA de 22",
+      "latitude": 11.198702,
+      "longitude": -4.3230692
+    },
+    {
+      "id": "ph-bobo-dioulasso-amirbouba",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Amirbouba",
+      "phone": "+226 25 39 34 64",
+      "dutyGroup": 3,
+      "address": "Sect. 10, côté Est du CMA de Dô, vers l’Ex gare de Dandé",
+      "latitude": 11.205418,
+      "longitude": -4.311239
+    },
+    {
+      "id": "ph-bobo-dioulasso-aoudi",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Aoudi",
+      "phone": "+226 20 98 18 98",
+      "dutyGroup": 1,
+      "address": "Bolmakoté, face Sapeurs Pompiers",
+      "latitude": 11.1632288,
+      "longitude": -4.2924322
+    },
+    {
+      "id": "ph-bobo-dioulasso-aube-nouvelle",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Aube Nouvelle",
+      "phone": "+226 20 97 78 78",
+      "dutyGroup": 4,
+      "address": "Sect 17, Face Marché de Sarfalao",
+      "latitude": 11.1591545,
+      "longitude": -4.2689965
+    },
+    {
+      "id": "ph-bobo-dioulasso-audrey",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Audrey",
+      "phone": "+226 20 95 44 69",
+      "dutyGroup": 4,
+      "address": "Sect. 24, face à la station Oil Lybia, route Ouaga",
+      "latitude": 11.166814,
+      "longitude": -4.242034
+    },
+    {
+      "id": "ph-bobo-dioulasso-becy",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Becy",
+      "phone": "+226 20 95 58 41",
+      "dutyGroup": 3,
+      "address": "Sarfalao, à 200m de SOS Village enfant",
+      "latitude": 11.1976227,
+      "longitude": -4.3013245
+    },
+    {
+      "id": "ph-bobo-dioulasso-belleville",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Belleville",
+      "phone": "+226 20 98 22 00",
+      "dutyGroup": 1,
+      "address": "Route de l’INSSA, à côté du petit marché Belle-ville",
+      "latitude": 11.1649219,
+      "longitude": -4.3051542
+    },
+    {
+      "id": "ph-bobo-dioulasso-bethel",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Bethel",
+      "phone": "+226 20 97 37 59",
+      "dutyGroup": 1,
+      "address": "Sect. 21 (Colsama) à 100m du temple Bethel",
+      "latitude": 11.184057,
+      "longitude": -4.3212033
+    },
+    {
+      "id": "ph-bobo-dioulasso-bien-etre",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Bien-Etre",
+      "phone": "+226 20 97 20 79",
+      "dutyGroup": 4,
+      "address": "Route du marché de fruits, à côté Agence Orange sect21",
+      "latitude": 11.1772757,
+      "longitude": -4.3164092
+    },
+    {
+      "id": "ph-bobo-dioulasso-bolibana",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Bolibana",
+      "phone": "+226 20 96 50 96",
+      "dutyGroup": 2,
+      "address": "Non loin WEND-Konta cité relais sect23",
+      "latitude": 11.241587,
+      "longitude": -4.28702
+    },
+    {
+      "id": "ph-bobo-dioulasso-boulevard",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Boulevard",
+      "phone": "+226 20 97 30 00",
+      "dutyGroup": 2,
+      "address": "Face à TSR",
+      "latitude": 11.1836448,
+      "longitude": -4.2851032
+    },
+    {
+      "id": "ph-bobo-dioulasso-boyam",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Boyam",
+      "phone": "+226 20 95 64 29",
+      "dutyGroup": 3,
+      "address": "Bindougousso, à 500m du CMA de Dafra",
+      "latitude": 11.1938751,
+      "longitude": -4.2965255
+    },
+    {
+      "id": "ph-bobo-dioulasso-christ-roi",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Christ-Roi",
+      "phone": "+226 20 95 58 53",
+      "dutyGroup": 2,
+      "address": "Sect 24, à 300m du CSPS de Kua",
+      "latitude": 11.1767541,
+      "longitude": -4.2484981
+    },
+    {
+      "id": "ph-bobo-dioulasso-colma",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Colma",
+      "phone": "+226 20 95 17 02",
+      "dutyGroup": 4,
+      "address": "Derrière la mairie de Colma, en face du petit marché.",
+      "latitude": 11.2044411,
+      "longitude": -4.2956932
+    },
+    {
+      "id": "ph-bobo-dioulasso-dinie",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Dinie",
+      "phone": "+226 56 89 89 12",
+      "dutyGroup": 2,
+      "address": "Kodéni, route de Banfora à 100 m de la station Oryx",
+      "latitude": 11.13462,
+      "longitude": -4.320155
+    },
+    {
+      "id": "ph-bobo-dioulasso-diyama",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Diyama",
+      "phone": "+226 70 17 28 23",
+      "dutyGroup": null,
+      "address": "Section 25 côté Sud OCADES",
+      "latitude": 11.159913,
+      "longitude": -4.24092
+    },
+    {
+      "id": "ph-bobo-dioulasso-djam",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Djam",
+      "phone": "+226 57 04 78 85",
+      "dutyGroup": 2,
+      "address": "Sect 29 à côté de l’INSSA",
+      "latitude": 11.183539,
+      "longitude": -4.368604
+    },
+    {
+      "id": "ph-bobo-dioulasso-djena",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Djena",
+      "phone": "+226 20 98 37 98",
+      "dutyGroup": 2,
+      "address": "Av. Nelson Mandela, Ouezzin Ville",
+      "latitude": 11.2013123,
+      "longitude": -4.3150008
+    },
+    {
+      "id": "ph-bobo-dioulasso-ekossinnes",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Ekossinnes",
+      "phone": "+226 60 76 38 38",
+      "dutyGroup": 4,
+      "address": "Bobo 2010",
+      "latitude": 11.222967,
+      "longitude": -4.306501
+    },
+    {
+      "id": "ph-bobo-dioulasso-entente",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Entente",
+      "phone": "+226 20 97 19 16",
+      "dutyGroup": 3,
+      "address": "Koko, à 300m de la maternité Guimbi OUATTARA",
+      "latitude": 11.172603,
+      "longitude": -4.2903139
+    },
+    {
+      "id": "ph-bobo-dioulasso-esperance",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Esperance",
+      "phone": "+226 20 97 47 17",
+      "dutyGroup": 1,
+      "address": "Bindougousso à 200m de Maderssa Salam",
+      "latitude": 11.1890479,
+      "longitude": -4.2703436
+    },
+    {
+      "id": "ph-bobo-dioulasso-fanyansa",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Fanyansa",
+      "phone": "+226 20 97 14 80",
+      "dutyGroup": 1,
+      "address": "Av. Nelson Mandela à 100m du centre des jeunes de Ouezzin-ville",
+      "latitude": 11.1792291,
+      "longitude": -4.2664749
+    },
+    {
+      "id": "ph-bobo-dioulasso-hadim",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Hadim",
+      "phone": "+226 20 98 42 00",
+      "dutyGroup": 4,
+      "address": "Boulevard face à la cité an II, non loin de la SONABEL",
+      "latitude": 11.1779075,
+      "longitude": -4.272701
+    },
+    {
+      "id": "ph-bobo-dioulasso-harmonie",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Harmonie",
+      "phone": "+226 20 97 07 17",
+      "dutyGroup": 1,
+      "address": "Lafiabougou, route de Orodara",
+      "latitude": 11.158342,
+      "longitude": -4.320083
+    },
+    {
+      "id": "ph-bobo-dioulasso-havvah",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Havvah",
+      "phone": "+226 20 95 75 98",
+      "dutyGroup": 2,
+      "address": "A côté de Burkina secours sect24",
+      "latitude": 11.172165,
+      "longitude": -4.233642
+    },
+    {
+      "id": "ph-bobo-dioulasso-hayatt",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Hayatt",
+      "phone": "+226 20 97 00 00",
+      "dutyGroup": 3,
+      "address": "Belle-Ville, route de Nasso",
+      "latitude": 11.1781003,
+      "longitude": -4.3359474
+    },
+    {
+      "id": "ph-bobo-dioulasso-hereso",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Hereso",
+      "phone": "+226 20 97 09 95",
+      "dutyGroup": 3,
+      "address": "Sarfalao, face à la place de la femme",
+      "latitude": 11.1714071,
+      "longitude": -4.2676272
+    },
+    {
+      "id": "ph-bobo-dioulasso-hopital",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Hopital",
+      "phone": "+226 20 98 37 47",
+      "dutyGroup": 4,
+      "address": "Face au camp militaire Ouezzin Coulibaly",
+      "latitude": 11.169117,
+      "longitude": -4.3030351
+    },
+    {
+      "id": "ph-bobo-dioulasso-houet-nouvelle",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Houet Nouvelle",
+      "phone": "+226 20 95 53 08",
+      "dutyGroup": 2,
+      "address": "Sect. 1 à côté de la Direction de la SOFITEX",
+      "latitude": 11.1752,
+      "longitude": -4.301501
+    },
+    {
+      "id": "ph-bobo-dioulasso-jigiya",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Jigiya",
+      "phone": "+226 20 97 12 04",
+      "dutyGroup": 4,
+      "address": "Accart ville à 50 m du marché",
+      "latitude": 11.1877403,
+      "longitude": -4.3121352
+    },
+    {
+      "id": "ph-bobo-dioulasso-jolean",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Jolean",
+      "phone": "+226 20 98 21 20",
+      "dutyGroup": 1,
+      "address": "Sect. 22, entre le plateau Yêguéré et CMA 22",
+      "latitude": 11.201332,
+      "longitude": -4.314973
+    },
+    {
+      "id": "ph-bobo-dioulasso-kanta",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Kanta",
+      "phone": "+226 20 66 10 51",
+      "dutyGroup": 4,
+      "address": "Sect. 21, sur les voies du Conseil Regional/Station Shell",
+      "latitude": 11.165598,
+      "longitude": -4.302385
+    },
+    {
+      "id": "ph-bobo-dioulasso-kone",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Kone",
+      "phone": "+226 20 95 76 95",
+      "dutyGroup": 2,
+      "address": "A côté du Tribunal du Commerce sect18",
+      "latitude": 11.1380721,
+      "longitude": -4.2827028
+    },
+    {
+      "id": "ph-bobo-dioulasso-lafia",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Lafia",
+      "phone": "+226 20 95 54 37",
+      "dutyGroup": 2,
+      "address": "Yeguere coura route Bobo 2010",
+      "latitude": 11.2148538,
+      "longitude": -4.3098723
+    },
+    {
+      "id": "ph-bobo-dioulasso-lafiabougou",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Lafiabougou",
+      "phone": "+226 20 95 64 27",
+      "dutyGroup": 4,
+      "address": "A côté de l’école Sapeur pompiers",
+      "latitude": 11.176098,
+      "longitude": -4.288508
+    },
+    {
+      "id": "ph-bobo-dioulasso-lakari",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Lakari",
+      "phone": "+226 53 68 18 18",
+      "dutyGroup": 4,
+      "address": "Rue Vicens, Koko à côté du pont Bessin",
+      "latitude": 11.1742083,
+      "longitude": -4.2800066
+    },
+    {
+      "id": "ph-bobo-dioulasso-lame",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Lame",
+      "phone": "+226 20 95 76 75",
+      "dutyGroup": 3,
+      "address": "A côté de la station Ola Bobo 2010 route de Bama",
+      "latitude": 11.226106,
+      "longitude": -4.315047
+    },
+    {
+      "id": "ph-bobo-dioulasso-levant",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Levant",
+      "phone": "+226 20 97 03 33",
+      "dutyGroup": 1,
+      "address": "Sikasso Sira route camp miltaire Ouezzin Coulibaly",
+      "latitude": 11.1727733,
+      "longitude": -4.3030017
+    },
+    {
+      "id": "ph-bobo-dioulasso-lucien",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Lucien",
+      "phone": "+226 20 97 51 52",
+      "dutyGroup": 2,
+      "address": "Sect. 1 à côté du commissariat central",
+      "latitude": 11.160033,
+      "longitude": -4.2698943
+    },
+    {
+      "id": "ph-bobo-dioulasso-mah-ta",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Mah-Ta",
+      "phone": "+226 20 98 28 25",
+      "dutyGroup": 2,
+      "address": "Sect. 21, face à la base aériènne, route de Nasso",
+      "latitude": 11.1757429,
+      "longitude": -4.3276554
+    },
+    {
+      "id": "ph-bobo-dioulasso-medine",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Medine",
+      "phone": "+226 20 97 09 10",
+      "dutyGroup": 3,
+      "address": "Sect. 01, Av. de la République, à 100m de la DIACFA",
+      "latitude": 11.1791624,
+      "longitude": -4.298749
+    },
+    {
+      "id": "ph-bobo-dioulasso-moderne",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Moderne",
+      "phone": "+226 20 97 02 50",
+      "dutyGroup": 1,
+      "address": "Sect. 05 entre Maison de la culture et place de la femme",
+      "latitude": 11.1772549,
+      "longitude": -4.2981744
+    },
+    {
+      "id": "ph-bobo-dioulasso-nazindi-gouba",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Nazindi-Gouba",
+      "phone": "+226 20 97 57 57",
+      "dutyGroup": 2,
+      "address": "Colma, route de Dédougou, face au CAS",
+      "latitude": 11.196,
+      "longitude": -4.29222
+    },
+    {
+      "id": "ph-bobo-dioulasso-nazounki",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Nazounki",
+      "phone": "+226 20 97 31 00",
+      "dutyGroup": 2,
+      "address": "Sect. 22 à 200m du Stade LAMIZANA",
+      "latitude": 11.1899282,
+      "longitude": -4.3257634
+    },
+    {
+      "id": "ph-bobo-dioulasso-orlea",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Orlea",
+      "phone": "+226 25 39 25 33",
+      "dutyGroup": 1,
+      "address": "Sect. 19, zone industrielle port sec, route de Banfora",
+      "latitude": 11.135,
+      "longitude": -4.28876
+    },
+    {
+      "id": "ph-bobo-dioulasso-oulagnan-traore",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Oulagnan Traore",
+      "phone": "+226 57 93 93 56",
+      "dutyGroup": 3,
+      "address": "Marche de fruits sect10",
+      "latitude": 11.1765471,
+      "longitude": -4.3133445
+    },
+    {
+      "id": "ph-bobo-dioulasso-remedis",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Remedis",
+      "phone": "+226 20 97 09 52",
+      "dutyGroup": 1,
+      "address": "Sect. 05 entre Maison de la culture et place de la femme",
+      "latitude": 11.1649098,
+      "longitude": -4.2760222
+    },
+    {
+      "id": "ph-bobo-dioulasso-saint-antoine",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Saint-Antoine",
+      "phone": "+226 20 95 13 01",
+      "dutyGroup": 3,
+      "address": "Sakabi, route de Dédougou",
+      "latitude": 11.2155222,
+      "longitude": -4.2845214
+    },
+    {
+      "id": "ph-bobo-dioulasso-saint-raphael",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Saint-Raphael",
+      "phone": "+226 20 98 63 91",
+      "dutyGroup": 3,
+      "address": "Lafiabougou, route de Banfora",
+      "latitude": 11.1562127,
+      "longitude": -4.315143
+    },
+    {
+      "id": "ph-bobo-dioulasso-sakaby",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sakaby",
+      "phone": "+226 60 75 36 36",
+      "dutyGroup": 4,
+      "address": "Sect. 10, face à total, à 400m du CSPS de Sakaby",
+      "latitude": 11.216816,
+      "longitude": -4.286024
+    },
+    {
+      "id": "ph-bobo-dioulasso-sala",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sala",
+      "phone": "+226 20 97 18 89",
+      "dutyGroup": 1,
+      "address": "Colma, route de Bo o 2010 à 200 m des rails",
+      "latitude": 11.1867377,
+      "longitude": -4.3018866
+    },
+    {
+      "id": "ph-bobo-dioulasso-samba",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Samba",
+      "phone": "+226 04 37 24 24",
+      "dutyGroup": 4,
+      "address": "À côté du CSPS St Bernard Bindougousso sect 14",
+      "latitude": 11.1928191,
+      "longitude": -4.2652272
+    },
+    {
+      "id": "ph-bobo-dioulasso-samhita",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Samhita",
+      "phone": "+226 25 39 34 81",
+      "dutyGroup": 3,
+      "address": "Sect. 24, après l’école prima re KUA D. sur la grande voie",
+      "latitude": 11.182132,
+      "longitude": -4.240138
+    },
+    {
+      "id": "ph-bobo-dioulasso-sanitas",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sanitas",
+      "phone": "+226 20 97 22 42",
+      "dutyGroup": 3,
+      "address": "Marchés du sect. 25",
+      "latitude": 11.1624405,
+      "longitude": -4.2505362
+    },
+    {
+      "id": "ph-bobo-dioulasso-sarfalao",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sarfalao",
+      "phone": "+226 20 97 01 35",
+      "dutyGroup": 2,
+      "address": "A 200m de la Mairie, Arrdt N°5 (ex DAFRA)",
+      "latitude": 11.1594281,
+      "longitude": -4.2807897
+    },
+    {
+      "id": "ph-bobo-dioulasso-sibiri",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sibiri",
+      "phone": "+226 20 97 79 02",
+      "dutyGroup": 1,
+      "address": "Sect. 25, route de Ouaga, collé à la Pyramide",
+      "latitude": 11.1691325,
+      "longitude": -4.2509468
+    },
+    {
+      "id": "ph-bobo-dioulasso-sifoma",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sifoma",
+      "phone": "+226 20 97 19 65",
+      "dutyGroup": 2,
+      "address": "Accart Ville face à la SONABEL",
+      "latitude": 11.1825278,
+      "longitude": -4.3075451
+    },
+    {
+      "id": "ph-bobo-dioulasso-siyara",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Siyara",
+      "phone": "+226 20 97 13 73",
+      "dutyGroup": 4,
+      "address": "Sect. 01 face au Grand marché",
+      "latitude": 11.176672,
+      "longitude": -4.301627
+    },
+    {
+      "id": "ph-bobo-dioulasso-solidarite",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Solidarite",
+      "phone": "+226 20 97 17 26",
+      "dutyGroup": 4,
+      "address": "Médina Coura, route Trypano",
+      "latitude": 11.1918089,
+      "longitude": -4.2750918
+    },
+    {
+      "id": "ph-bobo-dioulasso-soudia",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Soudia",
+      "phone": "+226 20 97 14 49",
+      "dutyGroup": 3,
+      "address": "Av. de l’Unité, voie menant à l’hippodrome",
+      "latitude": 11.1884434,
+      "longitude": -4.3043405
+    },
+    {
+      "id": "ph-bobo-dioulasso-souligne",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Souligne",
+      "phone": "+226 20 97 08 16",
+      "dutyGroup": 3,
+      "address": "Sect. 01, imm SANGA Issa, siège ORANGE",
+      "latitude": 11.1738429,
+      "longitude": -4.2998873
+    },
+    {
+      "id": "ph-bobo-dioulasso-sya-ex-dafra",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sya (Ex Dafra)",
+      "phone": "+226 20 97 79 93",
+      "dutyGroup": 2,
+      "address": "Rue Vicens, face au rond point des 03 luttes",
+      "latitude": 11.1740542,
+      "longitude": -4.2786314
+    },
+    {
+      "id": "ph-bobo-dioulasso-tene",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Tene",
+      "phone": "+226 20 66 00 05",
+      "dutyGroup": 3,
+      "address": "Sect. 14, Bindougousso, à 300m de la station Shell",
+      "latitude": 11.1938751,
+      "longitude": -4.2965255
+    },
+    {
+      "id": "ph-bobo-dioulasso-vitalis",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Vitalis",
+      "phone": "+226 70 52 39 57",
+      "dutyGroup": 3,
+      "address": "Sect. 22, route du plateau de Yéguèré",
+      "latitude": 11.1912681,
+      "longitude": -4.3143332
+    },
+    {
+      "id": "ph-bobo-dioulasso-wobi",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Wobi",
+      "phone": "+226 20 97 36 97",
+      "dutyGroup": 1,
+      "address": "Av. de la République face Ex gare de SOGEBAF",
+      "latitude": 11.1852608,
+      "longitude": -4.2982366
+    },
+    {
+      "id": "ph-bobo-dioulasso-yamba",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Yamba",
+      "phone": "+226 20 97 77 78",
+      "dutyGroup": 3,
+      "address": "Souroukoukin, 300m de l’ex Ecole Jamot, route Bobo 2010",
+      "latitude": 11.1803023,
+      "longitude": -4.3028965
+    },
+    {
+      "id": "ph-bobo-dioulasso-zoe",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Zoe",
+      "phone": "+226 63 10 07 75",
+      "dutyGroup": 2,
+      "address": "Sect. 20, route de Orodara, Paroisse St Jean Paul II / Lafiabougou",
+      "latitude": 11.1545322,
+      "longitude": -4.3252112
+    },
+    {
+      "id": "ph-ouagadougou-1200-logements",
+      "city": "Ouagadougou",
+      "name": "Pharmacie 1200 Logements",
+      "phone": "+226 25 36 02 52",
+      "dutyGroup": 4,
+      "address": "Av. Babanguida face au CM St Camille",
+      "latitude": 12.3668409,
+      "longitude": -1.4938745
+    },
+    {
+      "id": "ph-ouagadougou-adadoua",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Adadoua",
+      "phone": "+226 63 88 39 39",
+      "dutyGroup": 2,
+      "address": "Entre le CMA de Pissy et le Centre Médical Source de Vie (A 200 m du C.M. Source de Vie)",
+      "latitude": 12.3337843,
+      "longitude": -1.5620317
+    },
+    {
+      "id": "ph-ouagadougou-adama",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Adama",
+      "phone": "+226 62 33 77 77",
+      "dutyGroup": 4,
+      "address": "En face du Marché de Pissy non loin de la Caisse Populaire",
+      "latitude": 12.3356056,
+      "longitude": -1.5682221
+    },
+    {
+      "id": "ph-ouagadougou-aeroport",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Aéroport",
+      "phone": "+226 25 31 42 22",
+      "dutyGroup": 2,
+      "address": "Face à l’ASECNA à 500m de l’Aeroport International de Ouagadougou",
+      "latitude": 12.3504685,
+      "longitude": -1.5213054
+    },
+    {
+      "id": "ph-ouagadougou-afiya",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Afiya",
+      "phone": "+226 66 11 73 65",
+      "dutyGroup": 4,
+      "address": "Zone 1 à 300m du Lycée Badenya, face au non loti",
+      "latitude": 12.3553431,
+      "longitude": -1.4688761
+    },
+    {
+      "id": "ph-ouagadougou-agora-rood-wooko",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Agora-Rood Wooko",
+      "phone": "+226 57 84 47 49",
+      "dutyGroup": 2,
+      "address": "Marché Rood Wooko, face à DIACFA Librairie",
+      "latitude": 12.37094,
+      "longitude": -1.521147
+    },
+    {
+      "id": "ph-ouagadougou-aimevo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Aïmèvo",
+      "phone": "+226 25 39 36 99",
+      "dutyGroup": 3,
+      "address": "En Face de la Mairie de Karpala (Arrdt. 11) env. 20m après le Chateau de l’ONEA",
+      "latitude": 12.3390042,
+      "longitude": -1.479868
+    },
+    {
+      "id": "ph-ouagadougou-amaro",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Amaro",
+      "phone": "+226 25 34 33 28",
+      "dutyGroup": 2,
+      "address": "Av. du Kadiogo Gounghin Petit Paris entre le service passeport et le pont Kadiogo",
+      "latitude": 12.3610293,
+      "longitude": -1.5398363
+    },
+    {
+      "id": "ph-ouagadougou-amina",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Amina",
+      "phone": "+226 25 36 76 65",
+      "dutyGroup": 2,
+      "latitude": 12.369588,
+      "longitude": -1.484023
+    },
+    {
+      "id": "ph-ouagadougou-amitie-miyougou",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Amitié Miyougou",
+      "phone": "+226 25 38 52 36",
+      "dutyGroup": 4,
+      "address": "Boulevard de la circulaire, sect. 25 Cissin, à 200m du marché de Paagla yiri",
+      "latitude": 12.3341225,
+      "longitude": -1.5357419
+    },
+    {
+      "id": "ph-ouagadougou-angele",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Angele",
+      "phone": "+226 25 35 07 17",
+      "dutyGroup": 4,
+      "address": "Tampouy côté sud du Centre Médical Paul VI, face au monument des Martyrs.",
+      "latitude": 12.3898845,
+      "longitude": -1.5629467
+    },
+    {
+      "id": "ph-ouagadougou-ar-rahma",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Ar-rahma",
+      "phone": "+226 25 35 09 86",
+      "dutyGroup": 2,
+      "address": "Av. Yatenga à Tampouy, face à la Caisse Populaire",
+      "latitude": 12.3895173,
+      "longitude": -1.5738866
+    },
+    {
+      "id": "ph-ouagadougou-archanges",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Archanges",
+      "phone": "+226 79 20 01 83",
+      "dutyGroup": 1,
+      "address": "Pissy, Face à la station OTAM. Croisement rue 17.619 et rue Boassa, côté Ecole Adventiste Élysée.",
+      "latitude": 12.3316319,
+      "longitude": -1.584736
+    },
+    {
+      "id": "ph-ouagadougou-arzouma",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Arzouma",
+      "phone": "+226 25 48 01 53",
+      "dutyGroup": 3,
+      "address": "Quartier Pissy, à 100m de la clinique du Plateau, non loin de la salle de ciné de Pissy",
+      "latitude": 12.3307024,
+      "longitude": -1.5707762
+    },
+    {
+      "id": "ph-ouagadougou-augustine",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Augustine",
+      "phone": "+226 25 37 61 00",
+      "dutyGroup": 2,
+      "address": "Sise à Ouaga 2000 à environ 300m de l’échangeur en partance vers le monument des martyres",
+      "latitude": 12.327115,
+      "longitude": -1.5000203
+    },
+    {
+      "id": "ph-ouagadougou-ave-maria",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Avé Maria",
+      "phone": "+226 25 47 98 88",
+      "dutyGroup": 3,
+      "address": "Karpala non loin de la Station Oryx et eau OCÉAN",
+      "latitude": 12.3235046,
+      "longitude": -1.469362
+    },
+    {
+      "id": "ph-ouagadougou-avenir",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Avenir",
+      "phone": "+226 25 65 10 71",
+      "dutyGroup": 1,
+      "address": "1296 av. BABANGUIDA face à la station Total",
+      "latitude": 12.3751998,
+      "longitude": -1.4938723
+    },
+    {
+      "id": "ph-ouagadougou-baani",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Baani",
+      "phone": "+226 77 52 00 36",
+      "dutyGroup": 1,
+      "latitude": 12.2713303,
+      "longitude": -1.4897121
+    },
+    {
+      "id": "ph-ouagadougou-balkuy",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Balkuy",
+      "phone": "+226 25 37 51 36",
+      "dutyGroup": 3,
+      "address": "Route de Pô, non loin de la Station Total",
+      "latitude": 12.3096328,
+      "longitude": -1.4822261
+    },
+    {
+      "id": "ph-ouagadougou-bang-poore",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Bang-Pooré",
+      "phone": "+226 25 47 96 86",
+      "dutyGroup": 1,
+      "address": "Sect. 17 Tanghin devant Arb-Yaar derrière les rails à 100m du Collège Privé Protestant II",
+      "latitude": 12.4229363,
+      "longitude": -1.5438051
+    },
+    {
+      "id": "ph-ouagadougou-bao-neere",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Bao Neeré",
+      "phone": "+226 25 45 88 88",
+      "dutyGroup": 2,
+      "address": "Marché de Rimkieta en face de la station S.K.I.",
+      "latitude": 12.3738271,
+      "longitude": -1.5861006
+    },
+    {
+      "id": "ph-ouagadougou-baowendsom",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Baowendsom",
+      "phone": "+226 25 41 44 99",
+      "dutyGroup": 1,
+      "address": "Tampouy sur le nouveau goudron du collège Notre Dame de l'Espérance non loin de \"La Roche\"",
+      "latitude": 12.401395,
+      "longitude": -1.5655642
+    },
+    {
+      "id": "ph-ouagadougou-baraka",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Baraka",
+      "phone": "+226 25 33 02 72",
+      "dutyGroup": 3,
+      "address": "Côté Est de la Cours du Ouidi Naaba",
+      "latitude": 12.3786779,
+      "longitude": -1.5396613
+    },
+    {
+      "id": "ph-ouagadougou-barkwende",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Barkwende",
+      "phone": "+226 25 40 85 90",
+      "dutyGroup": 1,
+      "address": "Arrdt 8, Sect 35, face à la cité de Rimkièta",
+      "latitude": 12.3737293,
+      "longitude": -1.6084504
+    },
+    {
+      "id": "ph-ouagadougou-bassinko",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Bassinko",
+      "phone": "+226 25 41 71 50",
+      "dutyGroup": 4,
+      "address": "Quartier Bassinko à 50 m du CSPS de Bassinko Village",
+      "latitude": 12.391119,
+      "longitude": -1.633681
+    },
+    {
+      "id": "ph-ouagadougou-beatitudes",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Beatitudes",
+      "phone": "+226 25 37 47 11",
+      "dutyGroup": 1,
+      "address": "Blvd. France-Afrique Ouaga 2000 en face de la cite Azimo",
+      "latitude": 12.307367,
+      "longitude": -1.528376
+    },
+    {
+      "id": "ph-ouagadougou-bedjou",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Bedjou",
+      "phone": "+226 25 47 58 25",
+      "dutyGroup": 4,
+      "address": "Quartier Sanyiri, non loin du CSPS Major, derrière le GIGN.",
+      "latitude": 12.344333,
+      "longitude": -1.479958
+    },
+    {
+      "id": "ph-ouagadougou-belle-ville",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Belle ville",
+      "phone": "+226 25 40 84 14",
+      "dutyGroup": 3,
+      "address": "Route de Komsilga / BRAFASO / 75e Anniversaire AD",
+      "latitude": 12.307727,
+      "longitude": -1.557804
+    },
+    {
+      "id": "ph-ouagadougou-benaia",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Benaia",
+      "phone": "+226 25 37 28 30",
+      "dutyGroup": 1,
+      "address": "Katre-yaare ex secteur 29",
+      "latitude": 12.3503395,
+      "longitude": -1.4796989
+    },
+    {
+      "id": "ph-ouagadougou-bethania",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Bethania",
+      "phone": "+226 25 31 31 41",
+      "dutyGroup": 4,
+      "address": "Av.Oumarou KANAZOE coté Est CBC",
+      "latitude": 12.3640405,
+      "longitude": -1.5336946
+    },
+    {
+      "id": "ph-ouagadougou-blandine-congo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Blandine Congo",
+      "phone": "+226 50 65 66 31",
+      "dutyGroup": 4,
+      "latitude": 12.3405395,
+      "longitude": -1.5449043
+    },
+    {
+      "id": "ph-ouagadougou-blessing",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Blessing",
+      "phone": "+226 01 75 99 75",
+      "dutyGroup": 3,
+      "address": "Après le rond point de la Transition à 200m du maquis Ka La Gabon",
+      "latitude": 12.282085,
+      "longitude": -1.578732
+    },
+    {
+      "id": "ph-ouagadougou-bonheur",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Bonheur",
+      "phone": "+226 63 73 81 81",
+      "dutyGroup": 1,
+      "address": "Bonheur Ville à 100 mètres de l’Eglise du 75ème anniversaire",
+      "latitude": 12.3139852,
+      "longitude": -1.5551909
+    },
+    {
+      "id": "ph-ouagadougou-boulmiougou",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Boulmiougou",
+      "phone": "+226 25 43 12 68",
+      "dutyGroup": 2,
+      "address": "Arrdt n°6, Sect 27, 166 rue de Boassa, Pissy à 200m du Complexe Scolaire Sainte-Famille",
+      "latitude": 12.3328999,
+      "longitude": -1.5829698
+    },
+    {
+      "id": "ph-ouagadougou-camille",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Camille",
+      "phone": "+226 61 80 14 77",
+      "dutyGroup": 1,
+      "address": "Av. Charles De Gaule - Hôtel des nances de Dassasgho",
+      "latitude": 12.3758268,
+      "longitude": -1.4779569
+    },
+    {
+      "id": "ph-ouagadougou-carrefour",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Carrefour",
+      "phone": "+226 25 33 23 10",
+      "dutyGroup": 3,
+      "address": "En face du rond point du 2 octobre et du lycée Marien Gouabi",
+      "latitude": 12.3677055,
+      "longitude": -1.5309441
+    },
+    {
+      "id": "ph-ouagadougou-cathedrale",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Cathédrale",
+      "phone": "+226 25 31 28 07",
+      "dutyGroup": 2,
+      "address": "38, Av de la cathédrale, coté Ouest de la cathédrale, face à la station TOTAL",
+      "latitude": 12.3632079,
+      "longitude": -1.5281878
+    },
+    {
+      "id": "ph-ouagadougou-centre",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Centre",
+      "phone": "+226 25 31 16 60",
+      "dutyGroup": 1,
+      "address": "460, Av. de la nation collée à Telecel siège",
+      "latitude": 12.3441696,
+      "longitude": -1.5167069
+    },
+    {
+      "id": "ph-ouagadougou-charis",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Charis",
+      "phone": "+226 25 43 90 91",
+      "dutyGroup": 3,
+      "address": "Cité relais de Zagtouli, route de bobo après le complexe scolaire Saint Justin",
+      "latitude": 12.3656987,
+      "longitude": -1.5286784
+    },
+    {
+      "id": "ph-ouagadougou-choukroullah",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Choukroullah",
+      "phone": "+226 25 40 93 76",
+      "dutyGroup": 4,
+      "address": "300m du Centre Médical de Nagrin",
+      "latitude": 12.2868,
+      "longitude": -1.53839
+    },
+    {
+      "id": "ph-ouagadougou-christvi",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Christvi",
+      "phone": "+226 25 48 59 59",
+      "dutyGroup": 3,
+      "address": "Après le Marché de Bétail en direction de l’échangeur du Nord, avant le feu tricolor, quartier Tanghin",
+      "latitude": 12.3510706,
+      "longitude": -1.5569309
+    },
+    {
+      "id": "ph-ouagadougou-circulaire-sede",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Circulaire Sède",
+      "phone": "+226 25 47 61 27",
+      "dutyGroup": 4,
+      "address": "ex Sect. 15 face à la Station TOTAL Ouaga-inter",
+      "latitude": 12.3325736,
+      "longitude": -1.5166729
+    },
+    {
+      "id": "ph-ouagadougou-cite-an-3",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Cité An 3",
+      "phone": "+226 25 33 19 66",
+      "dutyGroup": 2,
+      "address": "Larlé, en face de la maternité Pogbi (du Centre Médical Urbain )",
+      "latitude": 12.3610134,
+      "longitude": -1.5500183
+    },
+    {
+      "id": "ph-ouagadougou-concorde",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Concorde",
+      "phone": "+226 25 31 29 49",
+      "dutyGroup": 3,
+      "address": "Av. Kwame N'krumah non loin de Zabre Daaga",
+      "latitude": 12.3657673,
+      "longitude": -1.5183549
+    },
+    {
+      "id": "ph-ouagadougou-coura",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Coura",
+      "phone": "+226 25 38 83 90",
+      "dutyGroup": 3,
+      "address": "200m côté ouest du rond-point des Droits Humains",
+      "latitude": 12.3274061,
+      "longitude": -1.5207275
+    },
+    {
+      "id": "ph-ouagadougou-crystal",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Crystal",
+      "phone": "+226 60 46 08 08",
+      "dutyGroup": 1,
+      "address": "Face à la nouvelle Mairie de l’Arrdt 9 ; vers Centre Medical DON ORIONE, sect 38",
+      "latitude": 12.419708,
+      "longitude": -1.558634
+    },
+    {
+      "id": "ph-ouagadougou-danouma",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Danouma",
+      "phone": "+226 25 39 55 54",
+      "dutyGroup": 2,
+      "address": "Bonheur Ville à 300 mètres du rond-point de la Transition",
+      "latitude": 12.3687904,
+      "longitude": -1.5259356
+    },
+    {
+      "id": "ph-ouagadougou-dapoya",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Dapoya",
+      "phone": "+226 25 31 32 01",
+      "dutyGroup": 2,
+      "address": "Dapoya, face immeuble acimex, Sankar-yaare",
+      "latitude": 12.3799582,
+      "longitude": -1.5230395
+    },
+    {
+      "id": "ph-ouagadougou-de-lalliance",
+      "city": "Ouagadougou",
+      "name": "Pharmacie De l'Alliance",
+      "phone": "+226 66 06 35 39",
+      "dutyGroup": 4,
+      "address": "Rimkieta à 50 mètres du Lycée Général Kadiogo III",
+      "latitude": 12.3852251,
+      "longitude": -1.6028525
+    },
+    {
+      "id": "ph-ouagadougou-de-lhippodrome",
+      "city": "Ouagadougou",
+      "name": "Pharmacie De l'Hippodrome",
+      "phone": "+226 25 34 02 32",
+      "dutyGroup": 4,
+      "address": "116 boulevard Tensoba Bugum, côté est de l’hippodrome de Nonsin",
+      "latitude": 12.375924,
+      "longitude": -1.5573961
+    },
+    {
+      "id": "ph-ouagadougou-delwinde",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Delwindé",
+      "phone": "+226 25 36 72 80",
+      "dutyGroup": 2,
+      "address": "Sect. 42 de l'Arrdt. 10, à 700m de l'échangeur de l’EST (Kossodo) RN3",
+      "latitude": 12.4011373,
+      "longitude": -1.4721023
+    },
+    {
+      "id": "ph-ouagadougou-denisa",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Denisa",
+      "phone": "+226 71 82 76 60",
+      "dutyGroup": 2,
+      "address": "Secteur 14 komsilga non loin du CHU de Tengandogo",
+      "latitude": 12.253559,
+      "longitude": -1.529017
+    },
+    {
+      "id": "ph-ouagadougou-des-apotres",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Des Apotres",
+      "phone": "+226 25 38 03 82",
+      "dutyGroup": 1,
+      "address": "Arrdt 12, Sect 52 non loin de l'Église catholique Notre Dame des Apôtres",
+      "latitude": 12.327067,
+      "longitude": -1.5125047
+    },
+    {
+      "id": "ph-ouagadougou-des-cites",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Des cités",
+      "phone": "+226 25 45 65 55",
+      "dutyGroup": 4,
+      "latitude": 12.375707,
+      "longitude": -1.557663
+    },
+    {
+      "id": "ph-ouagadougou-desa",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Desa",
+      "phone": "+226 25 47 50 50",
+      "dutyGroup": 1,
+      "address": "Tanghin, non loin de Hôtel Ricardo",
+      "latitude": 12.3914216,
+      "longitude": -1.5244258
+    },
+    {
+      "id": "ph-ouagadougou-diaby",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Diaby",
+      "phone": "+226 25 33 50 00",
+      "dutyGroup": 1,
+      "address": "Face au Festival des Glaces à Koulouba",
+      "latitude": 12.3652843,
+      "longitude": -1.5168797
+    },
+    {
+      "id": "ph-ouagadougou-diawara",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Diawara",
+      "phone": "+226 25 30 61 68",
+      "dutyGroup": 4,
+      "address": "Rue du grand marché- centre ville coté LONAB",
+      "latitude": 12.3656357,
+      "longitude": -1.5239786
+    },
+    {
+      "id": "ph-ouagadougou-divine",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Divine",
+      "phone": "+226 69 00 07 77",
+      "dutyGroup": 1,
+      "latitude": 12.3978197,
+      "longitude": -1.5929469
+    },
+    {
+      "id": "ph-ouagadougou-djabal",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Djabal",
+      "phone": "+226 25 30 05 76",
+      "dutyGroup": 3,
+      "address": "Kamsonghin secteur 6, Av Ouezzin Coulibaly (entre la zone Zaca et le château du Mogho Naba)",
+      "latitude": 12.3449515,
+      "longitude": -1.5568544
+    },
+    {
+      "id": "ph-ouagadougou-djimbia",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Djimbia",
+      "phone": "+226 78 83 62 74",
+      "dutyGroup": 3,
+      "address": "400m après le rond-point du Rotary, Tanghin",
+      "latitude": 12.401461,
+      "longitude": -1.5142148
+    },
+    {
+      "id": "ph-ouagadougou-dominique-kabore",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Dominique Kaboré",
+      "phone": "+226 25 38 48 84",
+      "dutyGroup": 1,
+      "address": "200 mètres du rond-point de la Pa e d’oie, sur le blvd des Martyrs (ou blvd France - Afrique)",
+      "latitude": 12.3299218,
+      "longitude": -1.5262859
+    },
+    {
+      "id": "ph-ouagadougou-dunia",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Dunia",
+      "phone": "+226 25 36 20 51",
+      "dutyGroup": 3,
+      "address": "Avenue des Arts/ face au rond-point des Artistes ex sect. 14, 1200 logts",
+      "latitude": 12.3593046,
+      "longitude": -1.4951501
+    },
+    {
+      "id": "ph-ouagadougou-ecoles",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Ecoles",
+      "phone": "+226 25 31 52 32",
+      "dutyGroup": 3,
+      "address": "Rue des écoles à Paspanga",
+      "latitude": 12.3818477,
+      "longitude": -1.5162101
+    },
+    {
+      "id": "ph-ouagadougou-el-shaddai",
+      "city": "Ouagadougou",
+      "name": "Pharmacie El Shaddai",
+      "phone": "+226 25 41 00 02",
+      "dutyGroup": 4,
+      "address": "Benogo à 100 mètres du Pont Ana na yélé",
+      "latitude": 12.4145175,
+      "longitude": -1.4634325
+    },
+    {
+      "id": "ph-ouagadougou-el-wanogo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie El Wanogo",
+      "phone": "+226 25 40 70 22",
+      "dutyGroup": 1,
+      "address": "A côté du Marché de Wayalghin, non loin de la Clinique de l’EST",
+      "latitude": 12.3984754,
+      "longitude": -1.4637411
+    },
+    {
+      "id": "ph-ouagadougou-elite",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Elite",
+      "phone": "+226 25 41 91 77",
+      "dutyGroup": 1,
+      "address": "Avenue Yennega route de Yagma",
+      "latitude": 12.4000008,
+      "longitude": -1.5727756
+    },
+    {
+      "id": "ph-ouagadougou-espoir",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Espoir",
+      "phone": "+226 25 31 54 12",
+      "dutyGroup": 4,
+      "address": "Larle face à la maison des jeunes",
+      "latitude": 12.3726963,
+      "longitude": -1.5456802
+    },
+    {
+      "id": "ph-ouagadougou-fabere",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Faberé",
+      "phone": "+226 25 41 05 75",
+      "dutyGroup": 3,
+      "address": "Arrdt 9, voie de Avé Maria en allant au château d'eau à 200m du complexe scolaire la Sagesse",
+      "latitude": 12.4127586,
+      "longitude": -1.5708048
+    },
+    {
+      "id": "ph-ouagadougou-faso",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Faso",
+      "phone": "+226 25 38 19 29",
+      "dutyGroup": 2,
+      "address": "Blvd France - Afrique à 300m de l’agence BOA France Afrique, Pa e-d’oie",
+      "latitude": 12.3178393,
+      "longitude": -1.5217902
+    },
+    {
+      "id": "ph-ouagadougou-flayiri",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Flayiri",
+      "phone": "+226 25 40 73 44",
+      "dutyGroup": 2,
+      "address": "Station Petrofa ZAD",
+      "latitude": 12.3383643,
+      "longitude": -1.5088647
+    },
+    {
+      "id": "ph-ouagadougou-fraternite",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Fraternité",
+      "phone": "+226 25 36 48 00",
+      "dutyGroup": 4,
+      "address": "100m de ENAREF, côté ECOBANK",
+      "latitude": 12.3908138,
+      "longitude": -1.4764622
+    },
+    {
+      "id": "ph-ouagadougou-galiam",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Galiam",
+      "phone": "+226 25 65 31 65",
+      "dutyGroup": 3,
+      "address": "Tampouy, route de la mairie de Sig-Nonghin, non loin du rond point de la Cité AZIMO",
+      "latitude": 12.3996961,
+      "longitude": -1.566242
+    },
+    {
+      "id": "ph-ouagadougou-gare",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Gare",
+      "phone": "+226 25 31 62 06",
+      "dutyGroup": 4,
+      "address": "103 rue des Douanes côté nord UBA Siège",
+      "latitude": 12.4006735,
+      "longitude": -1.4669211
+    },
+    {
+      "id": "ph-ouagadougou-gemme",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Gemme",
+      "phone": "+226 62 70 50 50",
+      "dutyGroup": 4,
+      "address": "Cité AZIMMO Tampouy en face du Lycée Privé Pang Ya Wendé",
+      "latitude": 12.401395,
+      "longitude": -1.5655642
+    },
+    {
+      "id": "ph-ouagadougou-georgette",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Georgette",
+      "phone": "+226 25 50 05 28",
+      "dutyGroup": 3,
+      "address": "Bassinko, route de Ouahigouya, à côté de la boulangerie Baraka",
+      "latitude": 12.4102792,
+      "longitude": -1.6323174
+    },
+    {
+      "id": "ph-ouagadougou-gova",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Gova",
+      "phone": "+226 74 44 42 09",
+      "dutyGroup": 1,
+      "latitude": 12.3818493,
+      "longitude": -1.5352001
+    },
+    {
+      "id": "ph-ouagadougou-gueswende",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Gueswende",
+      "phone": "+226 75 21 20 00",
+      "dutyGroup": 1,
+      "latitude": 12.362753,
+      "longitude": -1.478727
+    },
+    {
+      "id": "ph-ouagadougou-guuduma",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Guuduma",
+      "phone": "+226 70 28 48 60",
+      "dutyGroup": 1,
+      "latitude": 12.330884,
+      "longitude": -1.484957
+    },
+    {
+      "id": "ph-ouagadougou-hamamickely",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hamamickely",
+      "phone": "+226 73 78 32 99",
+      "dutyGroup": 3,
+      "address": "Quartier Somgandé à 300m du CSPS du Sect. 19 (ex sect 25) Arrdt 4",
+      "latitude": 12.4121421,
+      "longitude": -1.4943318
+    },
+    {
+      "id": "ph-ouagadougou-hambila",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hambila",
+      "phone": "+226 02 53 57 57",
+      "dutyGroup": 4,
+      "address": "RN4 - Route de fada dans la cité de la nouvelle génération de Abdoul Service International à Borgho",
+      "latitude": 12.3640627,
+      "longitude": -1.5161021
+    },
+    {
+      "id": "ph-ouagadougou-hamdalaye",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hamdalaye",
+      "phone": "+226 25 34 36 94",
+      "dutyGroup": 2,
+      "address": "Quartier Hamdalaye près du marché du 10 Yaar",
+      "latitude": 12.3752302,
+      "longitude": -1.5514024
+    },
+    {
+      "id": "ph-ouagadougou-hamid",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hamid",
+      "phone": "+226 79 61 31 72",
+      "dutyGroup": 4,
+      "address": "Route Nationale nº1 (RN1) en face de la SONAPOST de Zagtouly",
+      "latitude": 12.3265,
+      "longitude": -1.62738
+    },
+    {
+      "id": "ph-ouagadougou-hanahim",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hanahim",
+      "phone": "+226 25 39 54 38",
+      "dutyGroup": 4,
+      "address": "Zone de Saaba non loin du Rond point de l’ONEA route de Fada",
+      "latitude": 12.376944,
+      "longitude": -1.420833
+    },
+    {
+      "id": "ph-ouagadougou-hanniel",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hanniel",
+      "phone": "+226 25 36 60 20",
+      "dutyGroup": 2,
+      "address": "Arrdt 10, sect. 43 non loin du rond point sur le goudron qui va du marché de Saaba à Balkuy",
+      "latitude": 12.376944,
+      "longitude": -1.420833
+    },
+    {
+      "id": "ph-ouagadougou-hope",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hope",
+      "phone": "+226 71 14 22 22",
+      "dutyGroup": 2,
+      "address": "Route de fada, Nioko 1, Saaba en allant vers la Consolatrice",
+      "latitude": 12.4055655,
+      "longitude": -1.4322349
+    },
+    {
+      "id": "ph-ouagadougou-hopital",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hôpital",
+      "phone": "+226 25 30 66 41",
+      "dutyGroup": 4,
+      "address": "A côté de l’Hopital Yalgado Ouedraogo",
+      "latitude": 12.3822028,
+      "longitude": -1.5066304
+    },
+    {
+      "id": "ph-ouagadougou-horizon",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Horizon",
+      "phone": "+226 73 17 06 06",
+      "dutyGroup": 2,
+      "address": "Cité Azimmo Ouaga 2000, 50mètres de l’hotel AKENON",
+      "latitude": 12.3060727,
+      "longitude": -1.5028592
+    },
+    {
+      "id": "ph-ouagadougou-hosanna",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Hosanna",
+      "phone": "+226 25 41 26 48",
+      "dutyGroup": 1,
+      "address": "Route de Fada en face du Lycée Naba Yemdé",
+      "latitude": 12.3635689,
+      "longitude": -1.5439828
+    },
+    {
+      "id": "ph-ouagadougou-independance",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Independance",
+      "phone": "+226 25 37 68 71",
+      "dutyGroup": 3,
+      "address": "416, av. du président Lamizana face à Hotel AZALAï",
+      "latitude": 12.3702719,
+      "longitude": -1.5158385
+    },
+    {
+      "id": "ph-ouagadougou-iris",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Iris",
+      "phone": "+226 25 46 99 25",
+      "dutyGroup": 4,
+      "address": "A 500m du rond point de la transition 1ère sortie sur la route du Commissariat Arrdt 7",
+      "latitude": 12.294656,
+      "longitude": -1.576542
+    },
+    {
+      "id": "ph-ouagadougou-jabneel",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Jabnéel",
+      "phone": "+226 25 36 66 01",
+      "dutyGroup": 2,
+      "address": "Route Côté Sud SONABEL Bendogo à 700M",
+      "latitude": 12.3891982,
+      "longitude": -1.4579507
+    },
+    {
+      "id": "ph-ouagadougou-jean-paul-ii",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Jean Paul II",
+      "phone": "+226 25 41 81 54",
+      "dutyGroup": 4,
+      "address": "Tanghin face à Arb - Yaar sect. 17",
+      "latitude": 12.4004904,
+      "longitude": -1.5376327
+    },
+    {
+      "id": "ph-ouagadougou-jeunesse",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Jeunesse",
+      "phone": "+226 25 34 35 04",
+      "dutyGroup": 3,
+      "address": "Blvd de la Jeunesse, Hamdalaye à 200m de l’hippodrome",
+      "latitude": 12.3706171,
+      "longitude": -1.5580827
+    },
+    {
+      "id": "ph-ouagadougou-jireh",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Jireh",
+      "phone": "+226 25 65 21 39",
+      "dutyGroup": 2,
+      "address": "Non loin de l’ecole primaire Naaba YANDFO",
+      "latitude": 12.3600517,
+      "longitude": -1.5214853
+    },
+    {
+      "id": "ph-ouagadougou-jizreel",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Jizreel",
+      "phone": "+226 44 79 35 36",
+      "dutyGroup": 3,
+      "latitude": 12.415646,
+      "longitude": -1.415454
+    },
+    {
+      "id": "ph-ouagadougou-jober",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Jober",
+      "phone": "+226 25 45 51 75",
+      "dutyGroup": 1,
+      "address": "Pissy Secteur 6 (ex-sec. 17), en face du Château d’eau ONEA dit « Silmiraogo château ».",
+      "latitude": 12.3241372,
+      "longitude": -1.5561819
+    },
+    {
+      "id": "ph-ouagadougou-joriel",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Joriel",
+      "phone": "+226 25 48 98 98",
+      "dutyGroup": 2,
+      "address": "Cité de Bassinko sortie Nord du Grand rond-point de la cité de Bassinko",
+      "latitude": 12.3656357,
+      "longitude": -1.5239786
+    },
+    {
+      "id": "ph-ouagadougou-jourdain",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Jourdain",
+      "phone": "+226 25 36 06 86",
+      "dutyGroup": 2,
+      "address": "Blvd Tansoba, 100m de l’hôpital pédiatrique",
+      "latitude": 12.3730362,
+      "longitude": -1.4742603
+    },
+    {
+      "id": "ph-ouagadougou-kadiogo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kadiogo",
+      "phone": "+226 25 31 87 88",
+      "dutyGroup": 4,
+      "address": "1207, avenue Kwamé N’krumah, immeuble CNSS ; Face à Coris Bank siège",
+      "latitude": 12.3603046,
+      "longitude": -1.5172985
+    },
+    {
+      "id": "ph-ouagadougou-kalifa-traore",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kalifa Traore",
+      "phone": "+226 25 43 21 21",
+      "dutyGroup": 3,
+      "latitude": 12.3163073,
+      "longitude": -1.5642145
+    },
+    {
+      "id": "ph-ouagadougou-kamalia",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kamalia",
+      "phone": "+226 79 07 42 66",
+      "dutyGroup": 4,
+      "address": "Quartier Balkuy, non loin de la résidence du Balkuy Naaba",
+      "latitude": 12.3600517,
+      "longitude": -1.5214853
+    },
+    {
+      "id": "ph-ouagadougou-kamboinsin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kamboinsin",
+      "phone": "+226 62 57 49 49",
+      "dutyGroup": 3,
+      "address": "Face du Centre Éme eur de KAMBOINSIN",
+      "latitude": 12.4345,
+      "longitude": -1.54942
+    },
+    {
+      "id": "ph-ouagadougou-kamin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kamin",
+      "phone": "+226 25 34 30 28",
+      "dutyGroup": 3,
+      "address": "Sect. 06 Gounghin, côté est du marché de Gounghin",
+      "latitude": 12.3574294,
+      "longitude": -1.5456287
+    },
+    {
+      "id": "ph-ouagadougou-karpala",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Karpala",
+      "phone": "+226 25 37 14 14",
+      "dutyGroup": 2,
+      "address": "Route CFAO-KARPALA (Hopital ex-Sect 30)",
+      "latitude": 12.3321873,
+      "longitude": -1.4926434
+    },
+    {
+      "id": "ph-ouagadougou-katra",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Katra",
+      "phone": "+226 25 37 20 13",
+      "dutyGroup": 1,
+      "address": "Située à Kalgondé après la gare RAHIMO",
+      "latitude": 12.3469782,
+      "longitude": -1.5030581
+    },
+    {
+      "id": "ph-ouagadougou-kawsar",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kawsar",
+      "phone": "+226 73 20 77 87",
+      "dutyGroup": 4,
+      "address": "Karpala à 600m de la division scale (impôts)",
+      "latitude": 12.3210797,
+      "longitude": -1.4916575
+    },
+    {
+      "id": "ph-ouagadougou-keneya",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Keneya",
+      "phone": "+226 25 46 82 47",
+      "dutyGroup": 1,
+      "address": "Avenue Oumarou KANAZOE porte 734 côté ouest mur Lycée Municipal BAMBATA",
+      "latitude": 12.3647123,
+      "longitude": -1.5089391
+    },
+    {
+      "id": "ph-ouagadougou-kilwin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kilwin",
+      "phone": "+226 25 50 84 62",
+      "dutyGroup": 3,
+      "address": "Route de Ouahigouya, côté station Shell, face à Toecin Yaar, Tampouy",
+      "latitude": 12.401395,
+      "longitude": -1.5655642
+    },
+    {
+      "id": "ph-ouagadougou-ko-viiga",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Ko-Viiga",
+      "phone": "+226 25 66 33 33",
+      "dutyGroup": 2,
+      "address": "Sis à Rimkieta, secteur 35 à gauche non loin de la paroisse saint Augustin de Bissighin",
+      "latitude": 12.3841609,
+      "longitude": -1.607957
+    },
+    {
+      "id": "ph-ouagadougou-kossodo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kossodo",
+      "phone": "+226 25 35 63 04",
+      "dutyGroup": 1,
+      "address": "En face de l’aba oir de Kossodo, après la BOA",
+      "latitude": 12.4171874,
+      "longitude": -1.473243
+    },
+    {
+      "id": "ph-ouagadougou-koulouba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Koulouba",
+      "phone": "+226 25 31 19 18",
+      "dutyGroup": 2,
+      "address": "Koulouba à 200m côté Ouest du marché de Boins-Yaaré",
+      "latitude": 12.366555,
+      "longitude": -1.509623
+    },
+    {
+      "id": "ph-ouagadougou-kouma",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Kouma",
+      "phone": "+226 25 47 43 43",
+      "dutyGroup": 4,
+      "address": "Boulevard France-Afrique Ouaga 2000, à 100m de Ouaga FM",
+      "latitude": 12.3130946,
+      "longitude": -1.5289169
+    },
+    {
+      "id": "ph-ouagadougou-koumajer",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Koumajer",
+      "phone": "+226 25 40 20 20",
+      "dutyGroup": 2,
+      "address": "Non loin du Palais de Justice de Karpala",
+      "latitude": 12.3176768,
+      "longitude": -1.4530659
+    },
+    {
+      "id": "ph-ouagadougou-la-croix",
+      "city": "Ouagadougou",
+      "name": "Pharmacie La Croix",
+      "phone": "+226 25 34 12 64",
+      "dutyGroup": 4,
+      "address": "Gounghin, En face du LNBTP, à côté de ESCO-IGES",
+      "latitude": 12.3525094,
+      "longitude": -1.545424
+    },
+    {
+      "id": "ph-ouagadougou-la-famille",
+      "city": "Ouagadougou",
+      "name": "Pharmacie La famille",
+      "phone": "+226 25 43 06 85",
+      "dutyGroup": 3,
+      "address": "Quartier Pissy, Sect. 12 Arrdt 3, à 500 m de Chic Hotel.",
+      "latitude": 12.3460411,
+      "longitude": -1.582957
+    },
+    {
+      "id": "ph-ouagadougou-la-roche",
+      "city": "Ouagadougou",
+      "name": "Pharmacie La Roche",
+      "phone": "+226 25 39 51 32",
+      "dutyGroup": 4,
+      "address": "TAMPOUY, (arrt 3, sect. 15) en face du groupe scolaire NAA-TOUGOULE, Ex Nakeb-Zanga",
+      "latitude": 12.3567204,
+      "longitude": -1.5500031
+    },
+    {
+      "id": "ph-ouagadougou-la-sainte-trinite",
+      "city": "Ouagadougou",
+      "name": "Pharmacie La Sainte Trinité",
+      "phone": "+226 25 41 26 46",
+      "dutyGroup": 3,
+      "address": "Wemtenga à côté de la Caisse Populaire Song-Taaba de Dagnoen",
+      "latitude": 12.3685354,
+      "longitude": -1.4883668
+    },
+    {
+      "id": "ph-ouagadougou-lalle",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Lallé",
+      "phone": "+226 79 07 06 22",
+      "dutyGroup": 4,
+      "address": "Av. Pierre Claver BADEMBIE NEZIEN, 50m du feu tricolore, Kouritenga",
+      "latitude": 12.3685649,
+      "longitude": -1.5219876
+    },
+    {
+      "id": "ph-ouagadougou-lanibougna",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Lanibougna",
+      "phone": "+226 25 48 07 97",
+      "dutyGroup": 1,
+      "address": "Tanghin, quartier Nonghin, non loin de la Station Radar",
+      "latitude": 12.41583,
+      "longitude": -1.523868
+    },
+    {
+      "id": "ph-ouagadougou-lanzane",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Lanzané",
+      "phone": "+226 25 47 10 65",
+      "dutyGroup": 1,
+      "address": "En face de l’Auto-Ecole Magni cat à la Zone Une (1)",
+      "latitude": 12.3627661,
+      "longitude": -1.464459
+    },
+    {
+      "id": "ph-ouagadougou-latando",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Latando",
+      "phone": "+226 44 94 71 71",
+      "dutyGroup": 4,
+      "latitude": 12.2550562,
+      "longitude": -1.5229101
+    },
+    {
+      "id": "ph-ouagadougou-le-rocher",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Le Rocher",
+      "phone": "+226 25 40 83 87",
+      "dutyGroup": 4,
+      "address": "Rue séparant Ouaga 2000 et Pa e d’oie à 1km de la Mosquée KANAZOE",
+      "latitude": 12.3162047,
+      "longitude": -1.5151577
+    },
+    {
+      "id": "ph-ouagadougou-lendimi",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Léndimi",
+      "phone": "+226 63 81 59 18",
+      "dutyGroup": 1,
+      "address": "Sise à Balkuy non loin de Viva Hôtel sur la voie rouge",
+      "latitude": 12.303931,
+      "longitude": -1.468568
+    },
+    {
+      "id": "ph-ouagadougou-les-champions",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Les champions",
+      "phone": "+226 51 00 15 25",
+      "dutyGroup": 1,
+      "address": "A environ 100 mètres du marché de 14 Yaar",
+      "latitude": 12.3451769,
+      "longitude": -1.5336977
+    },
+    {
+      "id": "ph-ouagadougou-les-graces",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Les Grâces",
+      "phone": "+226 60 80 80 77",
+      "dutyGroup": 4,
+      "address": "Av. de la concorde nationale, secteur 17 Tanghin",
+      "latitude": 12.4093566,
+      "longitude": -1.5137114
+    },
+    {
+      "id": "ph-ouagadougou-les-lauriers",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Les Lauriers",
+      "phone": "+226 25 48 37 55",
+      "dutyGroup": 2,
+      "address": "Karpala sur la voie des Pylônes non loin de la Cave Simporé",
+      "latitude": 12.3355269,
+      "longitude": -1.4720898
+    },
+    {
+      "id": "ph-ouagadougou-liberte",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Liberté",
+      "phone": "+226 25 41 01 31",
+      "dutyGroup": 1,
+      "address": "60 m de la station SHELL de la cité an III, en direction du marché Sankar-yaare",
+      "latitude": 12.3776946,
+      "longitude": -1.531408
+    },
+    {
+      "id": "ph-ouagadougou-lina",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Lina",
+      "phone": "+226 73 48 35 65",
+      "dutyGroup": 1,
+      "address": "Avenue Kwamé N’krumah non loin de la Banque Atlantique et du restaurant la Vitaa",
+      "latitude": 12.3624783,
+      "longitude": -1.518018
+    },
+    {
+      "id": "ph-ouagadougou-louis-pasteur",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Louis Pasteur",
+      "phone": "+226 25 33 58 67",
+      "dutyGroup": 4,
+      "address": "Av. Dapoya à 400m de l’Église catholique",
+      "latitude": 12.3843015,
+      "longitude": -1.5031638
+    },
+    {
+      "id": "ph-ouagadougou-magnificat",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Magnificat",
+      "phone": "+226 25 41 29 90",
+      "dutyGroup": 1,
+      "address": "Sect.50 Karpala, 1km après rue Sankara Inoussa, 300m du dernier six-mètre à gauche",
+      "latitude": 12.3288899,
+      "longitude": -1.4764359
+    },
+    {
+      "id": "ph-ouagadougou-maignon",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Maignon",
+      "phone": "+226 78 83 61 36",
+      "dutyGroup": 4,
+      "address": "Av. Bassawarga Kamsonghin face au CM de Samandin",
+      "latitude": 12.3505338,
+      "longitude": -1.5264106
+    },
+    {
+      "id": "ph-ouagadougou-mare",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Maré",
+      "phone": "+226 70 61 58 08",
+      "dutyGroup": 1,
+      "address": "Gounghin, non loin du Stade du 4 août",
+      "latitude": 12.3631848,
+      "longitude": -1.5498232
+    },
+    {
+      "id": "ph-ouagadougou-marjean",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Marjean",
+      "phone": "+226 25 47 03 47",
+      "dutyGroup": 3,
+      "latitude": 12.428609,
+      "longitude": -1.521106
+    },
+    {
+      "id": "ph-ouagadougou-marlass",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Marlass",
+      "phone": "+226 78 55 00 52",
+      "dutyGroup": 2,
+      "address": "Tanghin sect. 17, après Arbr Yaar en face de la boulangerie Fatim",
+      "latitude": 12.4058787,
+      "longitude": -1.54027
+    },
+    {
+      "id": "ph-ouagadougou-martin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Martin",
+      "phone": "+226 25 50 84 59",
+      "dutyGroup": 2,
+      "address": "Av. de la Dignité, non loin de la radio SAVANE FM",
+      "latitude": 12.3455408,
+      "longitude": -1.5158672
+    },
+    {
+      "id": "ph-ouagadougou-meira",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Meira",
+      "phone": "+226 25 65 12 46",
+      "dutyGroup": 2,
+      "address": "Nioko 2 non loin du marché, route de Ziniaré, à 500m de la Station Total",
+      "latitude": 12.3939245,
+      "longitude": -1.5040441
+    },
+    {
+      "id": "ph-ouagadougou-meteba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Meteba",
+      "phone": "+226 25 33 53 33",
+      "dutyGroup": 2,
+      "address": "Ex Sect. 23 quartier Tanghin 365 rue JEAN-PAUL II",
+      "latitude": 12.3969403,
+      "longitude": -1.5093391
+    },
+    {
+      "id": "ph-ouagadougou-minitche",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Minitché",
+      "phone": "+226 72 25 76 76",
+      "dutyGroup": 1,
+      "address": "Belleville non loin du rond-point de la transition.",
+      "latitude": 12.290281,
+      "longitude": -1.572046
+    },
+    {
+      "id": "ph-ouagadougou-misericorde",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Miséricorde",
+      "phone": "+226 25 65 22 64",
+      "dutyGroup": 4,
+      "address": "Dassasgho, coté nord de l’Eglise de Karambiri à 300 mètres",
+      "latitude": 12.3867,
+      "longitude": -1.4634
+    },
+    {
+      "id": "ph-ouagadougou-mitspah",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Mitspah",
+      "phone": "+226 25 45 85 85",
+      "dutyGroup": 2,
+      "address": "Située au secteur 42 à Bendogo sur la rue Kondo Noom",
+      "latitude": 12.4105368,
+      "longitude": -1.4596025
+    },
+    {
+      "id": "ph-ouagadougou-monderou",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Monderou",
+      "phone": "+226 25 34 05 28",
+      "dutyGroup": 1,
+      "address": "Quartier Nonsin-face station OTAM rue Karamogo non loin du CSPS de Nonsin",
+      "latitude": 12.3747053,
+      "longitude": -1.5720135
+    },
+    {
+      "id": "ph-ouagadougou-musee",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Musée",
+      "phone": "+226 25 36 68 41",
+      "dutyGroup": 4,
+      "address": "Blvd Tansoba côté est du Mur du Musée National",
+      "latitude": 12.3795464,
+      "longitude": -1.4691108
+    },
+    {
+      "id": "ph-ouagadougou-naab-raga",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Naab Raga",
+      "phone": "+226 70 14 39 77",
+      "dutyGroup": 3,
+      "address": "Samandin, Avenue Oumarou KANAZOE à 100m du marché de Naab Raga",
+      "latitude": 12.3524179,
+      "longitude": -1.531649
+    },
+    {
+      "id": "ph-ouagadougou-naaba-koom",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Naaba-Koom",
+      "phone": "+226 25 48 33 34",
+      "dutyGroup": 3,
+      "address": "200m de la Clinique Notre-Dame-de-la-Paix",
+      "latitude": 12.3992447,
+      "longitude": -1.5033346
+    },
+    {
+      "id": "ph-ouagadougou-nagrin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nagrin",
+      "phone": "+226 25 46 90 48",
+      "dutyGroup": 3,
+      "address": "Route de Saponé avant l‘hôpital Blaise Compaoré",
+      "latitude": 12.3429295,
+      "longitude": -1.4966628
+    },
+    {
+      "id": "ph-ouagadougou-nanle",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nanlè",
+      "phone": "+226 25 47 70 80",
+      "dutyGroup": 1,
+      "address": "Non loin de l’OCADES DIOCÉSAINE collé au maquis resto WAMIKMA à Cissin.",
+      "latitude": 12.328979,
+      "longitude": -1.543351
+    },
+    {
+      "id": "ph-ouagadougou-natilge",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Natilgé",
+      "phone": "+226 25 37 28 00",
+      "dutyGroup": 4,
+      "address": "Blvd Tansoaba Waonre, en face du feu tricolore de l’IDS",
+      "latitude": 12.3624307,
+      "longitude": -1.481346
+    },
+    {
+      "id": "ph-ouagadougou-nayalgba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nayalgba",
+      "phone": "+226 25 40 73 25",
+      "dutyGroup": 3,
+      "latitude": 12.363309,
+      "longitude": -1.617763
+    },
+    {
+      "id": "ph-ouagadougou-nayyira",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nayyira",
+      "phone": "+226 63 78 44 44",
+      "dutyGroup": 2,
+      "address": "Katre Yaar après la gare de taxis",
+      "latitude": 12.347326,
+      "longitude": -1.473837
+    },
+    {
+      "id": "ph-ouagadougou-neerwaya",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Neerwaya",
+      "phone": "+226 63 93 73 73",
+      "dutyGroup": 1,
+      "address": "Tanghin, secteur 17, à 700m de Arb-Yaare",
+      "latitude": 12.3493584,
+      "longitude": -1.5349153
+    },
+    {
+      "id": "ph-ouagadougou-neima",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Neima",
+      "phone": "+226 25 65 56 82",
+      "dutyGroup": 2,
+      "address": "Toukin Yaar, quartier Somgandé",
+      "latitude": 12.411947,
+      "longitude": -1.496004
+    },
+    {
+      "id": "ph-ouagadougou-nemadis",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nemadis",
+      "phone": "+226 25 48 09 66",
+      "dutyGroup": 2,
+      "address": "Rue Bogodogo à 500m du Rond point SANDOF en direction de SOGEL B (vers le SIAO)",
+      "latitude": 12.356441,
+      "longitude": -1.491094
+    },
+    {
+      "id": "ph-ouagadougou-ninrwa",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Ninrwa",
+      "phone": "+226 25 41 80 38",
+      "dutyGroup": 3,
+      "address": "Route Benogo - Kossodo (Av Colonel A. Michel OUEDRAOGO) Bogodogo à 400m du marché",
+      "latitude": 12.4052066,
+      "longitude": -1.456637
+    },
+    {
+      "id": "ph-ouagadougou-nioko-i",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nioko I",
+      "phone": "+226 61 97 70 48",
+      "dutyGroup": 4,
+      "address": "Avenue Naaba Yemdé non loin de la Clinique Secours Dentaire Internationale",
+      "latitude": 12.3600517,
+      "longitude": -1.5214853
+    },
+    {
+      "id": "ph-ouagadougou-nongui",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nongui",
+      "phone": "+226 25 40 84 88",
+      "dutyGroup": 4,
+      "address": "Tampouy vers l’école Toecin",
+      "latitude": 12.3845751,
+      "longitude": -1.5749971
+    },
+    {
+      "id": "ph-ouagadougou-nonsin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nonsin",
+      "phone": "+226 25 41 77 76",
+      "dutyGroup": 3,
+      "address": "Nonsin, route de Rimkieta à 50m du Rond-Point des Rails",
+      "latitude": 12.3746635,
+      "longitude": -1.5702447
+    },
+    {
+      "id": "ph-ouagadougou-noom-wende",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Noom-Wendé",
+      "phone": "+226 01 25 17 17",
+      "dutyGroup": 3,
+      "address": "Rue Liwaga, après le lycée UNIVERSALIS en allant à Pissy.",
+      "latitude": 12.319006,
+      "longitude": -1.5379561
+    },
+    {
+      "id": "ph-ouagadougou-nouvelle",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Nouvelle",
+      "phone": "+226 25 34 61 34",
+      "dutyGroup": 1,
+      "address": "200m côté est de Ciné BURKINA",
+      "latitude": 12.376584,
+      "longitude": -1.5085635
+    },
+    {
+      "id": "ph-ouagadougou-ouedraogo-remi",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Ouédraogo Remi",
+      "phone": "+226 25 37 16 52",
+      "dutyGroup": 4,
+      "address": "Av. des Tansoba KIEMA, sous l'immeuble résidence Alice face à la SONABEL Zad",
+      "latitude": 12.3351005,
+      "longitude": -1.4990333
+    },
+    {
+      "id": "ph-ouagadougou-pelega",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Pelega",
+      "phone": "+226 25 35 05 01",
+      "dutyGroup": 1,
+      "address": "Arrdt n°3, Av du Yatenga à 100m du rond-point de la Jeunesse",
+      "latitude": 12.3810637,
+      "longitude": -1.5499804
+    },
+    {
+      "id": "ph-ouagadougou-pierre-tapsoba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Pierre Tapsoba",
+      "phone": "+226 52 11 74 38",
+      "dutyGroup": 3,
+      "address": "Saaba à 100m de la station OTAM",
+      "latitude": 12.3976775,
+      "longitude": -1.4433463
+    },
+    {
+      "id": "ph-ouagadougou-pingdba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Pingdba",
+      "phone": "+226 78 37 93 81",
+      "dutyGroup": 4,
+      "address": "Dérrière la pédiatrie Charles De Gaulle, Route de 14 Yaar non loin de la Nouvelle Mairie de l’Arrdt 10",
+      "latitude": 12.3753997,
+      "longitude": -1.5009793
+    },
+    {
+      "id": "ph-ouagadougou-pissy",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Pissy",
+      "phone": "+226 25 43 13 35",
+      "dutyGroup": 3,
+      "address": "Côté Est CMA de Pissy",
+      "latitude": 12.3367241,
+      "longitude": -1.5639541
+    },
+    {
+      "id": "ph-ouagadougou-primsante",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Prim'santé",
+      "phone": "+226 77 55 78 12",
+      "dutyGroup": 2,
+      "latitude": 12.3418425,
+      "longitude": -1.5527044
+    },
+    {
+      "id": "ph-ouagadougou-principale",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Principale",
+      "phone": "+226 25 37 54 15",
+      "dutyGroup": 4,
+      "address": "Av. Pascal ZAGRE Ouaga 2000, côté feux tricolores Présidence du Faso, non loin de TV BF1",
+      "latitude": 12.3061395,
+      "longitude": -1.5039114
+    },
+    {
+      "id": "ph-ouagadougou-progres",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Progrès",
+      "phone": "+226 25 43 01 62",
+      "dutyGroup": 2,
+      "address": "Pissy, route de Bobo, face à UBIPHARM",
+      "latitude": 12.3437164,
+      "longitude": -1.5686962
+    },
+    {
+      "id": "ph-ouagadougou-providence",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Providence",
+      "phone": "+226 25 31 86 48",
+      "dutyGroup": 4,
+      "address": "Larlé, à 200m de la gare STAF",
+      "latitude": 12.3776623,
+      "longitude": -1.5338345
+    },
+    {
+      "id": "ph-ouagadougou-rachel-yagma",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Rachel Yagma",
+      "phone": "+226 25 40 70 09",
+      "dutyGroup": 1,
+      "latitude": 12.4386179,
+      "longitude": -1.6011311
+    },
+    {
+      "id": "ph-ouagadougou-rakismanegre",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Rakismanegré",
+      "phone": "+226 62 50 58 18",
+      "dutyGroup": 2,
+      "address": "Non loin du Chateau d’eau de Tampouy, sur la voie de la nouvelle mairie de l’arrdt 9",
+      "latitude": 12.401395,
+      "longitude": -1.5655642
+    },
+    {
+      "id": "ph-ouagadougou-rayib-tiga",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Rayib-Tiga",
+      "phone": "+226 65 32 11 53",
+      "dutyGroup": 1,
+      "address": "Av. Jean-Baptiste OUEDRAOGO 800m coté Nord de la Clinique Notre-Dame-de-la-Paix SOMGAMDE",
+      "latitude": 12.4073949,
+      "longitude": -1.5077501
+    },
+    {
+      "id": "ph-ouagadougou-renaissance",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Renaissance",
+      "phone": "+226 68 91 10 10",
+      "dutyGroup": 3,
+      "address": "A 150 m du rond-point de la Pate d'Oie route de Pag La Yiri juste après la CNSS",
+      "latitude": 12.2472557,
+      "longitude": -1.554441
+    },
+    {
+      "id": "ph-ouagadougou-rima",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Rima",
+      "phone": "+226 50 61 07 07",
+      "dutyGroup": 4,
+      "address": "Kamboinsin, sur La route de Pazani",
+      "latitude": 12.4429,
+      "longitude": -1.56407
+    },
+    {
+      "id": "ph-ouagadougou-rimkieta",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Rimkiéta",
+      "phone": "+226 71 50 94 36",
+      "dutyGroup": 4,
+      "address": "RIMKIETA, face à la maison des jeunes et de la culture, non loin du grand rond-point vers l'école de police",
+      "latitude": 12.3736225,
+      "longitude": -1.6148516
+    },
+    {
+      "id": "ph-ouagadougou-rivage",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Rivage",
+      "phone": "+226 25 34 19 39",
+      "dutyGroup": 1,
+      "address": "Av. du Kadiogo, 200m à l’Est de l’échangeur de l’Ouest, en face de l’agence ECOBANK de Gounghin.",
+      "latitude": 12.3539218,
+      "longitude": -1.5525645
+    },
+    {
+      "id": "ph-ouagadougou-saaba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Saaba",
+      "phone": "+226 25 40 86 99",
+      "dutyGroup": 3,
+      "address": "En face du Lycée Notre Dame des Victoires",
+      "latitude": 12.3713914,
+      "longitude": -1.474506
+    },
+    {
+      "id": "ph-ouagadougou-sacre-c-ur",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sacre Cœur",
+      "phone": "+226 25 34 60 60",
+      "dutyGroup": 3,
+      "address": "Avenue Simon Compaoré, à 500m du lycée Mixte de Gounghin, en partant vers Watam Kaiser",
+      "latitude": 12.3512132,
+      "longitude": -1.5462563
+    },
+    {
+      "id": "ph-ouagadougou-sahel",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sahel",
+      "phone": "+226 25 31 81 95",
+      "dutyGroup": 4,
+      "address": "Av. du Président Sangoulé LAMIZANA. Koulouba sur alignement du siège de ORANGE",
+      "latitude": 12.3662116,
+      "longitude": -1.5149834
+    },
+    {
+      "id": "ph-ouagadougou-saint-bernard",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Saint Bernard",
+      "phone": "+226 25 45 14 82",
+      "dutyGroup": 1,
+      "address": "Face à la trame d’accueil Ouaga 2000",
+      "latitude": 12.3122831,
+      "longitude": -1.4888735
+    },
+    {
+      "id": "ph-ouagadougou-saint-francois-dassise",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Saint François D'Assise",
+      "phone": "+226 25 36 85 85",
+      "dutyGroup": 1,
+      "address": "Zone du bois non loin de l'agence ONATEL.",
+      "latitude": 12.3820165,
+      "longitude": -1.4890606
+    },
+    {
+      "id": "ph-ouagadougou-saint-jean",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Saint Jean",
+      "phone": "+226 25 37 00 33",
+      "dutyGroup": 1,
+      "address": "Rue 30.240 Blvd. Tansoaba ; bâtiment de ISDA, 500m de l’Hôpital de Bogodgo ex-CMA 30",
+      "latitude": 12.342753,
+      "longitude": -1.4937944
+    },
+    {
+      "id": "ph-ouagadougou-saint-joseph",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Saint Joseph",
+      "phone": "+226 25 46 55 08",
+      "dutyGroup": 2,
+      "address": "RN2 - Route de Ouahigouya derrière la CNSS de Kilwin, dans le prolongement nord de la Sation SOGELB",
+      "latitude": 12.3656987,
+      "longitude": -1.5286784
+    },
+    {
+      "id": "ph-ouagadougou-saint-lazare",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Saint Lazare",
+      "phone": "+226 25 36 86 48",
+      "dutyGroup": 3,
+      "address": "1200 logts, à côté du Pont (du Canal) de Boins Yaare",
+      "latitude": 12.3685791,
+      "longitude": -1.4997016
+    },
+    {
+      "id": "ph-ouagadougou-saint-michel",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Saint Michel",
+      "phone": "+226 25 45 48 08",
+      "dutyGroup": 3,
+      "address": "Rimkiéta non loin de la phcie Barkwendé",
+      "latitude": 12.375253,
+      "longitude": -1.597547
+    },
+    {
+      "id": "ph-ouagadougou-sainte-odile",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sainte Odile",
+      "phone": "+226 51 69 77 77",
+      "dutyGroup": 4,
+      "address": "Côté Est de la Cave Simpore à Karpala en allant vers Rayongo.",
+      "latitude": 12.332715,
+      "longitude": -1.4633659
+    },
+    {
+      "id": "ph-ouagadougou-sainte-veronique",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sainte Véronique",
+      "phone": "+226 63 26 04 04",
+      "dutyGroup": 2,
+      "address": "En face du marché de Zagtouli sur la route CIMAT",
+      "latitude": 12.3277287,
+      "longitude": -1.6325783
+    },
+    {
+      "id": "ph-ouagadougou-samandin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Samandin",
+      "phone": "+226 03 38 57 57",
+      "dutyGroup": 2,
+      "address": "Av. du MOGHO NAABA non loin de l’église Jean XXIII",
+      "latitude": 12.3559019,
+      "longitude": -1.5320918
+    },
+    {
+      "id": "ph-ouagadougou-sangoule-lamizana",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sangoulé Lamizana",
+      "phone": "+226 25 41 13 00",
+      "dutyGroup": 2,
+      "address": "Av. Yennega à côté de Marina Market centre Ville",
+      "latitude": 12.3649864,
+      "longitude": -1.5209239
+    },
+    {
+      "id": "ph-ouagadougou-sante-vitalite",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Santé-vitalité",
+      "phone": "+226 25 40 94 13",
+      "dutyGroup": 3,
+      "address": "Rue WARABA, 500m après la cité de l’ ASECNA en qui ant le boulevard France-Afrique",
+      "latitude": 12.3262279,
+      "longitude": -1.5362187
+    },
+    {
+      "id": "ph-ouagadougou-savane",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Savane",
+      "phone": "+226 70 85 01 61",
+      "dutyGroup": 3,
+      "address": "A 500m de l’école des Douanes coté Nord",
+      "latitude": 12.3769736,
+      "longitude": -1.5208938
+    },
+    {
+      "id": "ph-ouagadougou-schifeyi",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Schifeyi",
+      "phone": "+226 25 40 27 42",
+      "dutyGroup": 2,
+      "address": "Non loin du blvd de la Jeunesse vers le foyer du Sapeur Pompier du camp Sangoulé Lamizana",
+      "latitude": 12.3862882,
+      "longitude": -1.470327
+    },
+    {
+      "id": "ph-ouagadougou-seneve",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Seneve",
+      "phone": "+226 60 12 12 73",
+      "dutyGroup": 3,
+      "address": "Wayalghin à 50m de la cour de l’ex premier ministre PARAMANGA ERNEST YONLI",
+      "latitude": 12.37312,
+      "longitude": -1.5099276
+    },
+    {
+      "id": "ph-ouagadougou-sig-noghin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sig-Noghin",
+      "phone": "+226 25 35 09 77",
+      "dutyGroup": 2,
+      "address": "Av. Naaba Ziiwendé 150m du rond point de Rimkieta",
+      "latitude": 12.3901795,
+      "longitude": -1.598409
+    },
+    {
+      "id": "ph-ouagadougou-sigri",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sigri",
+      "phone": "+226 25 41 21 48",
+      "dutyGroup": 2,
+      "address": "2828 Av. du Conseil de l’Entente Gounghin, non loin de la station Total et Marina Market",
+      "latitude": 12.3584573,
+      "longitude": -1.5487952
+    },
+    {
+      "id": "ph-ouagadougou-siloe",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Siloé",
+      "phone": "+226 25 40 27 46",
+      "dutyGroup": 1,
+      "address": "Samandin ex Sect.07 Av. Bassawarga",
+      "latitude": 12.3558777,
+      "longitude": -1.5272432
+    },
+    {
+      "id": "ph-ouagadougou-sira",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sira",
+      "phone": "+226 25 43 17 78",
+      "dutyGroup": 4,
+      "address": "Route de Bobo, 100m de la Mairie de Boulmiougou",
+      "latitude": 12.3416432,
+      "longitude": -1.5808747
+    },
+    {
+      "id": "ph-ouagadougou-somgande",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Somgandé",
+      "phone": "+226 70 14 39 25",
+      "dutyGroup": 4,
+      "address": "Cité Socogib Somgandé à 200m de la boulangerie Wend Konta",
+      "latitude": 12.4063012,
+      "longitude": -1.4896501
+    },
+    {
+      "id": "ph-ouagadougou-somketa",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Somketa",
+      "phone": "+226 25 65 82 73",
+      "dutyGroup": 2,
+      "address": "Route de Kamboinsin, 100m avant la BAC de Kamboisin RN 22",
+      "latitude": 12.451268,
+      "longitude": -1.551537
+    },
+    {
+      "id": "ph-ouagadougou-sondogo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sondogo",
+      "phone": "+226 71 81 80 84",
+      "dutyGroup": 4,
+      "address": "Rue BOASSA devant le CSPS de Sondogo",
+      "latitude": 12.3183373,
+      "longitude": -1.5973031
+    },
+    {
+      "id": "ph-ouagadougou-song-taaba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Song Taaba",
+      "phone": "+226 25 36 64 62",
+      "dutyGroup": 1,
+      "address": "100m de la SONABEL Bendogo, Cité de l’avenir",
+      "latitude": 12.3948954,
+      "longitude": -1.4599384
+    },
+    {
+      "id": "ph-ouagadougou-sotisse",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sotisse",
+      "phone": "+226 70 14 39 75",
+      "dutyGroup": 4,
+      "address": "Quartier Wayalguin à côté de la Clinique de l’Est",
+      "latitude": 12.3971219,
+      "longitude": -1.4685073
+    },
+    {
+      "id": "ph-ouagadougou-su-maasem",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sü-Maasem",
+      "phone": "+226 25 50 08 08",
+      "dutyGroup": 4,
+      "latitude": 12.432664,
+      "longitude": -1.455031
+    },
+    {
+      "id": "ph-ouagadougou-sud",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Sud",
+      "phone": "+226 25 38 42 82",
+      "dutyGroup": 2,
+      "address": "Centre Commercial Ouaga 2000 à côté de l’Hotel Libya",
+      "latitude": 12.3060727,
+      "longitude": -1.5028592
+    },
+    {
+      "id": "ph-ouagadougou-talba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Talba",
+      "phone": "+226 25 36 22 25",
+      "dutyGroup": 2,
+      "address": "Av. Charles De Gaulle, face au Scolasticat, Zogona",
+      "latitude": 12.3762421,
+      "longitude": -1.4909633
+    },
+    {
+      "id": "ph-ouagadougou-tale",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Tale",
+      "phone": "+226 71 62 08 08",
+      "dutyGroup": 1,
+      "address": "Route de Bobo, entre les stations Total et Shell et le lycée Bethesda",
+      "latitude": 12.3526768,
+      "longitude": -1.5229683
+    },
+    {
+      "id": "ph-ouagadougou-tanko",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Tanko",
+      "phone": "+226 25 65 93 40",
+      "dutyGroup": 2,
+      "address": "Face au CMA Paul VI sur la route de Kamboinsé",
+      "latitude": 12.3992142,
+      "longitude": -1.5555946
+    },
+    {
+      "id": "ph-ouagadougou-taoko",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Taoko",
+      "phone": "+226 25 36 69 27",
+      "dutyGroup": 3,
+      "address": "Blvd Tansoba, à 500m de l’échangeur de l’Est",
+      "latitude": 12.3877702,
+      "longitude": -1.4784469
+    },
+    {
+      "id": "ph-ouagadougou-tenedia",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Tenedia",
+      "phone": "+226 63 93 00 19",
+      "dutyGroup": 1,
+      "address": "Kamboinsin en face des 2IE",
+      "latitude": 12.4649,
+      "longitude": -1.55515
+    },
+    {
+      "id": "ph-ouagadougou-tengandogo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Tengandogo",
+      "phone": "+226 01 18 33 82",
+      "dutyGroup": 1,
+      "address": "100m après le tournant du CHU Tengandogo à droite avant la station TOTAL",
+      "latitude": 12.261323,
+      "longitude": -1.530423
+    },
+    {
+      "id": "ph-ouagadougou-teranga",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Téranga",
+      "phone": "+226 25 36 09 70",
+      "dutyGroup": 3,
+      "address": "13 avenue Babanguida, Zogona",
+      "latitude": 12.3817592,
+      "longitude": -1.4934187
+    },
+    {
+      "id": "ph-ouagadougou-ti-bangre",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Ti-Bangré",
+      "phone": "+226 25 45 45 95",
+      "dutyGroup": 2,
+      "address": "Route de Bobo (National nº1) à l’entrée du pont de Boulmiougou , Pissy",
+      "latitude": 12.339786,
+      "longitude": -1.5859983
+    },
+    {
+      "id": "ph-ouagadougou-tiis-yondo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Tiis Yondo",
+      "phone": "+226 51 53 91 91",
+      "dutyGroup": 2,
+      "latitude": 12.2826673,
+      "longitude": -1.5734958
+    },
+    {
+      "id": "ph-ouagadougou-tiyele",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Tiyele",
+      "phone": "+226 64 36 46 36",
+      "dutyGroup": 3,
+      "address": "Rue 28. 284, secteur 43 non loin du lycée Ste Colle e",
+      "latitude": 12.377893,
+      "longitude": -1.4659941
+    },
+    {
+      "id": "ph-ouagadougou-trypano",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Trypano",
+      "phone": "+226 25 33 29 41",
+      "dutyGroup": 1,
+      "address": "Derrière le Centre de Transfusion Sanguine (CNTS) Ouaga non loin de la Trypano",
+      "latitude": 12.3807982,
+      "longitude": -1.5102194
+    },
+    {
+      "id": "ph-ouagadougou-unite",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Unité",
+      "phone": "+226 25 40 27 57",
+      "dutyGroup": 4,
+      "address": "Gounghin, Près de l'échangeur de l'ouest face au Jardin le Challenge",
+      "latitude": 12.3521275,
+      "longitude": -1.5561694
+    },
+    {
+      "id": "ph-ouagadougou-univers",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Univers",
+      "phone": "+226 25 41 99 65",
+      "dutyGroup": 2,
+      "address": "Voie principale Saaba, à 500m de la Prefecture",
+      "latitude": 12.3828526,
+      "longitude": -1.4254886
+    },
+    {
+      "id": "ph-ouagadougou-venegre",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Vénégré",
+      "phone": "+226 25 43 05 87",
+      "dutyGroup": 4,
+      "address": "Arrdt 6 non loin de la Clnique EL Fateh Suka",
+      "latitude": 12.3350482,
+      "longitude": -1.5581465
+    },
+    {
+      "id": "ph-ouagadougou-vidal-bafa",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Vidal Bafa",
+      "phone": "+226 25 31 52 88",
+      "dutyGroup": 4,
+      "address": "Avenue Oumarou Kanazoé, Sect 7, près de l’école de l’Onatel",
+      "latitude": 12.3765947,
+      "longitude": -1.5369941
+    },
+    {
+      "id": "ph-ouagadougou-viel",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Vièl",
+      "phone": "+226 52 34 28 52",
+      "dutyGroup": 4,
+      "address": "Route de Kamboincé , Porte des soeurs après CMA PAUL VI",
+      "latitude": 12.4242615,
+      "longitude": -1.5511579
+    },
+    {
+      "id": "ph-ouagadougou-viim",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Viim",
+      "phone": "+226 01 92 88 88",
+      "dutyGroup": 2,
+      "address": "100 mètres du Centre Médical de Nagrin",
+      "latitude": 12.3451769,
+      "longitude": -1.5336977
+    },
+    {
+      "id": "ph-ouagadougou-vincent-de-paul",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Vincent de Paul",
+      "phone": "+226 02 04 77 77",
+      "dutyGroup": 2,
+      "address": "Située en face de l’alimentation SOMDARA, à env. 150 m du lycée Bangre Yiguia à la Zone 1",
+      "latitude": 12.3592887,
+      "longitude": -1.4738967
+    },
+    {
+      "id": "ph-ouagadougou-wapassi-lafi",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wapassi Lafi",
+      "phone": "+226 67 07 08 46",
+      "dutyGroup": 2,
+      "latitude": 12.3030519,
+      "longitude": -1.5778427
+    },
+    {
+      "id": "ph-ouagadougou-wati",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wati",
+      "phone": "+226 25 38 52 92",
+      "dutyGroup": 2,
+      "address": "Cissin à 200m de l’école de Santé St Edwige",
+      "latitude": 12.3443667,
+      "longitude": -1.5405179
+    },
+    {
+      "id": "ph-ouagadougou-wayalghin",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wayalghin",
+      "phone": "+226 25 39 52 08",
+      "dutyGroup": 3,
+      "address": "En Face du mur du camp CRS, vers ANTBA (en venant de la MACO tourner à gauche après l’ENAREF)",
+      "latitude": 12.3972311,
+      "longitude": -1.4787948
+    },
+    {
+      "id": "ph-ouagadougou-wend-denda",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wend Denda",
+      "phone": "+226 71 50 94 92",
+      "dutyGroup": 3,
+      "address": "Sect. 9, quartier Ouidi, Avenue Yatenga, entre la station Total de Larlé et ECOBANK Ouidi",
+      "latitude": 12.3768378,
+      "longitude": -1.5439292
+    },
+    {
+      "id": "ph-ouagadougou-wend-kuuni",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wend Kuuni",
+      "phone": "+226 05 23 90 17",
+      "dutyGroup": 4,
+      "address": "Blvd Charles De Gaulle non loin de la mosquée de l’AEEMB",
+      "latitude": 12.3755238,
+      "longitude": -1.4875664
+    },
+    {
+      "id": "ph-ouagadougou-wend-la-laafi",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wend La Laafi",
+      "phone": "+226 25 40 80 66",
+      "dutyGroup": 1,
+      "address": "Quartier Pissy, Route de Bobo, en face de la Station Shell de Pissy",
+      "latitude": 12.3422993,
+      "longitude": -1.5729105
+    },
+    {
+      "id": "ph-ouagadougou-wend-lamita",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wend lamita",
+      "phone": "+226 78 83 63 41",
+      "dutyGroup": 1,
+      "address": "Sect. n°8 avenue du Yatenga Face école Kologh-Naba",
+      "latitude": 12.3810463,
+      "longitude": -1.5503923
+    },
+    {
+      "id": "ph-ouagadougou-wend-yam",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wend Yam",
+      "phone": "+226 73 21 84 79",
+      "dutyGroup": 4,
+      "address": "Route de Ouahigouya, à la n des 2 voies, à 500m du marché de bétail",
+      "latitude": 12.4402198,
+      "longitude": -1.4340669
+    },
+    {
+      "id": "ph-ouagadougou-wend-zinkre",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wend Zinkré",
+      "phone": "+226 25 46 54 24",
+      "dutyGroup": 4,
+      "address": "En face de la nouvelle Mairie de Saaba",
+      "latitude": 12.3709943,
+      "longitude": -1.4031981
+    },
+    {
+      "id": "ph-ouagadougou-wendpanga",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Wendpanga",
+      "phone": "+226 25 50 29 29",
+      "dutyGroup": 1,
+      "latitude": 12.317252,
+      "longitude": -1.529774
+    },
+    {
+      "id": "ph-ouagadougou-yan-marou",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Yan-marou",
+      "phone": "+226 25 46 50 06",
+      "dutyGroup": 4,
+      "address": "Marcoussis à 200m du grand Rond-point",
+      "latitude": 12.4103437,
+      "longitude": -1.5970151
+    },
+    {
+      "id": "ph-ouagadougou-yathrib",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Yathrib",
+      "phone": "+226 25 40 23 88",
+      "dutyGroup": 1,
+      "address": "200m du marché de Saaba",
+      "latitude": 12.376944,
+      "longitude": -1.420833
+    },
+    {
+      "id": "ph-ouagadougou-yempabou",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Yempabou",
+      "phone": "+226 25 39 40 61",
+      "dutyGroup": 3,
+      "address": "RN3, à 500m du marché de Nioko 2, même alignement que la Boulangerie Koom",
+      "latitude": 12.3956833,
+      "longitude": -1.4386315
+    },
+    {
+      "id": "ph-ouagadougou-yennenga",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Yennenga",
+      "phone": "+226 25 37 03 37",
+      "dutyGroup": 3,
+      "address": "Blvd Tansoba face à la mairie de BOGODOGO",
+      "latitude": 12.35118,
+      "longitude": -1.4880845
+    },
+    {
+      "id": "ph-ouagadougou-yentema",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Yentema",
+      "phone": "+226 56 56 00 00",
+      "dutyGroup": 4,
+      "address": "Route CHU Tingandogo à côté de la Cave du Sud",
+      "latitude": 12.295418,
+      "longitude": -1.529597
+    },
+    {
+      "id": "ph-ouagadougou-yobi",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Yobi",
+      "phone": "+226 25 31 16 30",
+      "dutyGroup": 2,
+      "address": "A 200m de la Gendarmerie de Paspanga",
+      "latitude": 12.3781304,
+      "longitude": -1.5119047
+    },
+    {
+      "id": "ph-ouagadougou-zidou",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Zidou",
+      "phone": "+226 61 07 88 60",
+      "dutyGroup": 2,
+      "address": "Balkuy, en face de l’immeuble Yelhi",
+      "latitude": 12.304032,
+      "longitude": -1.47647
+    },
+    {
+      "id": "ph-ouagadougou-zone-i",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Zone I",
+      "phone": "+226 25 48 15 13",
+      "dutyGroup": 3,
+      "address": "À 200m du marché de la Zone 1",
+      "latitude": 12.3648641,
+      "longitude": -1.467265
+    },
+    {
+      "id": "ph-ouagadougou-zoungrana",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Zoungrana",
+      "phone": "+226 25 40 98 75",
+      "dutyGroup": 3,
+      "address": "Sect. 17 Tanghin rue 23/125 à côté de la boulangerie Wend konta.",
+      "latitude": 12.3979596,
+      "longitude": -1.5294884
+    }
+  ]
+}

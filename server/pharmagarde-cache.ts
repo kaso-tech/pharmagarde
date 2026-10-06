@@ -4,7 +4,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { applyCorsHeaders } from "./_core/security";
+import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { ESSENTIAL_MEDICINES, MEDICINES_NOTICE } from "./medicines-data";
+import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
 export type CacheKind = "pharmacies" | "healthcare";
@@ -29,7 +31,9 @@ export type CachedHealthPlace = {
   isOpen?: boolean;
   /** Horaires au format OpenStreetMap `opening_hours` (ex. « Mo-Sa 08:00-20:00 »). */
   openingHours?: string;
-  source?: "osm" | "local";
+  source?: "annuaire" | "osm" | "local";
+  /** Groupe de garde de la pharmacie (1 à 4), issu de l'annuaire ; sert à la programmation des gardes. */
+  dutyGroup?: number | null;
   /** Identifiant OpenStreetMap, ex. « node/123456 ». */
   osmId?: string;
   /** Valeur OSM ayant classé le lieu (amenity ou healthcare), ex. « pharmacy », « hospital ». */
@@ -94,7 +98,7 @@ const OSM_RADIUS_METERS = Number(process.env.PHARMAGARDE_OSM_RADIUS_METERS ?? 15
 const OSM_REQUEST_DELAY_MS = Number(process.env.PHARMAGARDE_OSM_REQUEST_DELAY_MS ?? 1000);
 const OSM_USER_AGENT = "PharmaGardeBF/1.0 (+https://github.com/kaso-tech/pharmagarde)";
 export const OSM_ATTRIBUTION = "© contributeurs OpenStreetMap (ODbL)";
-const UNNAMED_PHARMACY_LABEL = "Pharmacie (nom non renseigné)";
+export const PHARMACY_DIRECTORY_ATTRIBUTION = "Annuaire PharmaGarde (Ordre national des pharmaciens du Burkina Faso)";
 const NON_MEDICAL_NAME_TERMS = ["veterinaire", "animal"];
 
 const memoryCache: Record<CacheKind, CacheState> = {
@@ -210,7 +214,7 @@ function osmAddress(tags: Record<string, string>) {
   return parts.length > 0 ? parts.join(", ") : osmTag(tags, ["addr:full"]);
 }
 
-export function normalizeOsmElement(element: OsmElement, city: SupportedCity, kind: CacheKind): CachedHealthPlace | null {
+export function normalizeOsmElement(element: OsmElement, city: SupportedCity): CachedHealthPlace | null {
   const tags = element.tags ?? {};
   const latitude = element.lat ?? element.center?.lat;
   const longitude = element.lon ?? element.center?.lon;
@@ -220,8 +224,8 @@ export function normalizeOsmElement(element: OsmElement, city: SupportedCity, ki
   const healthcare = osmTag(tags, ["healthcare"]);
   const osmTypes = [amenity, healthcare].filter((value): value is string => !!value);
   const taggedName = osmTag(tags, ["name:fr", "name", "official_name", "brand"]);
-  // Une pharmacie sans nom reste utile (position, horaires) ; une structure de santé sans nom non.
-  const name = taggedName ?? (kind === "pharmacies" ? UNNAMED_PHARMACY_LABEL : undefined);
+  // Une structure de santé sans nom n'est pas exploitable par l'utilisateur.
+  const name = taggedName;
   if (!name) return null;
   if (NON_MEDICAL_NAME_TERMS.some((term) => normalizeCityName(name).includes(term))) return null;
   if (osmTag(tags, ["healthcare:speciality"])?.includes("veterinary")) return null;
@@ -244,7 +248,7 @@ export function normalizeOsmElement(element: OsmElement, city: SupportedCity, ki
     openingHours,
     source: "osm",
     osmId,
-    osmType: kind === "pharmacies" ? "pharmacy" : healthcare ?? amenity,
+    osmType: healthcare ?? amenity,
     updatedAt: nowIso(),
   };
 }
@@ -256,7 +260,7 @@ function dedupePlaces(items: CachedHealthPlace[]) {
     // Un même établissement est souvent cartographié deux fois (point + bâtiment) : on rapproche
     // aussi par nom et position arrondie (~100 m) quand le nom est renseigné.
     const keys = [item.osmId ?? item.id];
-    if (item.name !== UNNAMED_PHARMACY_LABEL && item.latitude !== undefined && item.longitude !== undefined) {
+    if (item.latitude !== undefined && item.longitude !== undefined) {
       keys.push(`${item.category}:${normalizeCityName(item.name)}:${item.latitude.toFixed(3)}:${item.longitude.toFixed(3)}`);
     }
     if (keys.some((key) => seen.has(key))) continue;
@@ -303,11 +307,10 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function buildOverpassQuery(city: Pick<SupportedCity, "latitude" | "longitude">, kind: CacheKind, radiusMeters = OSM_RADIUS_METERS) {
+/** Requête Overpass des structures de santé (les pharmacies viennent de l'annuaire PharmaGarde). */
+export function buildOverpassQuery(city: Pick<SupportedCity, "latitude" | "longitude">, radiusMeters = OSM_RADIUS_METERS) {
   const around = `(around:${radiusMeters},${city.latitude},${city.longitude})`;
-  const selectors = kind === "pharmacies"
-    ? [`nwr["amenity"="pharmacy"]${around};`, `nwr["healthcare"="pharmacy"]${around};`]
-    : [`nwr["amenity"~"^(hospital|clinic|doctors)$"]${around};`, `nwr["healthcare"~"^(hospital|clinic|centre|doctor|health_post)$"]${around};`];
+  const selectors = [`nwr["amenity"~"^(hospital|clinic|doctors)$"]${around};`, `nwr["healthcare"~"^(hospital|clinic|centre|doctor|health_post)$"]${around};`];
   return `[out:json][timeout:90];(${selectors.join("")});out center tags;`;
 }
 
@@ -331,18 +334,40 @@ async function callOverpass(query: string): Promise<OsmElement[]> {
   return payload.elements.filter((element): element is OsmElement => isRecord(element) && typeof element.type === "string" && typeof element.id === "number");
 }
 
-async function fetchOsmItemsByCity(kind: CacheKind) {
+export function buildPharmacyBuckets(directory: PharmacyDirectory): CacheBuckets {
+  const byCity = createEmptyBuckets();
+  for (const pharmacy of directory.pharmacies) {
+    const key = cityKey(pharmacy.city);
+    (byCity[key] ??= []).push({
+      id: pharmacy.id,
+      type: "Pharmacie",
+      category: "pharmacy",
+      name: pharmacy.name,
+      address: pharmacy.address,
+      city: pharmacy.city,
+      phone: pharmacy.phone,
+      latitude: pharmacy.latitude,
+      longitude: pharmacy.longitude,
+      dutyGroup: pharmacy.dutyGroup,
+      source: "annuaire",
+      updatedAt: directory.updatedAt,
+    });
+  }
+  return byCity;
+}
+
+async function fetchOsmHealthcareByCity() {
   const byCity = createEmptyBuckets();
   const errors: string[] = [];
-  const category: CachedPlaceCategory = kind === "pharmacies" ? "pharmacy" : "healthcare";
+  const category: CachedPlaceCategory = "healthcare";
 
   // Séquentiel : l'instance Overpass publique limite les requêtes simultanées.
   for (const [index, city] of SUPPORTED_CITIES.entries()) {
     if (index > 0 && OSM_REQUEST_DELAY_MS > 0) await sleep(OSM_REQUEST_DELAY_MS);
     try {
-      const elements = await callOverpass(buildOverpassQuery(city, kind));
+      const elements = await callOverpass(buildOverpassQuery(city));
       const items = elements
-        .map((element) => normalizeOsmElement(element, city, kind))
+        .map((element) => normalizeOsmElement(element, city))
         .filter((item): item is CachedHealthPlace => item !== null && item.category === category);
       byCity[cityKey(city.name)] = dedupePlaces(items);
     } catch (error) {
@@ -410,7 +435,9 @@ export async function updateCachedDataset(kind: CacheKind, force = false): Promi
     const attemptAt = nowIso();
     memoryCache[kind] = { ...memoryCache[kind], lastRefreshAttemptAt: attemptAt };
     try {
-      const byCity = await fetchOsmItemsByCity(kind);
+      // Pharmacies : annuaire PharmaGarde versionné (server/data/pharmacies.json), sans service
+      // tiers. Structures de santé : OpenStreetMap, en attendant un annuaire équivalent.
+      const byCity = kind === "pharmacies" ? buildPharmacyBuckets(await loadPharmacyDirectory()) : await fetchOsmHealthcareByCity();
       const updatedAt = nowIso();
       const next: CacheState = {
         version: 3,
@@ -424,7 +451,7 @@ export async function updateCachedDataset(kind: CacheKind, force = false): Promi
       await persistState(kind, next);
       return { kind, ok: true, refreshed: true, itemCount: countBuckets(byCity), updatedAt: next.updatedAt, expiresAt: next.expiresAt };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur OpenStreetMap inconnue";
+      const message = error instanceof Error ? error.message : "Erreur de chargement des données";
       const fallback = { ...memoryCache[kind], lastRefreshAttemptAt: attemptAt, lastError: message };
       memoryCache[kind] = fallback;
       await persistState(kind, fallback).catch(() => undefined);
@@ -478,6 +505,22 @@ function selectItemsByCity(state: CacheState, cityFilter: RequestedCityFilter) {
   return flattenBuckets(state.byCity);
 }
 
+function getRequestedPosition(req: Request) {
+  const latitude = Number(req.query?.lat ?? req.query?.latitude);
+  const longitude = Number(req.query?.lng ?? req.query?.longitude);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? { latitude, longitude } : null;
+}
+
+export function sortByDistanceFrom(items: CachedHealthPlace[], position: { latitude: number; longitude: number } | null) {
+  if (!position) return items;
+  const distanceOf = (item: CachedHealthPlace) =>
+    item.latitude !== undefined && item.longitude !== undefined ? distanceKm(position, { latitude: item.latitude, longitude: item.longitude }) : Number.POSITIVE_INFINITY;
+  return items
+    .map((item) => ({ item, distance: distanceOf(item) }))
+    .sort((a, b) => a.distance - b.distance)
+    .map(({ item }) => item);
+}
+
 async function getPremiumAccessFromRequest(req: Request) {
   const user = await getAuthenticatedDbUser(req);
   return getPremiumStatusForUser(user ?? null).isPremium;
@@ -486,7 +529,9 @@ async function getPremiumAccessFromRequest(req: Request) {
 async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, rootKey: "pharmacies" | "healthcare" | "cliniques") {
   const state = memoryCache[kind];
   const cityFilter = getRequestedCityFilter(req);
-  const allItems = selectItemsByCity(state, cityFilter);
+  // Tri par distance depuis la position envoyée par l'app, avant la limite gratuite : un
+  // utilisateur sans abonnement reçoit les 3 lieux les plus proches, pas les 3 premiers de la liste.
+  const allItems = sortByDistanceFrom(selectItemsByCity(state, cityFilter), getRequestedPosition(req));
   const isPremium = await getPremiumAccessFromRequest(req);
   const items = isPremium ? allItems : allItems.slice(0, PREMIUM_RESULT_LIMIT);
   const responseCity = cityFilter.supportedCity?.name ?? cityFilter.rawCity ?? null;
@@ -501,8 +546,8 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
     data: items,
     meta: {
       cache: "server-local-cache-by-city",
-      source: "openstreetmap",
-      attribution: OSM_ATTRIBUTION,
+      source: kind === "pharmacies" ? "annuaire" : "openstreetmap",
+      attribution: kind === "pharmacies" ? PHARMACY_DIRECTORY_ATTRIBUTION : OSM_ATTRIBUTION,
       kind,
       city: responseCity,
       cityKey: cityFilter.key ?? null,

@@ -22,6 +22,8 @@ export type HealthPlace = {
   establishmentType?: string;
   /** Horaires au format OpenStreetMap, ex. « Mo-Sa 08:00-20:00 ». */
   openingHours?: string;
+  /** Groupe de garde de la pharmacie (1 à 4) dans l'annuaire ; base de la programmation des gardes. */
+  dutyGroup?: number;
 };
 
 export type MedicineAgeCategory = "Enfant" | "Adulte" | "Tous";
