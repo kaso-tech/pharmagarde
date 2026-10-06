@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { DirectoryEntry } from "../drizzle/schema";
-import { getCacheState, type CachedHealthPlace } from "./pharmagarde-cache";
+import { SUPPORTED_CITIES, getCacheState, type CachedHealthPlace } from "./pharmagarde-cache";
 import { DUTY_GROUPS, isInBurkinaFaso, loadPharmacyDirectory, normalizeBurkinaPhone, slugify } from "./pharmacy-directory";
 
 export type AdminDirectoryKind = "pharmacy" | "healthcare";
@@ -43,6 +43,10 @@ export const directoryUpsertSchema = z
     if (hasLatitude !== hasLongitude) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Les coordonnées latitude et longitude doivent être renseignées ensemble.", path: ["latitude"] });
     }
+    if (value.kind === "pharmacy" && !hasLatitude && !hasLongitude) {
+      // Même règle que l'import : une pharmacie sans position ne peut pas être affichée sur la carte.
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Les coordonnées sont obligatoires pour une pharmacie.", path: ["latitude"] });
+    }
     if (hasLatitude && hasLongitude && !isInBurkinaFaso(value.latitude as number, value.longitude as number)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Les coordonnées doivent se situer au Burkina Faso.", path: ["latitude"] });
     }
@@ -59,6 +63,10 @@ export const directoryArchiveSchema = z.object({
   id: z.string().trim().min(3).max(128),
   kind: z.enum(["pharmacy", "healthcare"]),
   confirmArchive: z.literal(true),
+});
+
+export const directoryRestoreSchema = z.object({
+  id: z.string().trim().min(3).max(128),
 });
 
 export type DirectoryUpsertInput = z.infer<typeof directoryUpsertSchema>;
@@ -81,8 +89,18 @@ function compact(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
-export function normalizeDirectoryUpsert(input: DirectoryUpsertInput): NormalizedDirectoryUpsert {
-  const city = compact(input.city);
+/** Clé de comparaison des villes : « ouaga dougou », « Ouagadougou » et « OUAGADOUGOU » sont identiques. */
+export function cityMatchKey(value: string) {
+  return slugify(value).replace(/-/g, "");
+}
+
+/**
+ * Prépare une fiche saisie dans la console. Une ville déjà connue reprend son orthographe de
+ * référence, pour ne pas créer « ouagadougou » à côté de « Ouagadougou ».
+ */
+export function normalizeDirectoryUpsert(input: DirectoryUpsertInput, knownCities: readonly string[] = []): NormalizedDirectoryUpsert {
+  const typedCity = compact(input.city);
+  const city = knownCities.find((known) => cityMatchKey(known) === cityMatchKey(typedCity)) ?? typedCity;
   const name = compact(input.name);
   const id = input.id?.trim() || `admin-${input.kind}-${slugify(city)}-${slugify(name)}`;
   const phone = input.phone ? normalizeBurkinaPhone(input.phone) : null;
@@ -153,22 +171,20 @@ export async function getBaseAdminDirectoryItems(): Promise<AdminDirectoryItem[]
   return [...pharmacyItems(directory), ...healthcareItems(healthcare)];
 }
 
-/** Applique les surcharges administrées ; une archive masque l’enregistrement source sans le supprimer. */
+/**
+ * Applique les surcharges administrées. Une archive masque l’enregistrement source sans le supprimer :
+ * il reste listé avec le statut « archived » pour pouvoir être restauré.
+ */
 export function mergeAdminDirectoryItems(baseItems: AdminDirectoryItem[], overrides: DirectoryEntry[]): AdminDirectoryItem[] {
   const items = new Map(baseItems.map((item) => [item.id, item]));
 
   for (const override of overrides) {
-    if (override.status === "archived") {
-      items.delete(override.id);
-      continue;
-    }
-
     const current = items.get(override.id);
     const kind = override.kind as AdminDirectoryKind;
     const next: AdminDirectoryItem = {
       id: override.id,
       kind,
-      status: "active",
+      status: override.status === "archived" ? "archived" : "active",
       city: override.city ?? current?.city ?? "Non renseignée",
       name: override.name ?? current?.name ?? override.id,
       // Même règle que les routes publiques (server/directory-overrides.ts) : une surcharge est un
@@ -189,11 +205,46 @@ export function mergeAdminDirectoryItems(baseItems: AdminDirectoryItem[], overri
   return [...items.values()].sort((left, right) => left.city.localeCompare(right.city, "fr") || left.name.localeCompare(right.name, "fr"));
 }
 
-export function filterAdminDirectoryItems(items: AdminDirectoryItem[], input: { kind?: AdminDirectoryKind | "all"; search?: string }) {
+export type AdminDirectoryFilter = {
+  kind?: AdminDirectoryKind | "all";
+  search?: string;
+  status?: AdminDirectoryStatus;
+  city?: string;
+  /** « none » : pharmacies sans groupe de garde. */
+  dutyGroup?: "all" | "none" | "1" | "2" | "3" | "4";
+};
+
+export function filterAdminDirectoryItems(items: AdminDirectoryItem[], input: AdminDirectoryFilter) {
   const search = input.search?.trim().toLocaleLowerCase("fr");
+  const cityKey = input.city ? cityMatchKey(input.city) : null;
+  const dutyGroup = input.dutyGroup ?? "all";
   return items.filter((item) => {
+    if (item.status !== (input.status ?? "active")) return false;
     if (input.kind && input.kind !== "all" && item.kind !== input.kind) return false;
+    if (cityKey && cityMatchKey(item.city) !== cityKey) return false;
+    if (dutyGroup === "none" && (item.kind !== "pharmacy" || item.dutyGroup !== null)) return false;
+    if (dutyGroup !== "all" && dutyGroup !== "none" && item.dutyGroup !== Number(dutyGroup)) return false;
     if (!search) return true;
     return [item.name, item.city, item.phone ?? "", item.address ?? "", item.establishmentType ?? ""].some((value) => value.toLocaleLowerCase("fr").includes(search));
   });
+}
+
+/**
+ * Villes proposées dans la console : celles où l'annuaire a des établissements publiés, puis les
+ * villes prises en charge par l'application, chacune avec son nombre d'établissements publiés.
+ */
+export function listDirectoryCities(items: AdminDirectoryItem[]) {
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const item of items) {
+    if (item.status !== "active") continue;
+    const key = cityMatchKey(item.city);
+    const entry = counts.get(key) ?? { name: item.city, count: 0 };
+    entry.count += 1;
+    counts.set(key, entry);
+  }
+  for (const city of SUPPORTED_CITIES) {
+    const key = cityMatchKey(city.name);
+    if (!counts.has(key)) counts.set(key, { name: city.name, count: 0 });
+  }
+  return [...counts.values()].sort((left, right) => right.count - left.count || left.name.localeCompare(right.name, "fr"));
 }
