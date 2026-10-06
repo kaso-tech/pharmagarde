@@ -6,6 +6,7 @@ import path from "node:path";
 import { applyCorsHeaders } from "./_core/security";
 import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-overrides";
+import { DUTY_ROTATIONS, dutyStatusAt, dutyWeekAt, findDutyRotation } from "./duty-roster";
 import { ESSENTIAL_MEDICINES, MEDICINES_NOTICE } from "./medicines-data";
 import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
@@ -545,6 +546,41 @@ export function sortByDistanceFrom(items: CachedHealthPlace[], position: { latit
     .map(({ item }) => item);
 }
 
+export type PublishedPlace = CachedHealthPlace & {
+  /** Pharmacie de garde cette semaine, selon la programmation de sa ville (server/duty-roster.ts). */
+  onDuty?: boolean;
+  dutyStart?: string;
+  dutyEnd?: string;
+};
+
+/** Ajoute le statut de garde aux pharmacies des villes qui ont une programmation. */
+export function withDutyStatus(items: readonly CachedHealthPlace[], at: Date = new Date()): PublishedPlace[] {
+  return items.map((item) => {
+    if (item.category !== "pharmacy") return item;
+    const status = dutyStatusAt(item, at);
+    if (!status) return item;
+    return status.onDuty ? { ...item, onDuty: true, dutyStart: status.week.start.toISOString(), dutyEnd: status.week.end.toISOString() } : { ...item, onDuty: false };
+  });
+}
+
+/** Pharmacies de garde en premier, l'ordre (par distance) étant conservé à l'intérieur de chaque bloc. */
+export function sortOnDutyFirst<T extends { onDuty?: boolean }>(items: readonly T[]): T[] {
+  return [...items.filter((item) => item.onDuty === true), ...items.filter((item) => item.onDuty !== true)];
+}
+
+function dutyMeta(cityFilter: RequestedCityFilter, at: Date) {
+  const rotations = cityFilter.rawCity ? [findDutyRotation(cityFilter.supportedCity?.name ?? cityFilter.rawCity)].filter((rotation) => !!rotation) : DUTY_ROTATIONS;
+  return rotations.map((rotation) => {
+    const week = dutyWeekAt(rotation, at);
+    return { city: week.city, label: week.turn.label, dutyGroup: week.turn.dutyGroup ?? null, start: week.start.toISOString(), end: week.end.toISOString() };
+  });
+}
+
+function wantsOnDutyOnly(req: Request) {
+  const value = req.query?.onDuty ?? req.query?.garde;
+  return value === "1" || value === "true";
+}
+
 async function getPremiumAccessFromRequest(req: Request) {
   const user = await getAuthenticatedDbUser(req);
   return getPremiumStatusForUser(user ?? null).isPremium;
@@ -555,8 +591,11 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
   const cityFilter = getRequestedCityFilter(req);
   // Tri par distance depuis la position envoyée par l'app, avant la limite gratuite : un
   // utilisateur sans abonnement reçoit les 3 lieux les plus proches, pas les 3 premiers de la liste.
+  // Pharmacies : celles de garde passent devant, et `?onDuty=1` ne renvoie qu'elles.
   const published = await selectPublishedItems(kind, cityFilter);
-  const allItems = sortByDistanceFrom(published.items, getRequestedPosition(req));
+  const now = new Date();
+  const byDistance: PublishedPlace[] = sortByDistanceFrom(kind === "pharmacies" ? withDutyStatus(published.items, now) : published.items, getRequestedPosition(req));
+  const allItems = kind === "pharmacies" ? (wantsOnDutyOnly(req) ? byDistance.filter((item) => item.onDuty === true) : sortOnDutyFirst(byDistance)) : byDistance;
   const isPremium = await getPremiumAccessFromRequest(req);
   const items = isPremium ? allItems : allItems.slice(0, PREMIUM_RESULT_LIMIT);
   const responseCity = cityFilter.supportedCity?.name ?? cityFilter.rawCity ?? null;
@@ -584,6 +623,7 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
       updatedAt: state.updatedAt,
       expiresAt: state.expiresAt,
       stale: !isCacheFresh(kind),
+      ...(kind === "pharmacies" ? { duty: dutyMeta(cityFilter, now) } : {}),
     },
   });
 }

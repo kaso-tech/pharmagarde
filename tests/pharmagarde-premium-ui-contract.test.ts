@@ -105,7 +105,9 @@ describe("cartes pharmacies et cliniques", () => {
     expect(placeCard).toContain("Distance indisponible");
     expect(placeCard).not.toContain("Distance inconnue");
     expect(placeCard).not.toContain("Position à préciser");
-    expect(mapPlaceCard).toContain("Statut inconnu");
+    // Libellé commun (garde, ouvert, fermé, statut inconnu) : lib/pharmagarde/place-ordering.ts.
+    expect(mapPlaceCard).toContain("placeStatusLabel(place)");
+    expect(read("lib/pharmagarde/place-ordering.ts")).toContain("Statut inconnu");
     expect(mapPlaceCard).toContain("isExpanded: boolean");
     expect(mapPlaceCard).toContain("onToggle: () => void");
     expect(mapPlaceCard).not.toContain("const [expanded, setExpanded] = useState(false)");
