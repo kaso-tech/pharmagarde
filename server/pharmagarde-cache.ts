@@ -5,6 +5,7 @@ import path from "node:path";
 
 import { applyCorsHeaders } from "./_core/security";
 import { distanceKm } from "../lib/pharmagarde/city-utils";
+import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-overrides";
 import { ESSENTIAL_MEDICINES, MEDICINES_NOTICE } from "./medicines-data";
 import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
@@ -31,7 +32,8 @@ export type CachedHealthPlace = {
   isOpen?: boolean;
   /** Horaires au format OpenStreetMap `opening_hours` (ex. « Mo-Sa 08:00-20:00 »). */
   openingHours?: string;
-  source?: "annuaire" | "osm" | "local";
+  /** « admin » : fiche créée ou corrigée dans la console d’administration. */
+  source?: "annuaire" | "osm" | "local" | "admin";
   /** Groupe de garde de la pharmacie (1 à 4), issu de l'annuaire ; sert à la programmation des gardes. */
   dutyGroup?: number | null;
   /** Identifiant OpenStreetMap, ex. « node/123456 ». */
@@ -505,6 +507,28 @@ function selectItemsByCity(state: CacheState, cityFilter: RequestedCityFilter) {
   return flattenBuckets(state.byCity);
 }
 
+/**
+ * Liste publique d'une ville (ou de toutes), surcharges de la console d'administration appliquées.
+ * Un élément non modifié reste rattaché à son compartiment de ville ; un élément modifié suit la
+ * ville saisie dans la console.
+ */
+async function selectPublishedItems(kind: CacheKind, cityFilter: RequestedCityFilter) {
+  const state = memoryCache[kind];
+  const overrides = await getDirectoryOverrides();
+  if (overrides.length === 0) return { items: selectItemsByCity(state, cityFilter), total: countBuckets(state.byCity) };
+
+  const merged = applyDirectoryOverrides(flattenBuckets(state.byCity), overrides, kind === "pharmacies" ? "pharmacy" : "healthcare");
+  if (!cityFilter.key) return { items: merged, total: merged.length };
+
+  const overriddenIds = new Set(overrides.map((override) => override.id));
+  const bucketKeyById = new Map<string, string>();
+  for (const [key, items] of Object.entries(state.byCity)) {
+    for (const item of items) bucketKeyById.set(item.id, key);
+  }
+  const items = merged.filter((item) => (overriddenIds.has(item.id) ? cityKey(item.city) : bucketKeyById.get(item.id)) === cityFilter.key);
+  return { items, total: merged.length };
+}
+
 function getRequestedPosition(req: Request) {
   const latitude = Number(req.query?.lat ?? req.query?.latitude);
   const longitude = Number(req.query?.lng ?? req.query?.longitude);
@@ -531,7 +555,8 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
   const cityFilter = getRequestedCityFilter(req);
   // Tri par distance depuis la position envoyée par l'app, avant la limite gratuite : un
   // utilisateur sans abonnement reçoit les 3 lieux les plus proches, pas les 3 premiers de la liste.
-  const allItems = sortByDistanceFrom(selectItemsByCity(state, cityFilter), getRequestedPosition(req));
+  const published = await selectPublishedItems(kind, cityFilter);
+  const allItems = sortByDistanceFrom(published.items, getRequestedPosition(req));
   const isPremium = await getPremiumAccessFromRequest(req);
   const items = isPremium ? allItems : allItems.slice(0, PREMIUM_RESULT_LIMIT);
   const responseCity = cityFilter.supportedCity?.name ?? cityFilter.rawCity ?? null;
@@ -553,7 +578,7 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
       cityKey: cityFilter.key ?? null,
       supportedCities: SUPPORTED_CITIES.map((city) => city.name),
       itemCount: items.length,
-      totalItemCount: countBuckets(state.byCity),
+      totalItemCount: published.total,
       premiumRequiredForFullResults: !isPremium,
       freeResultLimit: isPremium ? null : PREMIUM_RESULT_LIMIT,
       updatedAt: state.updatedAt,
