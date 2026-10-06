@@ -205,7 +205,7 @@ importers:
         specifier: ~57.0.2
         version: 57.0.2(eslint@9.39.2(jiti@1.21.7))(typescript@6.0.3)
       exceljs:
-        specifier: ^4
+        specifier: ^4.4.0
         version: 4.4.0
       prettier:
         specifier: ^3.7.4
@@ -8115,7 +8115,9 @@ snapshots:
       metro-runtime: 0.84.5
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
