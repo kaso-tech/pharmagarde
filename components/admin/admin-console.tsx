@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-confirmation";
 import { haptic, premiumRadius, premiumSpacing, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 
-type AdminSection = "dashboard" | "directory" | "users" | "premium" | "audit";
+type AdminSection = "dashboard" | "directory" | "duty" | "users" | "premium" | "audit";
 type DirectoryKind = "pharmacy" | "healthcare";
 type Tone = "brand" | "success" | "warning" | "danger" | "muted" | "clinic";
 
@@ -33,6 +33,7 @@ const OTHER_CITY = "__autre__";
 const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; label: string; icon: keyof typeof MaterialIcons.glyphMap }> = [
   { section: "dashboard", href: "/admin", label: "Tableau de bord", icon: "dashboard" },
   { section: "directory", href: "/admin/annuaire", label: "Annuaire", icon: "local-pharmacy" },
+  { section: "duty", href: "/admin/gardes", label: "Gardes", icon: "event" },
   { section: "users", href: "/admin/utilisateurs", label: "Utilisateurs", icon: "group" },
   { section: "premium", href: "/admin/abonnements", label: "Premium", icon: "workspace-premium" },
   { section: "audit", href: "/admin/journal", label: "Journal", icon: "receipt-long" },
@@ -41,6 +42,7 @@ const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; label: str
 const SECTION_TITLES: Record<AdminSection, string> = {
   dashboard: "Tableau de bord",
   directory: "Annuaire",
+  duty: "Gardes",
   users: "Utilisateurs",
   premium: "Premium",
   audit: "Journal d’audit",
@@ -49,6 +51,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
 const SECTION_SUBTITLES: Record<AdminSection, string> = {
   dashboard: "Vue d’ensemble des comptes, des paiements et de l’annuaire.",
   directory: "Pharmacies et structures de santé publiées dans l’application.",
+  duty: "Groupe de garde de chaque ville. La garde change chaque samedi à 8 h.",
   users: "Comptes inscrits, vérification du téléphone et abonnement.",
   premium: "Paiements Ligdi Cash et abonnements associés.",
   audit: "Actions réalisées dans la console d’administration.",
@@ -74,6 +77,7 @@ const AUDIT_ACTIONS: Record<string, string> = {
   "directory.restored": "Fiche restaurée",
   "admin.dashboard.viewed": "Consultation du tableau de bord",
   "admin.directory.viewed": "Consultation de l’annuaire",
+  "admin.duty.viewed": "Consultation des gardes",
   "admin.users.viewed": "Consultation des utilisateurs",
   "admin.premium.viewed": "Consultation des paiements",
   "admin.audit.viewed": "Consultation du journal",
@@ -132,6 +136,17 @@ function formatShortDate(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("fr-BF", { dateStyle: "short", timeStyle: "short" }).format(date) : "—";
+}
+
+/** Date et heure de relève, en heure du Burkina Faso (UTC+0). */
+function formatDutyDate(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("fr-BF", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(date) : "—";
+}
+
+function formatDutyDay(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("fr-BF", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(date) : "—";
 }
 
 function formatXof(value: number) {
@@ -1015,11 +1030,95 @@ function Audit() {
   );
 }
 
+const DUTY_COLUMNS: readonly Column[] = [
+  { key: "period", label: "Semaine (relève à 8 h)", flex: 2.4 },
+  { key: "group", label: "De garde", flex: 1 },
+  { key: "count", label: "Pharmacies", flex: 1, align: "right" },
+];
+
+function Duty() {
+  const palette = usePremiumPalette();
+  const wide = useWideLayout();
+  const overview = trpc.admin.duty.overview.useQuery({ weeks: 8 }, { retry: 1 });
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const cities = overview.data ?? [];
+  return (
+    <AdminPage section="duty">
+      <PageState loading={overview.isLoading} error={overview.error} onRetry={() => overview.refetch()} empty={!cities.length}>
+        <View style={[styles.dutyGrid, wide && styles.dutyGridWide]}>
+          {cities.map((city) => {
+            const current = city.weeks[0];
+            const open = expanded === city.city;
+            type DutyWeekRow = (typeof city.weeks)[number];
+            return (
+              <View key={city.city} style={[styles.dutyCard, wide && styles.dutyCardWide, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                <View style={styles.dutyHeader}>
+                  <View style={styles.listMain}>
+                    <Text style={[styles.dutyCity, { color: palette.text }]}>{city.city}</Text>
+                    <Text style={[styles.listMeta, { color: palette.muted }]}>{city.pharmacyCount} pharmacies dans l’annuaire</Text>
+                  </View>
+                </View>
+                {current ? (
+                  <View style={[styles.dutyNow, { backgroundColor: palette.softGreen }]}>
+                    <MaterialIcons name="event-available" size={20} color={palette.brand} />
+                    <Text style={[styles.dutyNowText, { color: palette.text }]}>
+                      {current.label} · {current.pharmacyCount} pharmacies, du {formatDutyDate(current.start)} au {formatDutyDate(current.end)}
+                    </Text>
+                  </View>
+                ) : null}
+                {city.withoutGroup.length ? (
+                  <Text style={[styles.fieldHint, { color: palette.warning }]}>
+                    Sans groupe de garde, jamais affichée de garde : {city.withoutGroup.map((pharmacy) => pharmacy.name).join(", ")}
+                  </Text>
+                ) : null}
+                <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} style={({ pressed }) => [styles.dutyToggle, pressed && styles.pressed]} onPress={() => setExpanded(open ? null : city.city)}>
+                  <Text style={[styles.compactActionText, { color: palette.brand }]}>{open ? "Masquer" : "Voir"} les pharmacies de garde cette semaine</Text>
+                  <MaterialIcons name={open ? "expand-less" : "expand-more"} size={20} color={palette.brand} />
+                </Pressable>
+                {open ? (
+                  <View style={styles.dutyPharmacies}>
+                    {city.onDutyNow.map((pharmacy) => (
+                      <View key={pharmacy.id} style={[styles.dutyPharmacy, { borderBottomColor: palette.border }]}>
+                        <Text numberOfLines={1} style={[styles.td, styles.tdStrong, { color: palette.text, flex: 1 }]}>{pharmacy.name}</Text>
+                        <Text numberOfLines={1} style={[styles.td, { color: palette.muted }]}>{pharmacy.phone ?? "—"}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                <Text style={[styles.fieldLabel, { color: palette.text }]}>Semaines à venir</Text>
+                <DataTable<DutyWeekRow>
+                  columns={DUTY_COLUMNS}
+                  rows={city.weeks}
+                  rowKey={(week) => week.start}
+                  selectedKey={current?.start ?? null}
+                  renderCell={(week, key) => {
+                    switch (key) {
+                      case "period":
+                        return <CellText>{formatDutyDay(week.start)} → {formatDutyDay(week.end)}</CellText>;
+                      case "group":
+                        return <CellText strong>{week.label}</CellText>;
+                      case "count":
+                        return <CellText muted>{week.pharmacyCount}</CellText>;
+                      default:
+                        return null;
+                    }
+                  }}
+                />
+              </View>
+            );
+          })}
+        </View>
+      </PageState>
+    </AdminPage>
+  );
+}
+
 export function AdminConsoleScreen({ section }: { section: AdminSection }) {
   return (
     <AdminShell section={section}>
       {section === "dashboard" ? <Dashboard /> : null}
       {section === "directory" ? <Directory /> : null}
+      {section === "duty" ? <Duty /> : null}
       {section === "users" ? <Users /> : null}
       {section === "premium" ? <Premium /> : null}
       {section === "audit" ? <Audit /> : null}
@@ -1101,6 +1200,17 @@ const styles = StyleSheet.create({
   selectOption: { minHeight: 44, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   selectOptionText: { fontSize: 14, lineHeight: 19, fontWeight: "700" },
   fieldHint: { fontSize: 12, lineHeight: 17, fontWeight: "600" },
+  dutyGrid: { gap: 14 },
+  dutyGridWide: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" },
+  dutyCard: { borderRadius: premiumRadius.md, borderWidth: 1, padding: 16, gap: 12 },
+  dutyCardWide: { flexBasis: 480, flexGrow: 1 },
+  dutyHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dutyCity: { fontSize: 19, lineHeight: 25, fontWeight: "900" },
+  dutyNow: { borderRadius: 12, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
+  dutyNowText: { flex: 1, fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  dutyToggle: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 4 },
+  dutyPharmacies: { gap: 0 },
+  dutyPharmacy: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1 },
   splitRoot: { flex: 1 },
   splitRootWide: { flexDirection: "row" },
   sidePanel: { width: 420, borderLeftWidth: 1 },

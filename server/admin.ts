@@ -5,7 +5,8 @@ import { z } from "zod";
 import { auditLogs, directoryEntries, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { reloadDirectoryOverrides } from "./directory-overrides";
-import { directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
+import { DUTY_ROTATIONS, dutyWeekAt, isPharmacyOnDuty } from "./duty-roster";
+import { cityMatchKey, directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
 import { adminProcedure, router } from "./_core/trpc";
 
 const pageSchema = z.object({
@@ -21,6 +22,10 @@ const directoryListSchema = pageSchema.extend({
   dutyGroup: z.enum(["all", "none", "1", "2", "3", "4"]).default("all"),
 });
 
+const dutyOverviewSchema = z.object({
+  weeks: z.number().int().min(1).max(26).default(8),
+});
+
 const auditListSchema = pageSchema.extend({
   /** Les consultations de pages sont journalisées mais masquées par défaut. */
   includeViews: z.boolean().default(false),
@@ -31,7 +36,7 @@ const userListSchema = pageSchema.extend({
 });
 
 const activitySchema = z.object({
-  area: z.enum(["dashboard", "directory", "users", "premium", "audit"]),
+  area: z.enum(["dashboard", "directory", "duty", "users", "premium", "audit"]),
 });
 
 function failIfNoDb<T>(db: T | null): T {
@@ -241,6 +246,37 @@ export const adminRouter = router({
       });
       await reloadDirectoryOverrides();
       return { id: input.id, status: "active" as const };
+    }),
+  }),
+
+  duty: router({
+    /** Semaine de garde en cours et suivantes, par ville, avec les pharmacies concernées. */
+    overview: adminProcedure.input(dutyOverviewSchema).query(async ({ input }) => {
+      const merged = await readMergedDirectory();
+      const now = new Date();
+      return DUTY_ROTATIONS.map((rotation) => {
+        const pharmacies = merged.filter((item) => item.status === "active" && item.kind === "pharmacy" && cityMatchKey(item.city) === cityMatchKey(rotation.city));
+        const weeks = Array.from({ length: input.weeks }, (_, offset) => {
+          const week = dutyWeekAt(rotation, now, offset);
+          return {
+            label: week.turn.label,
+            dutyGroup: week.turn.dutyGroup ?? null,
+            start: week.start.toISOString(),
+            end: week.end.toISOString(),
+            pharmacyCount: pharmacies.filter((pharmacy) => isPharmacyOnDuty(pharmacy, week)).length,
+          };
+        });
+        const current = dutyWeekAt(rotation, now);
+        return {
+          city: rotation.city,
+          weeks,
+          pharmacyCount: pharmacies.length,
+          withoutGroup: pharmacies.filter((pharmacy) => pharmacy.dutyGroup === null).map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name })),
+          onDutyNow: pharmacies
+            .filter((pharmacy) => isPharmacyOnDuty(pharmacy, current))
+            .map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name, phone: pharmacy.phone, address: pharmacy.address })),
+        };
+      });
     }),
   }),
 

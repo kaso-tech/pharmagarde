@@ -24,6 +24,10 @@ export type HealthPlace = {
   openingHours?: string;
   /** Groupe de garde de la pharmacie (1 à 4) dans l'annuaire ; base de la programmation des gardes. */
   dutyGroup?: number;
+  /** Pharmacie de garde cette semaine, calculé par le serveur selon la programmation de la ville. */
+  onDuty?: boolean;
+  /** Fin de la garde en cours (samedi 8 h), au format ISO. */
+  dutyEnd?: string;
 };
 
 export type MedicineAgeCategory = "Enfant" | "Adulte" | "Tous";

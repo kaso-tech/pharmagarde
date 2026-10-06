@@ -50,3 +50,12 @@ Le design reprend la palette PharmaGarde (`#008000`, surfaces claires/contrasté
 ## Validation
 
 Les tests couvrent le rejet des sessions non-admin au niveau tRPC, l’assemblage de l’annuaire avec les surcharges et l’existence des protections/états UI. La validation finale utilise `pnpm check` et `pnpm test` sans exécuter `pnpm db:push`.
+
+## Programmation des gardes
+
+La garde des pharmacies dure une semaine et change chaque samedi à 8 h (heure du Burkina Faso, UTC+0). La programmation est définie dans `server/duty-roster.ts` :
+
+- Ouagadougou et Bobo-Dioulasso : rotation des groupes 1 → 2 → 3 → 4 de l'annuaire, à partir de la base « groupe 4 du samedi 3 au samedi 10 octobre 2026 », conforme au programme 2026 de l'Ordre pour Ouagadougou ;
+- les autres villes (Koudougou, Ouahigouya, région de l'Est…) tournent sur des listes fixes de pharmacies (`pharmacyIds`), à déclarer quand leurs pharmacies seront dans l'annuaire.
+
+Les routes `/pharmacies` ajoutent `onDuty` (et `dutyStart`/`dutyEnd` pour les pharmacies de garde), placent les pharmacies de garde en premier et acceptent `?onDuty=1` pour ne renvoyer qu'elles ; `meta.duty` donne le groupe de garde de la semaine. La page « Gardes » de la console (`/admin/gardes`) affiche la semaine en cours, les 8 suivantes et les pharmacies sans groupe.
