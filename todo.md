@@ -499,3 +499,4 @@
 - [x] Ajouter tableau de bord, annuaire, utilisateurs, suivi Premium/transactions et journal d’audit.
 - [x] Implémenter l’archivage logique confirmé, contrôlé côté serveur et audité ; ne pas exposer de charge brute ou d’URL de paiement.
 - [x] Préparer la migration additive `0006_admin_console` sans l’appliquer, puis valider TypeScript et Vitest.
+- [x] Renforcer l’archivage avec une confirmation API explicite, une vérification d’existence serveur et une déconnexion confirmée cohérente sur les drawers.

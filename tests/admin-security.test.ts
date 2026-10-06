@@ -22,6 +22,6 @@ describe("console admin · contrôle d’accès serveur", () => {
 
   it("refuse une session utilisateur ordinaire, y compris les mutations d’annuaire", async () => {
     await expect(caller("user").admin.users.list({ limit: 10 })).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(caller("user").admin.directory.archive({ id: "ph-ouagadougou-test", kind: "pharmacy" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller("user").admin.directory.archive({ id: "ph-ouagadougou-test", kind: "pharmacy", confirmArchive: true })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

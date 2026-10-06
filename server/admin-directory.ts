@@ -54,6 +54,13 @@ export const directoryUpsertSchema = z
     }
   });
 
+/** Un archivage requiert un consentement explicite, même si l’appel contourne l’interface. */
+export const directoryArchiveSchema = z.object({
+  id: z.string().trim().min(3).max(128),
+  kind: z.enum(["pharmacy", "healthcare"]),
+  confirmArchive: z.literal(true),
+});
+
 export type DirectoryUpsertInput = z.infer<typeof directoryUpsertSchema>;
 
 export type NormalizedDirectoryUpsert = {

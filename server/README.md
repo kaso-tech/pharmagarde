@@ -587,6 +587,16 @@ Règles d'import :
 - `Groupe` (1 à 4) devient `dutyGroup`, utilisé pour la programmation des gardes ; une valeur absente est signalée.
 - L'identifiant (`ph-<ville>-<nom>`) dépend de la ville et du nom : renommer une pharmacie change son identifiant et retire des favoris celle de l'ancien nom.
 
+## Console d’administration sécurisée
+
+La console Expo Router est disponible sous `/admin` et comprend le tableau de bord, l’annuaire, les utilisateurs et leur état de vérification téléphone, le suivi Premium/transactions et le journal d’audit.
+
+- Toutes les procédures `admin.*` passent par `adminProcedure` : le serveur exige une session valide dont le rôle persisté est `admin`. Le rendu de l’interface ne constitue jamais une autorisation.
+- Les listes Premium ne retournent ni `rawProviderPayload`, ni URL de paiement, ni identifiant fournisseur de transaction. Elles servent uniquement au suivi opérationnel.
+- Une modification d’annuaire est journalisée. L’archivage est logique (aucune suppression physique), exige `confirmArchive: true`, vérifie que l’établissement existe et crée une trace `directory.archived` dans `audit_logs` au sein de la même transaction.
+- La migration additive `drizzle/0006_admin_console.sql` doit être appliquée par l’équipe de déploiement via le processus de migration habituel ; elle n’est pas exécutée automatiquement par l’application ni par les tests.
+- Les rôles administrateur doivent être accordés en base par une procédure opératoire autorisée. Ne jamais ajouter de jeton, mot de passe ou secret dans le dépôt pour accéder à la console.
+
 ## Pages publiques et suppression de compte
 
 | Route | Usage |

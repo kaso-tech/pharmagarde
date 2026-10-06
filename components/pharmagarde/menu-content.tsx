@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 
 import { DrawerActionRow, DrawerFooter, DrawerHero, DrawerSection, DrawerSelectRow, DrawerSelectionModal, DrawerSwitchRow } from "@/components/pharmagarde/drawer-ui";
+import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-confirmation";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
@@ -56,6 +57,8 @@ export function MenuContent({ onClose }: MenuContentProps) {
   const { user, isAuthenticated, logout, logoutAllDevices } = useAuth();
   const colors = useColors();
   const [selector, setSelector] = useState<SelectorKey | null>(null);
+  const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
+  const [logoutPending, setLogoutPending] = useState(false);
 
   const navigate = (href: string) => {
     onClose();
@@ -65,15 +68,21 @@ export function MenuContent({ onClose }: MenuContentProps) {
   const closeSelector = () => setSelector(null);
 
   const handleLogout = async () => {
-    await logout();
-    onClose();
-    router.replace("/(tabs)" as never);
+    setLogoutPending(true);
+    try {
+      await logout();
+      onClose();
+      router.replace("/auth/login" as never);
+    } finally {
+      setLogoutPending(false);
+      setLogoutConfirmationVisible(false);
+    }
   };
 
   const handleLogoutAllDevices = async () => {
     await logoutAllDevices().catch(() => undefined);
     onClose();
-    router.replace("/(tabs)" as never);
+    router.replace("/auth/login" as never);
   };
 
   return (
@@ -133,7 +142,7 @@ export function MenuContent({ onClose }: MenuContentProps) {
                 icon="logout"
                 title="Se déconnecter"
                 active={false}
-                onPress={handleLogout}
+                onPress={() => setLogoutConfirmationVisible(true)}
               />
               <DrawerActionRow
                 icon="devices"
@@ -210,6 +219,12 @@ export function MenuContent({ onClose }: MenuContentProps) {
           updatePreference("city", next);
           closeSelector();
         }}
+      />
+      <SignOutConfirmationModal
+        visible={logoutConfirmationVisible}
+        pending={logoutPending}
+        onClose={() => setLogoutConfirmationVisible(false)}
+        onConfirm={() => void handleLogout()}
       />
     </>
   );

@@ -20,6 +20,7 @@ describe("console admin · contrat UI/API", () => {
 
   it("protège les procédures côté serveur et ne révèle pas la charge brute de paiement", () => {
     expect(router).toContain("adminProcedure");
+    expect(router).toContain("directoryArchiveSchema");
     expect(router).toContain("directory.archived");
     expect(router).toContain("auditLogs");
     expect(router).not.toContain("rawProviderPayload");
@@ -31,5 +32,12 @@ describe("console admin · contrat UI/API", () => {
     expect(ui).toContain("Archiver l’établissement");
     expect(ui).toContain("Cette action sera journalisée");
     expect(ui).toContain("directory.archive.useMutation");
+    expect(ui).toContain("confirmArchive: true");
+    expect(router).toContain('code: "NOT_FOUND"');
+  });
+
+  it("réutilise la confirmation de déconnexion et affiche la date de vérification", () => {
+    expect(ui).toContain("SignOutConfirmationModal");
+    expect(ui).toContain("Vérification :");
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { directoryUpsertSchema, mergeAdminDirectoryItems, type AdminDirectoryItem } from "../server/admin-directory";
+import { directoryArchiveSchema, directoryUpsertSchema, mergeAdminDirectoryItems, type AdminDirectoryItem } from "../server/admin-directory";
 
 const base: AdminDirectoryItem[] = [
   {
@@ -56,5 +56,12 @@ describe("console admin · annuaire", () => {
     expect(directoryUpsertSchema.safeParse({ ...common, latitude: 12.37 }).success).toBe(false);
     expect(directoryUpsertSchema.safeParse({ ...common, latitude: 48.85, longitude: 2.35 }).success).toBe(false);
     expect(directoryUpsertSchema.safeParse({ ...common, phone: "123" }).success).toBe(false);
+  });
+
+  it("exige une confirmation explicite pour archiver un établissement", () => {
+    const target = { id: "ph-ouagadougou-centrale", kind: "pharmacy" as const };
+    expect(directoryArchiveSchema.safeParse(target).success).toBe(false);
+    expect(directoryArchiveSchema.safeParse({ ...target, confirmArchive: false }).success).toBe(false);
+    expect(directoryArchiveSchema.safeParse({ ...target, confirmArchive: true }).success).toBe(true);
   });
 });

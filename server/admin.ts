@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { auditLogs, directoryEntries, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
-import { directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
+import { directoryArchiveSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
 import { adminProcedure, router } from "./_core/trpc";
 
 const pageSchema = z.object({
@@ -146,13 +146,22 @@ export const adminRouter = router({
     }),
 
     archive: adminProcedure
-      .input(z.object({ id: z.string().trim().min(3).max(128), kind: z.enum(["pharmacy", "healthcare"]) }))
+      .input(directoryArchiveSchema)
       .mutation(async ({ ctx, input }) => {
         const db = failIfNoDb(await getDb());
+        const baseItems = await getBaseAdminDirectoryItems();
         await db.transaction(async (tx) => {
           const existing = await tx.select().from(directoryEntries).where(eq(directoryEntries.id, input.id)).limit(1);
           const current = existing[0];
-          if (current && current.kind !== input.kind) {
+          const source = baseItems.find((item) => item.id === input.id);
+          const entry = current ?? source;
+          if (!entry) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Établissement introuvable dans l’annuaire." });
+          }
+          if (current?.status === "archived") {
+            throw new TRPCError({ code: "CONFLICT", message: "Cet établissement est déjà archivé." });
+          }
+          if (entry.kind !== input.kind) {
             throw new TRPCError({ code: "BAD_REQUEST", message: "Le type d’établissement ne correspond pas à la surcharge existante." });
           }
           await tx
@@ -161,14 +170,14 @@ export const adminRouter = router({
               id: input.id,
               kind: input.kind,
               status: "archived",
-              city: current?.city ?? null,
-              name: current?.name ?? null,
-              phone: current?.phone ?? null,
-              address: current?.address ?? null,
-              latitude: current?.latitude ?? null,
-              longitude: current?.longitude ?? null,
-              dutyGroup: current?.dutyGroup ?? null,
-              establishmentType: current?.establishmentType ?? null,
+              city: entry.city ?? null,
+              name: entry.name ?? null,
+              phone: entry.phone ?? null,
+              address: entry.address ?? null,
+              latitude: entry.latitude ?? null,
+              longitude: entry.longitude ?? null,
+              dutyGroup: entry.dutyGroup ?? null,
+              establishmentType: entry.establishmentType ?? null,
             })
             .onDuplicateKeyUpdate({ set: { status: "archived" } });
           await tx.insert(auditLogs).values({
@@ -176,7 +185,7 @@ export const adminRouter = router({
             action: "directory.archived",
             targetType: input.kind,
             targetId: input.id,
-            metadata: safeMetadata({ kind: input.kind, source: "admin_console" }),
+            metadata: safeMetadata({ kind: input.kind, confirmation: input.confirmArchive, source: "admin_console" }),
           });
         });
         return { id: input.id, status: "archived" as const };

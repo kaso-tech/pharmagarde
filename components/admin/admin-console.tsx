@@ -5,6 +5,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
+import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-confirmation";
 import { haptic, premiumRadius, premiumSpacing, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 
 type AdminSection = "dashboard" | "directory" | "users" | "premium" | "audit";
@@ -118,13 +119,21 @@ function AdminDrawer({ visible, section, onClose }: { visible: boolean; section:
   const { width } = useWindowDimensions();
   const { logout } = useAuth({ autoFetch: false });
   const drawerWidth = Math.min(Math.max(width * 0.82, 300), 380);
+  const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
+  const [logoutPending, setLogoutPending] = useState(false);
 
   if (!visible) return null;
 
   const signOut = async () => {
-    await logout();
-    onClose();
-    router.replace("/auth/login" as never);
+    setLogoutPending(true);
+    try {
+      await logout();
+      onClose();
+      router.replace("/auth/login" as never);
+    } finally {
+      setLogoutPending(false);
+      setLogoutConfirmationVisible(false);
+    }
   };
 
   return (
@@ -163,11 +172,17 @@ function AdminDrawer({ visible, section, onClose }: { visible: boolean; section:
             );
           })}
         </ScrollView>
-        <Pressable accessibilityRole="button" style={[styles.drawerLogout, { borderTopColor: palette.border, backgroundColor: palette.card }]} onPress={signOut}>
+        <Pressable accessibilityRole="button" style={[styles.drawerLogout, { borderTopColor: palette.border, backgroundColor: palette.card }]} onPress={() => setLogoutConfirmationVisible(true)}>
           <View style={[styles.drawerIcon, { backgroundColor: "rgba(217,45,32,0.10)" }]}><MaterialIcons name="logout" size={21} color={palette.danger} /></View>
           <Text style={[styles.drawerItemText, { color: palette.danger }]}>Se déconnecter</Text>
         </Pressable>
       </View>
+      <SignOutConfirmationModal
+        visible={logoutConfirmationVisible}
+        pending={logoutPending}
+        onClose={() => setLogoutConfirmationVisible(false)}
+        onConfirm={() => void signOut()}
+      />
     </View>
   );
 }
@@ -367,7 +382,7 @@ function Directory() {
           ))}
         </View>
       </PageState>
-      <ConfirmationModal itemName={archiveTarget?.name ?? ""} visible={!!archiveTarget} loading={archive.isPending} onClose={() => setArchiveTarget(null)} onConfirm={() => archiveTarget && archive.mutate({ id: archiveTarget.id, kind: archiveTarget.kind })} />
+      <ConfirmationModal itemName={archiveTarget?.name ?? ""} visible={!!archiveTarget} loading={archive.isPending} onClose={() => setArchiveTarget(null)} onConfirm={() => archiveTarget && archive.mutate({ id: archiveTarget.id, kind: archiveTarget.kind, confirmArchive: true })} />
     </AdminPage>
   );
 }
@@ -380,7 +395,7 @@ function Users() {
     <AdminPage title="Utilisateurs">
       <TextInput value={search} onChangeText={setSearch} placeholder="Rechercher par nom, téléphone ou e-mail" placeholderTextColor={palette.muted} style={[styles.searchInput, { color: palette.text, backgroundColor: palette.card, borderColor: palette.border }]} />
       <PageState loading={users.isLoading} error={users.error} onRetry={() => users.refetch()} empty={!users.data?.length}>
-        <View style={styles.list}>{users.data?.map((user) => <View key={user.id} style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}><View style={styles.userTop}><View style={[styles.avatar, { backgroundColor: palette.softGreen }]}><Text style={[styles.avatarText, { color: palette.brand }]}>{displayIdentity(user).slice(0, 1).toLocaleUpperCase("fr")}</Text></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{displayIdentity(user)}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{user.phone ?? user.email ?? "Coordonnée absente"}</Text></View><Text style={[styles.statusPill, { color: user.verificationStatus === "verified" ? palette.success : palette.warning, borderColor: user.verificationStatus === "verified" ? palette.success : palette.warning }]}>{user.verificationStatus === "verified" ? "Vérifié" : "À vérifier"}</Text></View><View style={styles.detailRow}><Text style={[styles.listMeta, { color: palette.muted }]}>Rôle : {user.role === "admin" ? "Administrateur" : "Utilisateur"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Premium : {user.subscriptionEnd ? formatDate(user.subscriptionEnd) : "Non actif"}</Text></View></View>)}</View>
+        <View style={styles.list}>{users.data?.map((user) => <View key={user.id} style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}><View style={styles.userTop}><View style={[styles.avatar, { backgroundColor: palette.softGreen }]}><Text style={[styles.avatarText, { color: palette.brand }]}>{displayIdentity(user).slice(0, 1).toLocaleUpperCase("fr")}</Text></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{displayIdentity(user)}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{user.phone ?? user.email ?? "Coordonnée absente"}</Text></View><Text style={[styles.statusPill, { color: user.verificationStatus === "verified" ? palette.success : palette.warning, borderColor: user.verificationStatus === "verified" ? palette.success : palette.warning }]}>{user.verificationStatus === "verified" ? "Vérifié" : "À vérifier"}</Text></View><View style={styles.detailRow}><Text style={[styles.listMeta, { color: palette.muted }]}>Vérification : {user.phoneVerifiedAt ? formatDate(user.phoneVerifiedAt) : "Non vérifié"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Rôle : {user.role === "admin" ? "Administrateur" : "Utilisateur"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Premium : {user.subscriptionEnd ? formatDate(user.subscriptionEnd) : "Non actif"}</Text></View></View>)}</View>
       </PageState>
     </AdminPage>
   );
