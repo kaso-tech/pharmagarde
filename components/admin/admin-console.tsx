@@ -27,7 +27,8 @@ type DirectoryForm = {
 
 /** Largeur à partir de laquelle la console passe en mise en page bureau : menu latéral fixe et tableaux. */
 const WIDE_BREAKPOINT = 1024;
-const LIST_LIMIT = 100;
+const PAGE_SIZE = 50;
+const OTHER_CITY = "__autre__";
 
 const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; label: string; icon: keyof typeof MaterialIcons.glyphMap }> = [
   { section: "dashboard", href: "/admin", label: "Tableau de bord", icon: "dashboard" },
@@ -70,6 +71,7 @@ const TRANSACTION_STATUS: Record<string, { label: string; tone: Tone }> = {
 const AUDIT_ACTIONS: Record<string, string> = {
   "directory.upserted": "Fiche enregistrée",
   "directory.archived": "Fiche archivée",
+  "directory.restored": "Fiche restaurée",
   "admin.dashboard.viewed": "Consultation du tableau de bord",
   "admin.directory.viewed": "Consultation de l’annuaire",
   "admin.users.viewed": "Consultation des utilisateurs",
@@ -90,6 +92,17 @@ const DUTY_GROUP_OPTIONS = [
   { value: "3", label: "3" },
   { value: "4", label: "4" },
 ] as const;
+
+type DutyGroupFilter = "all" | "none" | "1" | "2" | "3" | "4";
+
+const DUTY_GROUP_FILTER_OPTIONS: readonly { value: DutyGroupFilter; label: string }[] = [
+  { value: "all", label: "Tous les groupes" },
+  { value: "1", label: "Groupe 1" },
+  { value: "2", label: "Groupe 2" },
+  { value: "3", label: "Groupe 3" },
+  { value: "4", label: "Groupe 4" },
+  { value: "none", label: "Sans groupe" },
+];
 
 const EMPTY_DIRECTORY_FORM: DirectoryForm = {
   kind: "pharmacy",
@@ -140,9 +153,21 @@ function auditActionLabel(action: string) {
   return AUDIT_ACTIONS[action] ?? action;
 }
 
-function resultCountLabel(count: number) {
-  const base = `${count} résultat${count > 1 ? "s" : ""}`;
-  return count >= LIST_LIMIT ? `${base} · seuls les ${LIST_LIMIT} premiers sont affichés, affinez la recherche` : base;
+/** Valeur mise à jour après une pause de saisie, pour ne pas interroger le serveur à chaque frappe. */
+function useDebouncedValue<T>(value: T, delayMs = 300) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+/** Numéro de page remis à 1 dès que les filtres changent. */
+function usePage(filtersKey: string) {
+  const [state, setState] = useState({ key: filtersKey, page: 1 });
+  const page = state.key === filtersKey ? state.page : 1;
+  return [page, (next: number) => setState({ key: filtersKey, page: next })] as const;
 }
 
 function useToneColor() {
@@ -392,9 +417,56 @@ function CellText({ children, strong = false, muted = false, small = false }: Pr
   return <Text numberOfLines={1} style={[styles.td, strong && styles.tdStrong, small && styles.tdSmall, { color: muted ? palette.muted : palette.text }]}>{children}</Text>;
 }
 
-function ResultCount({ count }: { count: number }) {
+function Pagination({ page, limit, total, onChange }: { page: number; limit: number; total: number; onChange: (page: number) => void }) {
   const palette = usePremiumPalette();
-  return <Text style={[styles.resultCount, { color: palette.muted }]}>{resultCountLabel(count)}</Text>;
+  const pages = Math.max(1, Math.ceil(total / limit));
+  const from = total ? (page - 1) * limit + 1 : 0;
+  const to = Math.min(page * limit, total);
+  return (
+    <View style={styles.pagination}>
+      <Text style={[styles.resultCount, { color: palette.muted }]}>{total ? `${from}–${to} sur ${total.toLocaleString("fr-FR")}` : "Aucun résultat"}</Text>
+      {pages > 1 ? (
+        <View style={styles.paginationButtons}>
+          <IconAction icon="chevron-left" label="Page précédente" color={palette.text} disabled={page <= 1} onPress={() => onChange(page - 1)} />
+          <Text style={[styles.resultCount, { color: palette.text }]}>Page {page} / {pages}</Text>
+          <IconAction icon="chevron-right" label="Page suivante" color={palette.text} disabled={page >= pages} onPress={() => onChange(page + 1)} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** Liste de choix : un bouton qui ouvre la liste des options dans une fenêtre. */
+function SelectField({ label, value, options, onChange, style }: { label: string; value: string; options: readonly { value: string; label: string }[]; onChange: (value: string) => void; style?: object }) {
+  const palette = usePremiumPalette();
+  const [open, setOpen] = useState(false);
+  const current = options.find((option) => option.value === value);
+  return (
+    <>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${label} : ${current?.label ?? "non renseigné"}`} style={({ pressed }) => [styles.select, { backgroundColor: palette.card, borderColor: palette.border }, style, pressed && styles.pressed]} onPress={() => setOpen(true)}>
+        <Text numberOfLines={1} style={[styles.selectText, { color: current ? palette.text : palette.muted }]}>{current?.label ?? label}</Text>
+        <MaterialIcons name="expand-more" size={20} color={palette.muted} />
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable accessibilityLabel="Fermer la liste" style={[styles.modalRoot, { backgroundColor: palette.overlay }]} onPress={() => setOpen(false)}>
+          <Pressable style={[styles.selectSheet, { backgroundColor: palette.card, borderColor: palette.border }]} onPress={() => undefined}>
+            <Text style={[styles.cardHeading, styles.selectTitle, { color: palette.text }]}>{label}</Text>
+            <ScrollView style={styles.selectList}>
+              {options.map((option) => {
+                const active = option.value === value;
+                return (
+                  <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: active }} style={({ pressed }) => [styles.selectOption, active && { backgroundColor: palette.softGreen }, pressed && styles.pressed]} onPress={() => { onChange(option.value); setOpen(false); }}>
+                    <Text style={[styles.selectOptionText, { color: active ? palette.brand : palette.text }]}>{option.label}</Text>
+                    {active ? <MaterialIcons name="check" size={18} color={palette.brand} /> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
 }
 
 function Dashboard() {
@@ -499,16 +571,34 @@ function ConfirmationModal({ itemName, visible, loading, onClose, onConfirm }: {
   );
 }
 
-function DirectoryFormFields({ form, onChange, error, pending, onCancel, onSubmit }: { form: DirectoryForm; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void; error?: string | null; pending: boolean; onCancel: () => void; onSubmit: () => void }) {
+function DirectoryFormFields({ form, cityNames, onChange, error, pending, onCancel, onSubmit }: { form: DirectoryForm; cityNames: readonly string[]; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void; error?: string | null; pending: boolean; onCancel: () => void; onSubmit: () => void }) {
   const palette = usePremiumPalette();
+  const [otherCity, setOtherCity] = useState(false);
+  const showOtherCity = otherCity || (!!form.city && !cityNames.includes(form.city));
+  const cityOptions = [...cityNames.map((name) => ({ value: name, label: name })), { value: OTHER_CITY, label: "Autre ville…" }];
+  const missingCoordinates = form.kind === "pharmacy" && (numberOrNull(form.latitude) === null || numberOrNull(form.longitude) === null);
+  const cannotSave = pending || !form.name.trim() || !form.city.trim() || missingCoordinates;
+  const coordinateSuffix = form.kind === "pharmacy" ? " *" : "";
   return (
     <View style={styles.formFields}>
       <SegmentControl value={form.kind} onChange={(value) => onChange("kind", value as DirectoryKind)} options={[{ value: "pharmacy", label: "Pharmacie" }, { value: "healthcare", label: "Soins" }]} />
       <Field label="Nom" value={form.name} onChangeText={(value) => onChange("name", value)} />
-      <Field label="Ville" value={form.city} onChangeText={(value) => onChange("city", value)} />
+      <View style={styles.fieldWrap}>
+        <Text style={[styles.fieldLabel, { color: palette.text }]}>Ville</Text>
+        <SelectField
+          label="Ville"
+          value={showOtherCity ? OTHER_CITY : form.city}
+          options={cityOptions}
+          onChange={(value) => {
+            setOtherCity(value === OTHER_CITY);
+            onChange("city", value === OTHER_CITY ? "" : value);
+          }}
+        />
+      </View>
+      {showOtherCity ? <Field label="Nom de la nouvelle ville" value={form.city} onChangeText={(value) => onChange("city", value)} placeholder="Ex. Koudougou" /> : null}
       <Field label="Téléphone" value={form.phone} onChangeText={(value) => onChange("phone", value)} placeholder="+226 70 00 00 00" keyboardType="phone-pad" />
       <Field label="Adresse" value={form.address} onChangeText={(value) => onChange("address", value)} multiline />
-      <View style={styles.fieldRow}><View style={styles.fieldHalf}><Field label="Latitude" value={form.latitude} onChangeText={(value) => onChange("latitude", value)} keyboardType="numeric" /></View><View style={styles.fieldHalf}><Field label="Longitude" value={form.longitude} onChangeText={(value) => onChange("longitude", value)} keyboardType="numeric" /></View></View>
+      <View style={styles.fieldRow}><View style={styles.fieldHalf}><Field label={`Latitude${coordinateSuffix}`} value={form.latitude} onChangeText={(value) => onChange("latitude", value)} keyboardType="numeric" /></View><View style={styles.fieldHalf}><Field label={`Longitude${coordinateSuffix}`} value={form.longitude} onChangeText={(value) => onChange("longitude", value)} keyboardType="numeric" /></View></View>
       {form.kind === "pharmacy" ? (
         <View style={styles.fieldWrap}>
           <Text style={[styles.fieldLabel, { color: palette.text }]}>Groupe de garde</Text>
@@ -517,22 +607,28 @@ function DirectoryFormFields({ form, onChange, error, pending, onCancel, onSubmi
       ) : (
         <Field label="Type d’établissement" value={form.establishmentType} onChangeText={(value) => onChange("establishmentType", value)} />
       )}
+      {missingCoordinates ? <Text style={[styles.fieldHint, { color: palette.muted }]}>* Coordonnées obligatoires pour une pharmacie, pour l’afficher sur la carte.</Text> : null}
       {error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{error}</Text> : null}
       <View style={styles.formActions}>
         <Pressable accessibilityRole="button" style={[styles.secondaryButton, { borderColor: palette.border }]} disabled={pending} onPress={onCancel}><Text style={[styles.secondaryText, { color: palette.text }]}>Annuler</Text></Pressable>
-        <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: palette.brand }, (pending || !form.name.trim() || !form.city.trim()) && styles.disabled]} disabled={pending || !form.name.trim() || !form.city.trim()} onPress={onSubmit}>{pending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.retryText}>Enregistrer</Text>}</Pressable>
+        <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: palette.brand }, cannotSave && styles.disabled]} disabled={cannotSave} onPress={onSubmit}>{pending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.retryText}>Enregistrer</Text>}</Pressable>
       </View>
     </View>
   );
 }
 
-function IconAction({ icon, label, color, onPress }: { icon: keyof typeof MaterialIcons.glyphMap; label: string; color: string; onPress: () => void }) {
+function IconAction({ icon, label, color, onPress, disabled = false }: { icon: keyof typeof MaterialIcons.glyphMap; label: string; color: string; onPress: () => void; disabled?: boolean }) {
   const palette = usePremiumPalette();
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.iconButton, { borderColor: palette.border }, pressed && styles.pressed]} onPress={onPress}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} style={({ pressed }) => [styles.iconButton, { borderColor: palette.border }, disabled && styles.disabled, pressed && styles.pressed]} onPress={onPress}>
       <MaterialIcons name={icon} size={18} color={color} />
     </Pressable>
   );
+}
+
+function SourceBadge({ item }: { item: { status: string; managed: boolean } }) {
+  if (item.status === "archived") return <StatusBadge label="Archivé" tone="danger" />;
+  return <StatusBadge label={item.managed ? "Administré" : "Annuaire"} tone={item.managed ? "brand" : "muted"} />;
 }
 
 const DIRECTORY_COLUMNS: readonly Column[] = [
@@ -550,10 +646,19 @@ function Directory() {
   const wide = useWideLayout();
   const [kind, setKind] = useState<"all" | DirectoryKind>("all");
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<"active" | "archived">("active");
+  const [city, setCity] = useState("");
+  const [dutyGroup, setDutyGroup] = useState<DutyGroupFilter>("all");
   const [form, setForm] = useState<DirectoryForm>(EMPTY_DIRECTORY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; kind: DirectoryKind; name: string } | null>(null);
-  const directory = trpc.admin.directory.list.useQuery({ kind, search: search || undefined, limit: LIST_LIMIT }, { retry: 1 });
+  const debouncedSearch = useDebouncedValue(search.trim());
+  const effectiveGroup = kind === "healthcare" ? "all" : dutyGroup;
+  const [page, setPage] = usePage([kind, debouncedSearch, status, city, effectiveGroup].join("|"));
+  const directory = trpc.admin.directory.list.useQuery(
+    { kind, search: debouncedSearch || undefined, status, city: city || undefined, dutyGroup: effectiveGroup, page, limit: PAGE_SIZE },
+    { retry: 1, placeholderData: (previous) => previous },
+  );
   const upsert = trpc.admin.directory.upsert.useMutation({
     onSuccess: async () => {
       haptic.success();
@@ -569,8 +674,14 @@ function Directory() {
       await Promise.all([utils.admin.directory.list.invalidate(), utils.admin.dashboard.invalidate()]);
     },
   });
+  const restore = trpc.admin.directory.restore.useMutation({
+    onSuccess: async () => {
+      haptic.success();
+      await Promise.all([utils.admin.directory.list.invalidate(), utils.admin.dashboard.invalidate()]);
+    },
+  });
 
-  type DirectoryItem = NonNullable<typeof directory.data>[number];
+  type DirectoryItem = NonNullable<typeof directory.data>["items"][number];
 
   const updateField = <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => setForm((current) => ({ ...current, [key]: value }));
   const closeForm = () => {
@@ -605,8 +716,15 @@ function Directory() {
 
   const groupLabel = (item: DirectoryItem) => item.kind === "pharmacy" ? (item.dutyGroup ? `Groupe ${item.dutyGroup}` : "Sans groupe") : item.establishmentType ?? "Établissement";
   const formTitle = form.id ? "Modifier l’établissement" : "Nouvel établissement";
-  const formFields = <DirectoryFormFields form={form} onChange={updateField} error={upsert.error?.message} pending={upsert.isPending} onCancel={closeForm} onSubmit={submit} />;
-  const rows = directory.data ?? [];
+  const cities = directory.data?.cities ?? [];
+  const cityNames = cities.map((entry) => entry.name);
+  const formFields = <DirectoryFormFields key={form.id ?? "nouveau"} form={form} cityNames={cityNames} onChange={updateField} error={upsert.error?.message} pending={upsert.isPending} onCancel={closeForm} onSubmit={submit} />;
+  const rows = directory.data?.items ?? [];
+  const total = directory.data?.total ?? 0;
+  const archivedView = status === "archived";
+  const cityFilterOptions = [{ value: "", label: "Toutes les villes" }, ...cities.filter((entry) => entry.count > 0).map((entry) => ({ value: entry.name, label: `${entry.name} (${entry.count})` }))];
+  const restoreItem = (item: DirectoryItem) => restore.mutate({ id: item.id });
+  const pagination = <Pagination page={page} limit={PAGE_SIZE} total={total} onChange={setPage} />;
 
   return (
     <View style={[styles.splitRoot, wide && styles.splitRootWide]}>
@@ -617,15 +735,21 @@ function Directory() {
           <Pressable accessibilityRole="button" style={[styles.addButton, { backgroundColor: palette.brand }]} onPress={openNew}><MaterialIcons name="add" size={20} color="#FFFFFF" /><Text style={styles.addButtonText}>Ajouter</Text></Pressable>
         </View>
         {!wide ? <SegmentControl value={kind} onChange={(value) => setKind(value as "all" | DirectoryKind)} options={[{ value: "all", label: "Tous" }, { value: "pharmacy", label: "Pharmacies" }, { value: "healthcare", label: "Soins" }]} /> : null}
+        <View style={[styles.filterRow, wide && styles.filterRowWide]}>
+          <SelectField label="Ville" style={styles.filterSelect} value={city} options={cityFilterOptions} onChange={setCity} />
+          {kind !== "healthcare" ? <SelectField label="Groupe de garde" style={styles.filterSelect} value={dutyGroup} options={DUTY_GROUP_FILTER_OPTIONS} onChange={(value) => setDutyGroup(value as DutyGroupFilter)} /> : null}
+          <SegmentControl style={wide ? styles.statusSegment : undefined} value={status} onChange={(value) => setStatus(value as "active" | "archived")} options={[{ value: "active", label: "Publiées" }, { value: "archived", label: "Archivées" }]} />
+        </View>
+        {restore.error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{restore.error.message}</Text> : null}
         <PageState loading={directory.isLoading} error={directory.error} onRetry={() => directory.refetch()} empty={!rows.length}>
-          <ResultCount count={rows.length} />
+          {pagination}
           {wide ? (
             <DataTable
               columns={DIRECTORY_COLUMNS}
               rows={rows}
               rowKey={(item) => item.id}
               selectedKey={showForm ? form.id ?? null : null}
-              onRowPress={openEdit}
+              onRowPress={archivedView ? undefined : openEdit}
               renderCell={(item, key) => {
                 switch (key) {
                   case "name":
@@ -645,9 +769,13 @@ function Directory() {
                   case "phone":
                     return <CellText>{item.phone ?? "—"}</CellText>;
                   case "source":
-                    return <StatusBadge label={item.managed ? "Administré" : "Annuaire"} tone={item.managed ? "brand" : "muted"} />;
+                    return <SourceBadge item={item} />;
                   case "actions":
-                    return (
+                    return archivedView ? (
+                      <View style={styles.cellActions}>
+                        <IconAction icon="unarchive" label={`Restaurer ${item.name}`} color={palette.brand} disabled={restore.isPending} onPress={() => restoreItem(item)} />
+                      </View>
+                    ) : (
                       <View style={styles.cellActions}>
                         <IconAction icon="edit" label={`Modifier ${item.name}`} color={palette.brand} onPress={() => openEdit(item)} />
                         <IconAction icon="archive" label={`Archiver ${item.name}`} color={palette.muted} onPress={() => setArchiveTarget({ id: item.id, kind: item.kind, name: item.name })} />
@@ -663,15 +791,22 @@ function Directory() {
               {rows.map((item) => (
                 <View key={item.id} style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
                   <View style={styles.listCardTop}><View style={[styles.typeIcon, { backgroundColor: item.kind === "pharmacy" ? palette.softGreen : `${palette.clinic}18` }]}><MaterialIcons name={item.kind === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={20} color={item.kind === "pharmacy" ? palette.brand : palette.clinic} /></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{item.name}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{item.city} · {groupLabel(item)}</Text></View></View>
-                  <View style={styles.tagRow}><StatusBadge label={item.managed ? "Administré" : "Annuaire"} tone={item.managed ? "brand" : "muted"} />{item.phone ? <Text style={[styles.listMeta, { color: palette.muted }]}>{item.phone}</Text> : null}</View>
-                  <View style={styles.rowActions}>
-                    <Pressable accessibilityRole="button" style={[styles.compactAction, { borderColor: palette.border }]} onPress={() => openEdit(item)}><MaterialIcons name="edit" size={17} color={palette.brand} /><Text style={[styles.compactActionText, { color: palette.brand }]}>Modifier</Text></Pressable>
-                    <IconAction icon="archive" label={`Archiver ${item.name}`} color={palette.danger} onPress={() => setArchiveTarget({ id: item.id, kind: item.kind, name: item.name })} />
-                  </View>
+                  <View style={styles.tagRow}><SourceBadge item={item} />{item.phone ? <Text style={[styles.listMeta, { color: palette.muted }]}>{item.phone}</Text> : null}</View>
+                  {archivedView ? (
+                    <View style={styles.rowActions}>
+                      <Pressable accessibilityRole="button" disabled={restore.isPending} style={[styles.compactAction, { borderColor: palette.border }]} onPress={() => restoreItem(item)}><MaterialIcons name="unarchive" size={17} color={palette.brand} /><Text style={[styles.compactActionText, { color: palette.brand }]}>Restaurer</Text></Pressable>
+                    </View>
+                  ) : (
+                    <View style={styles.rowActions}>
+                      <Pressable accessibilityRole="button" style={[styles.compactAction, { borderColor: palette.border }]} onPress={() => openEdit(item)}><MaterialIcons name="edit" size={17} color={palette.brand} /><Text style={[styles.compactActionText, { color: palette.brand }]}>Modifier</Text></Pressable>
+                      <IconAction icon="archive" label={`Archiver ${item.name}`} color={palette.danger} onPress={() => setArchiveTarget({ id: item.id, kind: item.kind, name: item.name })} />
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
           )}
+          {pagination}
         </PageState>
       </AdminPage>
       {wide && showForm ? (
@@ -712,15 +847,18 @@ function Users() {
   const palette = usePremiumPalette();
   const wide = useWideLayout();
   const [search, setSearch] = useState("");
-  const users = trpc.admin.users.list.useQuery({ search: search || undefined, limit: LIST_LIMIT }, { retry: 1 });
-  const rows = users.data ?? [];
+  const debouncedSearch = useDebouncedValue(search.trim());
+  const [page, setPage] = usePage(debouncedSearch);
+  const users = trpc.admin.users.list.useQuery({ search: debouncedSearch || undefined, page, limit: PAGE_SIZE }, { retry: 1, placeholderData: (previous) => previous });
+  const rows = users.data?.items ?? [];
+  const pagination = <Pagination page={page} limit={PAGE_SIZE} total={users.data?.total ?? 0} onChange={setPage} />;
   return (
     <AdminPage section="users">
       <View style={[styles.toolbar, wide && styles.toolbarWide]}>
         <View style={styles.toolbarSearch}><SearchInput value={search} onChangeText={setSearch} placeholder="Rechercher par nom, téléphone ou e-mail" /></View>
       </View>
       <PageState loading={users.isLoading} error={users.error} onRetry={() => users.refetch()} empty={!rows.length}>
-        <ResultCount count={rows.length} />
+        {pagination}
         {wide ? (
           <DataTable
             columns={USER_COLUMNS}
@@ -756,6 +894,7 @@ function Users() {
         ) : (
           <View style={styles.list}>{rows.map((user) => <View key={user.id} style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}><View style={styles.userTop}><View style={[styles.avatar, { backgroundColor: palette.softGreen }]}><Text style={[styles.avatarText, { color: palette.brand }]}>{displayIdentity(user).slice(0, 1).toLocaleUpperCase("fr")}</Text></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{displayIdentity(user)}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{user.phone ?? user.email ?? "Coordonnée absente"}</Text></View><StatusBadge label={user.verificationStatus === "verified" ? "Vérifié" : "À vérifier"} tone={user.verificationStatus === "verified" ? "success" : "warning"} /></View><View style={styles.detailRow}><Text style={[styles.listMeta, { color: palette.muted }]}>Vérification : {user.phoneVerifiedAt ? formatDate(user.phoneVerifiedAt) : "Non vérifié"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Rôle : {user.role === "admin" ? "Administrateur" : "Utilisateur"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Premium : {user.subscriptionEnd ? formatDate(user.subscriptionEnd) : "Non actif"}</Text></View></View>)}</View>
         )}
+        {pagination}
       </PageState>
     </AdminPage>
   );
@@ -774,13 +913,15 @@ const PREMIUM_COLUMNS: readonly Column[] = [
 function Premium() {
   const palette = usePremiumPalette();
   const wide = useWideLayout();
-  const transactions = trpc.admin.premium.transactions.useQuery({ limit: LIST_LIMIT }, { retry: 1 });
-  const rows = transactions.data ?? [];
+  const [page, setPage] = usePage("transactions");
+  const transactions = trpc.admin.premium.transactions.useQuery({ page, limit: PAGE_SIZE }, { retry: 1, placeholderData: (previous) => previous });
+  const rows = transactions.data?.items ?? [];
+  const pagination = <Pagination page={page} limit={PAGE_SIZE} total={transactions.data?.total ?? 0} onChange={setPage} />;
   const status = (value: string) => TRANSACTION_STATUS[value] ?? { label: value, tone: "muted" as const };
   return (
     <AdminPage section="premium">
       <PageState loading={transactions.isLoading} error={transactions.error} onRetry={() => transactions.refetch()} empty={!rows.length}>
-        <ResultCount count={rows.length} />
+        {pagination}
         {wide ? (
           <DataTable
             columns={PREMIUM_COLUMNS}
@@ -810,6 +951,7 @@ function Premium() {
         ) : (
           <View style={styles.list}>{rows.map((transaction) => <View key={transaction.id} style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}><View style={styles.userTop}><View style={[styles.typeIcon, { backgroundColor: `${palette.clinic}18` }]}><MaterialIcons name="workspace-premium" size={20} color={palette.clinic} /></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{displayIdentity({ name: transaction.userName, phone: transaction.userPhone, email: transaction.userEmail, id: transaction.userId })}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{PLAN_LABELS[transaction.planId] ?? transaction.planId} · {formatDate(transaction.createdAt)}</Text></View><StatusBadge {...status(transaction.status)} /></View><View style={styles.detailRow}><Text style={[styles.amount, { color: palette.text }]}>{formatXof(transaction.amount)}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Abonnement : {formatDate(transaction.subscriptionEnd)}</Text></View><Text numberOfLines={1} style={[styles.reference, { color: palette.muted }]}>Réf. {transaction.merchantReference}</Text></View>)}</View>
         )}
+        {pagination}
       </PageState>
     </AdminPage>
   );
@@ -826,17 +968,19 @@ function Audit() {
   const palette = usePremiumPalette();
   const wide = useWideLayout();
   const [showViews, setShowViews] = useState(false);
-  const events = trpc.admin.audit.list.useQuery({ limit: LIST_LIMIT }, { retry: 1 });
+  const [page, setPage] = usePage(String(showViews));
   // Les consultations de pages restent journalisées, mais masquées par défaut pour laisser voir les vraies actions.
-  const rows = (events.data ?? []).filter((event) => showViews || !event.action.endsWith(".viewed"));
-  const iconFor = (action: string) => action.includes("archived") ? "archive" as const : action.includes("viewed") ? "visibility" as const : "edit" as const;
+  const events = trpc.admin.audit.list.useQuery({ includeViews: showViews, page, limit: PAGE_SIZE }, { retry: 1, placeholderData: (previous) => previous });
+  const rows = events.data?.items ?? [];
+  const pagination = <Pagination page={page} limit={PAGE_SIZE} total={events.data?.total ?? 0} onChange={setPage} />;
+  const iconFor = (action: string) => action.includes("archived") ? "archive" as const : action.includes("restored") ? "unarchive" as const : action.includes("viewed") ? "visibility" as const : "edit" as const;
   const colorFor = (action: string) => action.includes("archived") ? palette.danger : action.includes("viewed") ? palette.muted : palette.brand;
   const targetLabel = (event: { targetType: string; targetId: string | null }) => `${AUDIT_TARGETS[event.targetType] ?? event.targetType}${event.targetId ? ` · ${event.targetId}` : ""}`;
   return (
     <AdminPage section="audit">
       <SegmentControl style={wide ? styles.toolbarSegment : undefined} value={showViews ? "all" : "actions"} onChange={(value) => setShowViews(value === "all")} options={[{ value: "actions", label: "Modifications" }, { value: "all", label: "Tout, consultations comprises" }]} />
       <PageState loading={events.isLoading} error={events.error} onRetry={() => events.refetch()} empty={!rows.length}>
-        <ResultCount count={rows.length} />
+        {pagination}
         {wide ? (
           <DataTable
             columns={AUDIT_COLUMNS}
@@ -865,6 +1009,7 @@ function Audit() {
         ) : (
           <View style={styles.list}>{rows.map((event) => <View key={event.id} style={[styles.auditCard, { backgroundColor: palette.card, borderColor: palette.border }]}><View style={[styles.auditIcon, { backgroundColor: palette.softGreen }]}><MaterialIcons name={iconFor(event.action)} size={19} color={colorFor(event.action)} /></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{auditActionLabel(event.action)}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{displayIdentity({ name: event.actorName, phone: event.actorPhone, email: event.actorEmail, id: event.actorUserId })} · {formatDate(event.createdAt)}</Text><Text style={[styles.reference, { color: palette.muted }]}>{targetLabel(event)}</Text></View></View>)}</View>
         )}
+        {pagination}
       </PageState>
     </AdminPage>
   );
@@ -942,6 +1087,20 @@ const styles = StyleSheet.create({
   segmentOption: { flex: 1, minHeight: 34, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   segmentText: { fontSize: 12, lineHeight: 16, fontWeight: "900", textAlign: "center" },
   resultCount: { fontSize: 12, lineHeight: 16, fontWeight: "700" },
+  pagination: { minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" },
+  paginationButtons: { flexDirection: "row", alignItems: "center", gap: 8 },
+  filterRow: { gap: 9 },
+  filterRowWide: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  filterSelect: { minWidth: 200 },
+  statusSegment: { width: 260 },
+  select: { minHeight: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  selectText: { flexShrink: 1, fontSize: 14, lineHeight: 19, fontWeight: "700" },
+  selectSheet: { width: "100%", maxWidth: 380, maxHeight: "80%", borderRadius: premiumRadius.lg, borderWidth: 1, paddingVertical: 12 },
+  selectTitle: { flex: 0, paddingHorizontal: 16, paddingBottom: 8 },
+  selectList: { flexGrow: 0 },
+  selectOption: { minHeight: 44, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  selectOptionText: { fontSize: 14, lineHeight: 19, fontWeight: "700" },
+  fieldHint: { fontSize: 12, lineHeight: 17, fontWeight: "600" },
   splitRoot: { flex: 1 },
   splitRootWide: { flexDirection: "row" },
   sidePanel: { width: 420, borderLeftWidth: 1 },

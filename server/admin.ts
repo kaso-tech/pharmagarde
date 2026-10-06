@@ -1,20 +1,29 @@
 import { TRPCError } from "@trpc/server";
-import { count, desc, eq, gt, isNotNull, like, or } from "drizzle-orm";
+import { count, desc, eq, gt, isNotNull, like, notLike, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { auditLogs, directoryEntries, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { reloadDirectoryOverrides } from "./directory-overrides";
-import { directoryArchiveSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
+import { directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
 import { adminProcedure, router } from "./_core/trpc";
 
 const pageSchema = z.object({
+  page: z.number().int().min(1).max(10_000).default(1),
   limit: z.number().int().min(1).max(100).default(50),
 });
 
 const directoryListSchema = pageSchema.extend({
   kind: z.enum(["all", "pharmacy", "healthcare"]).default("all"),
   search: z.string().trim().max(120).optional(),
+  status: z.enum(["active", "archived"]).default("active"),
+  city: z.string().trim().max(96).optional(),
+  dutyGroup: z.enum(["all", "none", "1", "2", "3", "4"]).default("all"),
+});
+
+const auditListSchema = pageSchema.extend({
+  /** Les consultations de pages sont journalisées mais masquées par défaut. */
+  includeViews: z.boolean().default(false),
 });
 
 const userListSchema = pageSchema.extend({
@@ -63,10 +72,27 @@ async function writeAudit(
   });
 }
 
-async function readAdminDirectory(input: z.infer<typeof directoryListSchema>) {
+function offsetOf(input: { page: number; limit: number }) {
+  return (input.page - 1) * input.limit;
+}
+
+async function readMergedDirectory() {
   const db = failIfNoDb(await getDb());
   const [baseItems, overrides] = await Promise.all([getBaseAdminDirectoryItems(), db.select().from(directoryEntries)]);
-  return filterAdminDirectoryItems(mergeAdminDirectoryItems(baseItems, overrides), input).slice(0, input.limit);
+  return mergeAdminDirectoryItems(baseItems, overrides);
+}
+
+async function readAdminDirectory(input: z.infer<typeof directoryListSchema>) {
+  const merged = await readMergedDirectory();
+  const filtered = filterAdminDirectoryItems(merged, input);
+  const offset = offsetOf(input);
+  return {
+    items: filtered.slice(offset, offset + input.limit),
+    total: filtered.length,
+    page: input.page,
+    limit: input.limit,
+    cities: listDirectoryCities(merged),
+  };
 }
 
 export const adminRouter = router({
@@ -100,7 +126,7 @@ export const adminRouter = router({
       db.select().from(directoryEntries),
     ]);
 
-    const directoryCount = mergeAdminDirectoryItems(baseItems, overrides).length;
+    const directoryCount = mergeAdminDirectoryItems(baseItems, overrides).filter((item) => item.status === "active").length;
     return {
       users: allUsers[0]?.value ?? 0,
       verifiedUsers: verifiedUsers[0]?.value ?? 0,
@@ -116,7 +142,8 @@ export const adminRouter = router({
 
     upsert: adminProcedure.input(directoryUpsertSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
-      const entry = normalizeDirectoryUpsert(input);
+      const knownCities = listDirectoryCities(await readMergedDirectory()).map((city) => city.name);
+      const entry = normalizeDirectoryUpsert(input, knownCities);
       await db.transaction(async (tx) => {
         await tx
           .insert(directoryEntries)
@@ -194,116 +221,151 @@ export const adminRouter = router({
         await reloadDirectoryOverrides();
         return { id: input.id, status: "archived" as const };
       }),
+
+    restore: adminProcedure.input(directoryRestoreSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      await db.transaction(async (tx) => {
+        const existing = await tx.select().from(directoryEntries).where(eq(directoryEntries.id, input.id)).limit(1);
+        const current = existing[0];
+        if (!current || current.status !== "archived") {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Aucun établissement archivé ne correspond à cet identifiant." });
+        }
+        await tx.update(directoryEntries).set({ status: "active" }).where(eq(directoryEntries.id, input.id));
+        await tx.insert(auditLogs).values({
+          actorUserId: ctx.user.id,
+          action: "directory.restored",
+          targetType: current.kind,
+          targetId: input.id,
+          metadata: safeMetadata({ kind: current.kind, source: "admin_console" }),
+        });
+      });
+      await reloadDirectoryOverrides();
+      return { id: input.id, status: "active" as const };
+    }),
   }),
 
   users: router({
     list: adminProcedure.input(userListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const pattern = input.search ? `%${input.search.replace(/[\\%_]/g, "\\$&")}%` : null;
-      const rows = pattern
-        ? await db
-            .select({
-              id: users.id,
-              name: users.name,
-              email: users.email,
-              phone: users.phone,
-              role: users.role,
-              phoneVerifiedAt: users.phoneVerifiedAt,
-              subscriptionEnd: users.subscriptionEnd,
-              createdAt: users.createdAt,
-              lastSignedIn: users.lastSignedIn,
-            })
-            .from(users)
-            .where(or(like(users.name, pattern), like(users.email, pattern), like(users.phone, pattern)))
-            .orderBy(desc(users.createdAt))
-            .limit(input.limit)
-        : await db
-            .select({
-              id: users.id,
-              name: users.name,
-              email: users.email,
-              phone: users.phone,
-              role: users.role,
-              phoneVerifiedAt: users.phoneVerifiedAt,
-              subscriptionEnd: users.subscriptionEnd,
-              createdAt: users.createdAt,
-              lastSignedIn: users.lastSignedIn,
-            })
-            .from(users)
-            .orderBy(desc(users.createdAt))
-            .limit(input.limit);
+      const where = pattern ? or(like(users.name, pattern), like(users.email, pattern), like(users.phone, pattern)) : undefined;
+      const [rows, totals] = await Promise.all([
+        db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            phone: users.phone,
+            role: users.role,
+            phoneVerifiedAt: users.phoneVerifiedAt,
+            subscriptionEnd: users.subscriptionEnd,
+            createdAt: users.createdAt,
+            lastSignedIn: users.lastSignedIn,
+          })
+          .from(users)
+          .where(where)
+          .orderBy(desc(users.createdAt), desc(users.id))
+          .limit(input.limit)
+          .offset(offsetOf(input)),
+        db.select({ value: count() }).from(users).where(where),
+      ]);
 
-      return rows.map((user) => ({
-        ...user,
-        phoneVerifiedAt: serializeDate(user.phoneVerifiedAt),
-        subscriptionEnd: serializeDate(user.subscriptionEnd),
-        createdAt: serializeDate(user.createdAt),
-        lastSignedIn: serializeDate(user.lastSignedIn),
-        verificationStatus: user.phoneVerifiedAt ? "verified" as const : "unverified" as const,
-      }));
+      return {
+        items: rows.map((user) => ({
+          ...user,
+          phoneVerifiedAt: serializeDate(user.phoneVerifiedAt),
+          subscriptionEnd: serializeDate(user.subscriptionEnd),
+          createdAt: serializeDate(user.createdAt),
+          lastSignedIn: serializeDate(user.lastSignedIn),
+          verificationStatus: user.phoneVerifiedAt ? "verified" as const : "unverified" as const,
+        })),
+        total: totals[0]?.value ?? 0,
+        page: input.page,
+        limit: input.limit,
+      };
     }),
   }),
 
   premium: router({
     transactions: adminProcedure.input(pageSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
-      const rows = await db
-        .select({
-          id: transactions.id,
-          userId: transactions.userId,
-          provider: transactions.provider,
-          merchantReference: transactions.merchantReference,
-          planId: transactions.planId,
-          amount: transactions.amount,
-          currency: transactions.currency,
-          status: transactions.status,
-          createdAt: transactions.createdAt,
-          updatedAt: transactions.updatedAt,
-          userName: users.name,
-          userPhone: users.phone,
-          userEmail: users.email,
-          subscriptionEnd: users.subscriptionEnd,
-        })
-        .from(transactions)
-        .leftJoin(users, eq(transactions.userId, users.id))
-        .orderBy(desc(transactions.createdAt))
-        .limit(input.limit);
+      const [rows, totals] = await Promise.all([
+        db
+          .select({
+            id: transactions.id,
+            userId: transactions.userId,
+            provider: transactions.provider,
+            merchantReference: transactions.merchantReference,
+            planId: transactions.planId,
+            amount: transactions.amount,
+            currency: transactions.currency,
+            status: transactions.status,
+            createdAt: transactions.createdAt,
+            updatedAt: transactions.updatedAt,
+            userName: users.name,
+            userPhone: users.phone,
+            userEmail: users.email,
+            subscriptionEnd: users.subscriptionEnd,
+          })
+          .from(transactions)
+          .leftJoin(users, eq(transactions.userId, users.id))
+          .orderBy(desc(transactions.createdAt), desc(transactions.id))
+          .limit(input.limit)
+          .offset(offsetOf(input)),
+        db.select({ value: count() }).from(transactions),
+      ]);
 
-      return rows.map((transaction) => ({
-        ...transaction,
-        createdAt: serializeDate(transaction.createdAt),
-        updatedAt: serializeDate(transaction.updatedAt),
-        subscriptionEnd: serializeDate(transaction.subscriptionEnd),
-      }));
+      return {
+        items: rows.map((transaction) => ({
+          ...transaction,
+          createdAt: serializeDate(transaction.createdAt),
+          updatedAt: serializeDate(transaction.updatedAt),
+          subscriptionEnd: serializeDate(transaction.subscriptionEnd),
+        })),
+        total: totals[0]?.value ?? 0,
+        page: input.page,
+        limit: input.limit,
+      };
     }),
   }),
 
   audit: router({
-    list: adminProcedure.input(pageSchema).query(async ({ input }) => {
+    list: adminProcedure.input(auditListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
-      const rows = await db
-        .select({
-          id: auditLogs.id,
-          action: auditLogs.action,
-          targetType: auditLogs.targetType,
-          targetId: auditLogs.targetId,
-          metadata: auditLogs.metadata,
-          createdAt: auditLogs.createdAt,
-          actorUserId: auditLogs.actorUserId,
-          actorName: users.name,
-          actorPhone: users.phone,
-          actorEmail: users.email,
-        })
-        .from(auditLogs)
-        .leftJoin(users, eq(auditLogs.actorUserId, users.id))
-        .orderBy(desc(auditLogs.createdAt))
-        .limit(input.limit);
+      const where = input.includeViews ? undefined : notLike(auditLogs.action, "%.viewed");
+      const [rows, totals] = await Promise.all([
+        db
+          .select({
+            id: auditLogs.id,
+            action: auditLogs.action,
+            targetType: auditLogs.targetType,
+            targetId: auditLogs.targetId,
+            metadata: auditLogs.metadata,
+            createdAt: auditLogs.createdAt,
+            actorUserId: auditLogs.actorUserId,
+            actorName: users.name,
+            actorPhone: users.phone,
+            actorEmail: users.email,
+          })
+          .from(auditLogs)
+          .leftJoin(users, eq(auditLogs.actorUserId, users.id))
+          .where(where)
+          .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
+          .limit(input.limit)
+          .offset(offsetOf(input)),
+        db.select({ value: count() }).from(auditLogs).where(where),
+      ]);
 
-      return rows.map((event) => ({
-        ...event,
-        createdAt: serializeDate(event.createdAt),
-        metadata: parseMetadata(event.metadata),
-      }));
+      return {
+        items: rows.map((event) => ({
+          ...event,
+          createdAt: serializeDate(event.createdAt),
+          metadata: parseMetadata(event.metadata),
+        })),
+        total: totals[0]?.value ?? 0,
+        page: input.page,
+        limit: input.limit,
+      };
     }),
   }),
 });
