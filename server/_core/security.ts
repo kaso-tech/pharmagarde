@@ -7,6 +7,10 @@ import type { NextFunction, Request, Response } from "express";
 // sont pas concernées.
 
 const LOCAL_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
+// L'aperçu Expo Web et l'API WebDev sont servis sur deux sous-domaines Manus distincts
+// (8081-* et 3000-*). Cette forme reste exclusive au développement : une origine de
+// production doit toujours être déclarée explicitement dans CORS_ALLOWED_ORIGINS.
+const MANUS_EXPO_PREVIEW_ORIGIN_PATTERN = /^https:\/\/8081-[a-z0-9-]+\.(?:us\d+\.)?manus(?:pre)?\.computer$/i;
 
 function normalizeOrigin(value: string) {
   return value.trim().replace(/\/+$/, "").toLowerCase();
@@ -23,7 +27,7 @@ export function isOriginAllowed(origin: string | undefined, env: NodeJS.ProcessE
   if (!origin) return false;
   const normalized = normalizeOrigin(origin);
   if (getAllowedOrigins(env).includes(normalized)) return true;
-  return env.NODE_ENV !== "production" && LOCAL_ORIGIN_PATTERN.test(normalized);
+  return env.NODE_ENV !== "production" && (LOCAL_ORIGIN_PATTERN.test(normalized) || MANUS_EXPO_PREVIEW_ORIGIN_PATTERN.test(normalized));
 }
 
 export function applyCorsHeaders(req: Request, res: Response) {

@@ -78,6 +78,13 @@ describe("S2 · CORS limité aux origines autorisées", () => {
     expect(isOriginAllowed("http://localhost:8081", { NODE_ENV: "production" })).toBe(false);
   });
 
+  it("autorise uniquement l’aperçu Expo Manus en développement, jamais en production", () => {
+    const preview = "https://8081-ill7z7mamcfrg9uq85lvg-6f990aca.us1.manus.computer";
+    expect(isOriginAllowed(preview, { NODE_ENV: "development" })).toBe(true);
+    expect(isOriginAllowed(preview, { NODE_ENV: "production" })).toBe(false);
+    expect(isOriginAllowed("https://8081-site-malveillant.example", { NODE_ENV: "development" })).toBe(false);
+  });
+
   it("émet le cookie de session en SameSite=Lax par défaut", () => {
     expect(getSessionCookieOptions(fakeRequest({ protocol: "https" })).sameSite).toBe("lax");
     vi.stubEnv("SESSION_COOKIE_SAMESITE", "none");
