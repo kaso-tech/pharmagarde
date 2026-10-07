@@ -5,7 +5,10 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
-import { DEFAULT_WEEKLY_HOURS, WEEK_DAYS, WEEK_DAY_LABELS, formatWeeklyHours, validateWeeklyHours, type WeekDay, type WeeklyHours } from "@/lib/pharmagarde/opening-hours";
+import { DEFAULT_WEEKLY_HOURS, WEEK_DAYS, WEEK_DAY_LABELS, formatWeeklyHours, validateWeeklyHours, type WeeklyHours } from "@/lib/pharmagarde/opening-hours";
+import { LocationPicker } from "@/components/pharmagarde/location-picker";
+import { WeeklyHoursEditor, cloneHours } from "@/components/pharmagarde/weekly-hours-editor";
+import { getKnownCityCoordinates } from "@/lib/pharmagarde/city-utils";
 import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-confirmation";
 import { haptic, premiumRadius, premiumSpacing, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 
@@ -599,42 +602,6 @@ function ConfirmationModal({ itemName, visible, loading, onClose, onConfirm }: {
   );
 }
 
-function cloneHours(hours: WeeklyHours): WeeklyHours {
-  return Object.fromEntries(WEEK_DAYS.map((day) => [day, hours[day].map((range) => ({ ...range }))])) as WeeklyHours;
-}
-
-/** Éditeur d'une semaine d'horaires : pour chaque jour, des plages ouverture–fermeture (aucune = fermé). */
-function WeeklyHoursEditor({ value, onChange }: { value: WeeklyHours; onChange: (value: WeeklyHours) => void }) {
-  const palette = usePremiumPalette();
-  const update = (day: WeekDay, ranges: WeeklyHours[WeekDay]) => onChange({ ...cloneHours(value), [day]: ranges });
-  const error = validateWeeklyHours(value);
-  return (
-    <View style={styles.hoursEditor}>
-      {WEEK_DAYS.map((day) => {
-        const ranges = value[day];
-        return (
-          <View key={day} style={[styles.hoursDay, { borderBottomColor: palette.border }]}>
-            <Text style={[styles.hoursDayLabel, { color: palette.text }]}>{WEEK_DAY_LABELS[day]}</Text>
-            <View style={styles.hoursRanges}>
-              {ranges.length === 0 ? <Text style={[styles.listMeta, { color: palette.muted }]}>Fermé</Text> : null}
-              {ranges.map((range, index) => (
-                <View key={index} style={styles.hoursRange}>
-                  <TextInput accessibilityLabel={`${WEEK_DAY_LABELS[day]}, ouverture`} value={range.open} onChangeText={(open) => update(day, ranges.map((item, position) => (position === index ? { ...item, open } : item)))} placeholder="08:00" placeholderTextColor={palette.muted} style={[styles.timeInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.card }]} />
-                  <Text style={[styles.listMeta, { color: palette.muted }]}>à</Text>
-                  <TextInput accessibilityLabel={`${WEEK_DAY_LABELS[day]}, fermeture`} value={range.close} onChangeText={(close) => update(day, ranges.map((item, position) => (position === index ? { ...item, close } : item)))} placeholder="20:00" placeholderTextColor={palette.muted} style={[styles.timeInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.card }]} />
-                  <IconAction icon="close" label={`Retirer la plage du ${WEEK_DAY_LABELS[day].toLowerCase()}`} color={palette.muted} onPress={() => update(day, ranges.filter((_, position) => position !== index))} />
-                </View>
-              ))}
-            </View>
-            {ranges.length < 4 ? <IconAction icon="add" label={`Ajouter une plage le ${WEEK_DAY_LABELS[day].toLowerCase()}`} color={palette.brand} onPress={() => update(day, [...ranges, ranges.length ? { open: "15:00", close: "19:00" } : { open: "08:00", close: "20:00" }])} /> : null}
-          </View>
-        );
-      })}
-      {error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{error}</Text> : <Text style={[styles.fieldHint, { color: palette.muted }]}>{formatWeeklyHours(value)}</Text>}
-    </View>
-  );
-}
-
 function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange, error, pending, onCancel, onSubmit }: { form: DirectoryForm; cityNames: readonly string[]; cityHoursFor: (city: string) => WeeklyHours; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void; error?: string | null; pending: boolean; onCancel: () => void; onSubmit: () => void }) {
   const palette = usePremiumPalette();
   const [otherCity, setOtherCity] = useState(false);
@@ -644,6 +611,9 @@ function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange, error, p
   const invalidHours = form.hoursMode === "custom" && !!validateWeeklyHours(form.openingHours);
   const cannotSave = pending || !form.name.trim() || !form.city.trim() || missingCoordinates || invalidHours;
   const cityHours = cityHoursFor(form.city);
+  const pickedLatitude = numberOrNull(form.latitude);
+  const pickedLongitude = numberOrNull(form.longitude);
+  const pickedLocation = pickedLatitude !== null && pickedLongitude !== null ? { latitude: pickedLatitude, longitude: pickedLongitude } : null;
   const coordinateSuffix = form.kind === "pharmacy" ? " *" : "";
   return (
     <View style={styles.formFields}>
@@ -664,6 +634,18 @@ function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange, error, p
       {showOtherCity ? <Field label="Nom de la nouvelle ville" value={form.city} onChangeText={(value) => onChange("city", value)} placeholder="Ex. Koudougou" /> : null}
       <Field label="Téléphone" value={form.phone} onChangeText={(value) => onChange("phone", value)} placeholder="+226 70 00 00 00" keyboardType="phone-pad" />
       <Field label="Adresse" value={form.address} onChangeText={(value) => onChange("address", value)} multiline />
+      <View style={styles.fieldWrap}>
+        <Text style={[styles.fieldLabel, { color: palette.text }]}>Emplacement</Text>
+        <LocationPicker
+          value={pickedLocation}
+          center={getKnownCityCoordinates(form.city)}
+          height={240}
+          onChange={(location) => {
+            onChange("latitude", location ? String(location.latitude) : "");
+            onChange("longitude", location ? String(location.longitude) : "");
+          }}
+        />
+      </View>
       <View style={styles.fieldRow}><View style={styles.fieldHalf}><Field label={`Latitude${coordinateSuffix}`} value={form.latitude} onChangeText={(value) => onChange("latitude", value)} keyboardType="numeric" /></View><View style={styles.fieldHalf}><Field label={`Longitude${coordinateSuffix}`} value={form.longitude} onChangeText={(value) => onChange("longitude", value)} keyboardType="numeric" /></View></View>
       {form.kind === "pharmacy" ? (
         <View style={styles.fieldWrap}>
@@ -1338,12 +1320,6 @@ const styles = StyleSheet.create({
   hoursCardWide: { flexBasis: 320, flexGrow: 1, maxWidth: 460 },
   hoursSummaryRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   hoursModal: { width: "100%", maxWidth: 560, maxHeight: "90%", borderRadius: premiumRadius.lg, borderWidth: 1, overflow: "hidden" },
-  hoursEditor: { gap: 4 },
-  hoursDay: { minHeight: 52, paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8, borderBottomWidth: 1 },
-  hoursDayLabel: { width: 78, fontSize: 13, lineHeight: 18, fontWeight: "800" },
-  hoursRanges: { flex: 1, gap: 6 },
-  hoursRange: { flexDirection: "row", alignItems: "center", gap: 6 },
-  timeInput: { width: 66, minHeight: 36, borderRadius: 9, borderWidth: 1, paddingHorizontal: 8, fontSize: 13, fontWeight: "700", textAlign: "center" },
   dutyGridWide: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" },
   dutyCard: { borderRadius: premiumRadius.md, borderWidth: 1, padding: 16, gap: 12 },
   dutyCardWide: { flexBasis: 480, flexGrow: 1 },
