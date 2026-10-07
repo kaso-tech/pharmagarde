@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-07T13:58:05.188Z",
+  "updatedAt": "2026-10-07T18:29:41.045Z",
   "pharmacies": [
     {
       "id": "ph-banfora-charclam",
       "city": "Banfora",
       "name": "Pharmacie Charclam",
       "phone": "+226 20 91 04 10",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 10.6401588,
       "longitude": -4.7459127
     },
@@ -16,7 +16,7 @@
       "city": "Banfora",
       "name": "Pharmacie Comoé",
       "phone": "+226 20 91 04 55",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 10.6378634,
       "longitude": -4.7557944
     },
@@ -25,7 +25,7 @@
       "city": "Banfora",
       "name": "Pharmacie Divin Amour",
       "phone": "+226 20 91 18 16",
-      "dutyGroup": null,
+      "dutyGroup": 3,
       "latitude": 10.643872,
       "longitude": -4.7739828
     },
@@ -34,7 +34,7 @@
       "city": "Banfora",
       "name": "Pharmacie Nadon",
       "phone": "+226 20 91 01 66",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 10.641338,
       "longitude": -4.7624216
     },
@@ -43,7 +43,7 @@
       "city": "Banfora",
       "name": "Pharmacie Ste Martha-Toûba",
       "phone": "+226 20 91 19 84",
-      "dutyGroup": null,
+      "dutyGroup": 3,
       "latitude": 10.6478157,
       "longitude": -4.749057
     },
@@ -887,7 +887,7 @@
       "city": "Kaya",
       "name": "Pharmacie Adonaï",
       "phone": "+226 40 45 17 44",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 13.0818577,
       "longitude": -1.086013
     },
@@ -896,7 +896,7 @@
       "city": "Kaya",
       "name": "Pharmacie Salus Mater",
       "phone": "+226 71 52 87 87",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 13.0875552,
       "longitude": -1.0635654
     },
@@ -905,7 +905,7 @@
       "city": "Kaya",
       "name": "Pharmacie Sanma",
       "phone": "+226 20 40 04 04",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 13.0876801,
       "longitude": -1.1031198
     },
@@ -914,7 +914,7 @@
       "city": "Kaya",
       "name": "Pharmacie Tanko",
       "phone": "+226 24 45 18 03",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 13.0871854,
       "longitude": -1.0886681
     },
@@ -923,7 +923,7 @@
       "city": "Kaya",
       "name": "Pharmacie Wemtenga",
       "phone": "+226 24 45 13 11",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 13.0864283,
       "longitude": -1.0786873
     },
@@ -932,7 +932,7 @@
       "city": "Koudougou",
       "name": "Pharmacie Faag-Yonre",
       "phone": "+226 25 44 02 30",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 12.2502335,
       "longitude": -2.3625902
     },
@@ -941,7 +941,7 @@
       "city": "Koudougou",
       "name": "Pharmacie Galys",
       "phone": "+226 70 36 90 63",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 12.2540836,
       "longitude": -2.3830168
     },
@@ -950,7 +950,7 @@
       "city": "Koudougou",
       "name": "Pharmacie Habib",
       "phone": "+226 25 44 09 08",
-      "dutyGroup": null,
+      "dutyGroup": 3,
       "latitude": 12.2529398,
       "longitude": -2.3564931
     },
@@ -959,7 +959,7 @@
       "city": "Koudougou",
       "name": "Pharmacie Kuilig-Noore",
       "phone": "+226 25 44 11 88",
-      "dutyGroup": null,
+      "dutyGroup": 3,
       "latitude": 12.250977,
       "longitude": -2.3743049
     },
@@ -968,7 +968,7 @@
       "city": "Koudougou",
       "name": "Pharmacie Laafia",
       "phone": "+226 25 44 00 60",
-      "dutyGroup": null,
+      "dutyGroup": 3,
       "latitude": 12.2515875,
       "longitude": -2.3618281
     },
@@ -977,7 +977,7 @@
       "city": "Koudougou",
       "name": "Pharmacie Ste Philomène",
       "phone": "+226 25 44 11 44",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 12.2434597,
       "longitude": -2.3630175
     },
@@ -986,7 +986,7 @@
       "city": "Koudougou",
       "name": "Pharmacie Zoodo",
       "phone": "+226 25 44 07 05",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 12.2616577,
       "longitude": -2.3605847
     },
@@ -3366,7 +3366,7 @@
       "city": "Ouahigouya",
       "name": "Pharmacie Nayolsba",
       "phone": "+226 24 55 00 05",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 13.5668258,
       "longitude": -2.4109908
     },
@@ -3375,7 +3375,7 @@
       "city": "Ouahigouya",
       "name": "Pharmacie Nord",
       "phone": "+226 24 55 44 41",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 13.5823178,
       "longitude": -2.4255266
     },
@@ -3384,7 +3384,7 @@
       "city": "Ouahigouya",
       "name": "Pharmacie Wend-Pegre",
       "phone": "+226 24 55 14 22",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 13.5388581,
       "longitude": -2.3929871
     },
@@ -3393,7 +3393,7 @@
       "city": "Ouahigouya",
       "name": "Pharmacie Wend-Raabo",
       "phone": "+226 24 55 48 94",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 13.5786539,
       "longitude": -2.4188139
     },
@@ -3402,7 +3402,7 @@
       "city": "Ouahigouya",
       "name": "Pharmacie Wend-Zoodo",
       "phone": "+226 24 55 37 91",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 13.5690855,
       "longitude": -2.4245828
     },
@@ -3411,7 +3411,7 @@
       "city": "Tenkodogo",
       "name": "Pharmacie Hôpital",
       "phone": "+226 70 02 14 60",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 11.788219,
       "longitude": -0.3897665
     },
@@ -3420,7 +3420,7 @@
       "city": "Tenkodogo",
       "name": "Pharmacie Mamsi",
       "phone": "+226 24 66 15 25",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 11.7811988,
       "longitude": -0.3669155
     },
@@ -3429,7 +3429,7 @@
       "city": "Tenkodogo",
       "name": "Pharmacie St Emmanuel",
       "phone": "+226 24 71 03 13",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 11.7907001,
       "longitude": -0.3972498
     },
@@ -3438,7 +3438,7 @@
       "city": "Tenkodogo",
       "name": "Pharmacie Tibo",
       "phone": "+226 61 36 15 15",
-      "dutyGroup": null,
+      "dutyGroup": 2,
       "latitude": 11.786089,
       "longitude": -0.3690132
     },
@@ -3447,7 +3447,7 @@
       "city": "Tenkodogo",
       "name": "Pharmacie Wend Puiré",
       "phone": "+226 24 71 02 30",
-      "dutyGroup": null,
+      "dutyGroup": 1,
       "latitude": 11.7832446,
       "longitude": -0.3751118
     },
