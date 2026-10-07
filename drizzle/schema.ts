@@ -64,6 +64,8 @@ export const directoryEntries = mysqlTable(
     longitude: double("longitude"),
     dutyGroup: int("dutyGroup"),
     establishmentType: varchar("establishmentType", { length: 64 }),
+    /** Horaires de service propres (JSON, voir lib/pharmagarde/opening-hours.ts) ; null = horaires de la ville. */
+    openingHours: text("openingHours"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
@@ -112,3 +114,14 @@ export type DirectoryEntry = typeof directoryEntries.$inferSelect;
 export type InsertDirectoryEntry = typeof directoryEntries.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type VerificationCode = typeof verificationCodes.$inferSelect;
+
+/** Horaires de service d'une ville (fixés par l'ONPBF), modifiables depuis la console d'administration. */
+export const cityHours = mysqlTable("city_hours", {
+  /** Nom de la ville tel qu'il apparaît dans l'annuaire, ex. « Ouagadougou ». */
+  city: varchar("city", { length: 96 }).primaryKey(),
+  /** Horaires hebdomadaires (JSON, voir lib/pharmagarde/opening-hours.ts). */
+  openingHours: text("openingHours").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CityHours = typeof cityHours.$inferSelect;

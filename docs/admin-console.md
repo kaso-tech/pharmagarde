@@ -59,3 +59,18 @@ La garde des pharmacies dure une semaine et change chaque samedi à 8 h (heure d
 - les autres villes (Koudougou, Ouahigouya, région de l'Est…) tournent sur des listes fixes de pharmacies (`pharmacyIds`), à déclarer quand leurs pharmacies seront dans l'annuaire.
 
 Les routes `/pharmacies` ajoutent `onDuty` (et `dutyStart`/`dutyEnd` pour les pharmacies de garde), placent les pharmacies de garde en premier et acceptent `?onDuty=1` pour ne renvoyer qu'elles ; `meta.duty` donne le groupe de garde de la semaine. La page « Gardes » de la console (`/admin/gardes`) affiche la semaine en cours, les 8 suivantes et les pharmacies sans groupe.
+
+## Horaires de service et statuts
+
+Chaque établissement a l'un de ces statuts, calculé à chaque requête (heure du Burkina Faso, UTC+0) :
+
+- **De garde** : pharmacie du tour de garde de la semaine, ouverte 24 h/24 jusqu'à la relève du samedi 8 h ;
+- sinon **Ouvert** ou **Fermé** selon ses horaires de service.
+
+Les horaires d'un établissement (pharmacie ou structure de santé) sont, par ordre de priorité :
+
+1. ses horaires propres, saisis dans sa fiche (Annuaire → Modifier → « Horaires propres »), colonne `directory_entries.openingHours` ;
+2. les horaires de sa ville, fixés par l'ONPBF et saisis dans la page « Horaires » (`/admin/horaires`), table `city_hours` ;
+3. par défaut : lundi à vendredi 8 h–20 h, samedi 8 h–12 h, dimanche fermé (`lib/pharmagarde/opening-hours.ts`).
+
+Les routes `/pharmacies` et `/healthcare` publient `status` (`on_duty`, `open`, `closed`), `isOpen`, `openingHours` (résumé lisible) et `serviceHours` (semaine détaillée), avec `Cache-Control: max-age=60`. La migration `0007_opening_hours` ajoute la table `city_hours` et la colonne `directory_entries.openingHours`.

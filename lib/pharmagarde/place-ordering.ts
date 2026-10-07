@@ -32,3 +32,14 @@ export function placeStatusLabel(place: Pick<HealthPlace, "isOpen" | "onDuty">) 
   if (place.onDuty === true) return "De garde";
   return place.isOpen === true ? "Ouvert" : place.isOpen === false ? "Fermé" : "Statut inconnu";
 }
+
+/** Ligne d'horaires : la garde (24 h/24 jusqu'à la relève) prime sur les horaires de service. */
+export function placeHoursLabel(place: Pick<HealthPlace, "onDuty" | "dutyEnd" | "openingHours">) {
+  if (place.onDuty === true) {
+    const end = place.dutyEnd ? new Date(place.dutyEnd) : null;
+    // Heure du Burkina Faso = UTC.
+    const until = end && Number.isFinite(end.getTime()) ? ` jusqu’au ${new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(end)} à ${end.getUTCHours()} h` : "";
+    return `De garde, ouverte 24 h/24${until}`;
+  }
+  return place.openingHours ?? null;
+}

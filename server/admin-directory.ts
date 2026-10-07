@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { DirectoryEntry } from "../drizzle/schema";
+import { WEEK_DAYS, parseWeeklyHours, validateWeeklyHours, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { SUPPORTED_CITIES, getCacheState, type CachedHealthPlace } from "./pharmagarde-cache";
 import { DUTY_GROUPS, isInBurkinaFaso, loadPharmacyDirectory, normalizeBurkinaPhone, slugify } from "./pharmacy-directory";
 
@@ -19,10 +20,22 @@ export type AdminDirectoryItem = {
   longitude: number | null;
   dutyGroup: number | null;
   establishmentType: string | null;
+  /** Horaires propres ; null = horaires de la ville. */
+  openingHours: WeeklyHours | null;
   source: "annuaire" | "cache" | "admin";
   managed: boolean;
   updatedAt: string | null;
 };
+
+const timeRangeSchema = z.object({ open: z.string().trim(), close: z.string().trim() });
+
+/** Semaine d'horaires : pour chaque jour, jusqu'à 4 plages (aucune = fermé). */
+export const weeklyHoursSchema = z
+  .object(Object.fromEntries(WEEK_DAYS.map((day) => [day, z.array(timeRangeSchema).max(4)])) as Record<(typeof WEEK_DAYS)[number], z.ZodArray<typeof timeRangeSchema>>)
+  .superRefine((value, ctx) => {
+    const error = validateWeeklyHours(value);
+    if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, message: error });
+  });
 
 export const directoryUpsertSchema = z
   .object({
@@ -36,6 +49,8 @@ export const directoryUpsertSchema = z
     longitude: z.number().finite().nullable().optional(),
     dutyGroup: z.number().int().nullable().optional(),
     establishmentType: z.string().trim().max(64).nullable().optional(),
+    /** Horaires propres ; null ou absent = horaires de la ville. */
+    openingHours: weeklyHoursSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {
     const hasLatitude = value.latitude !== null && value.latitude !== undefined;
@@ -83,6 +98,7 @@ export type NormalizedDirectoryUpsert = {
   longitude: number | null;
   dutyGroup: number | null;
   establishmentType: string | null;
+  openingHours: string | null;
 };
 
 function compact(value: string) {
@@ -117,6 +133,7 @@ export function normalizeDirectoryUpsert(input: DirectoryUpsertInput, knownCitie
     longitude: input.longitude ?? null,
     dutyGroup: input.kind === "pharmacy" ? input.dutyGroup ?? null : null,
     establishmentType: input.kind === "healthcare" ? input.establishmentType ?? "Centre de santé" : "Pharmacie",
+    openingHours: input.openingHours ? JSON.stringify(input.openingHours) : null,
   };
 }
 
@@ -139,6 +156,7 @@ function pharmacyItems(directory: Awaited<ReturnType<typeof loadPharmacyDirector
     longitude: item.longitude,
     dutyGroup: item.dutyGroup,
     establishmentType: "Pharmacie",
+    openingHours: null,
     source: "annuaire",
     managed: false,
     updatedAt: directory.updatedAt,
@@ -158,6 +176,7 @@ function healthcareItems(items: CachedHealthPlace[]): AdminDirectoryItem[] {
     longitude: item.longitude ?? null,
     dutyGroup: null,
     establishmentType: item.type,
+    openingHours: null,
     source: "cache",
     managed: false,
     updatedAt: item.updatedAt ?? null,
@@ -195,6 +214,7 @@ export function mergeAdminDirectoryItems(baseItems: AdminDirectoryItem[], overri
       longitude: override.longitude ?? null,
       dutyGroup: kind === "pharmacy" ? override.dutyGroup ?? null : null,
       establishmentType: override.establishmentType ?? current?.establishmentType ?? (kind === "pharmacy" ? "Pharmacie" : "Centre de santé"),
+      openingHours: parseWeeklyHours(override.openingHours),
       source: "admin",
       managed: true,
       updatedAt: toIso(override.updatedAt),

@@ -1,4 +1,5 @@
 import { directoryEntries, type DirectoryEntry } from "../drizzle/schema";
+import { parseWeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { getDb } from "./db";
 import type { CachedHealthPlace, CachedPlaceCategory, LocalEstablishmentType } from "./pharmagarde-cache";
 
@@ -74,6 +75,7 @@ function toPlace(override: DirectoryEntry, category: CachedPlaceCategory, curren
     latitude: override.latitude ?? undefined,
     longitude: override.longitude ?? undefined,
     dutyGroup: category === "pharmacy" ? override.dutyGroup ?? null : undefined,
+    serviceHours: parseWeeklyHours(override.openingHours) ?? undefined,
     source: "admin",
     updatedAt: toIso(override.updatedAt) ?? current?.updatedAt,
   };

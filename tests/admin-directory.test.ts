@@ -15,6 +15,7 @@ const base: AdminDirectoryItem[] = [
     longitude: -1.52,
     dutyGroup: 1,
     establishmentType: "Pharmacie",
+    openingHours: null,
     source: "annuaire",
     managed: false,
     updatedAt: "2026-10-01T00:00:00.000Z",

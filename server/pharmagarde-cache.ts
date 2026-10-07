@@ -6,6 +6,8 @@ import path from "node:path";
 import { applyCorsHeaders } from "./_core/security";
 import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-overrides";
+import { formatWeeklyHours, isOpenAt, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
+import { getCityHoursLookup } from "./city-hours";
 import { DUTY_ROTATIONS, dutyStatusAt, dutyWeekAt, findDutyRotation } from "./duty-roster";
 import { ESSENTIAL_MEDICINES, MEDICINES_NOTICE } from "./medicines-data";
 import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
@@ -31,8 +33,10 @@ export type CachedHealthPlace = {
   latitude?: number;
   longitude?: number;
   isOpen?: boolean;
-  /** Horaires au format OpenStreetMap `opening_hours` (ex. « Mo-Sa 08:00-20:00 »). */
+  /** Horaires lisibles publiés, ex. « Lun–Ven 8 h–20 h · Sam 8 h–12 h · Dim fermé ». */
   openingHours?: string;
+  /** Horaires de service propres saisis dans la console ; sinon ceux de la ville. */
+  serviceHours?: WeeklyHours;
   /** « admin » : fiche créée ou corrigée dans la console d’administration. */
   source?: "annuaire" | "osm" | "local" | "admin";
   /** Groupe de garde de la pharmacie (1 à 4), issu de l'annuaire ; sert à la programmation des gardes. */
@@ -496,7 +500,8 @@ function withCacheHeaders(req: Request, res: Response, kind: CacheKind) {
   const state = memoryCache[kind];
   // La réponse dépend de l'abonnement de l'appelant (3 résultats ou liste complète) : elle ne doit
   // pas être partagée par un cache intermédiaire entre utilisateurs.
-  res.setHeader("Cache-Control", kind === "pharmacies" ? "private, max-age=300" : "private, max-age=1800");
+  // Le statut (de garde, ouvert, fermé) dépend de l'heure : réponse réutilisable une minute au plus.
+  res.setHeader("Cache-Control", "private, max-age=60");
   res.setHeader("Vary", "Origin, Authorization, Cookie");
   if (state.updatedAt) res.setHeader("Last-Modified", new Date(state.updatedAt).toUTCString());
   if (state.expiresAt) res.setHeader("X-PharmaGarde-Cache-Expires-At", state.expiresAt);
@@ -551,6 +556,9 @@ export type PublishedPlace = CachedHealthPlace & {
   onDuty?: boolean;
   dutyStart?: string;
   dutyEnd?: string;
+  /** Horaires propres à l'établissement (sinon horaires de la ville). */
+  customHours?: boolean;
+  status?: "on_duty" | "open" | "closed";
 };
 
 /** Ajoute le statut de garde aux pharmacies des villes qui ont une programmation. */
@@ -560,6 +568,26 @@ export function withDutyStatus(items: readonly CachedHealthPlace[], at: Date = n
     const status = dutyStatusAt(item, at);
     if (!status) return item;
     return status.onDuty ? { ...item, onDuty: true, dutyStart: status.week.start.toISOString(), dutyEnd: status.week.end.toISOString() } : { ...item, onDuty: false };
+  });
+}
+
+/**
+ * Statut de service de chaque établissement : « de garde » (pharmacie de garde, ouverte 24 h/24),
+ * sinon ouvert ou fermé selon ses horaires propres ou, à défaut, ceux de sa ville.
+ */
+export function withServiceStatus(items: readonly CachedHealthPlace[], at: Date, hoursFor: (city: string | undefined) => WeeklyHours): PublishedPlace[] {
+  return withDutyStatus(items, at).map((item) => {
+    const hours = item.serviceHours ?? hoursFor(item.city);
+    const onDuty = item.onDuty === true;
+    const isOpen = onDuty || isOpenAt(hours, at);
+    return {
+      ...item,
+      serviceHours: hours,
+      customHours: !!item.serviceHours,
+      openingHours: formatWeeklyHours(hours),
+      isOpen,
+      status: onDuty ? "on_duty" : isOpen ? "open" : "closed",
+    };
   });
 }
 
@@ -594,7 +622,8 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
   // Pharmacies : celles de garde passent devant, et `?onDuty=1` ne renvoie qu'elles.
   const published = await selectPublishedItems(kind, cityFilter);
   const now = new Date();
-  const byDistance: PublishedPlace[] = sortByDistanceFrom(kind === "pharmacies" ? withDutyStatus(published.items, now) : published.items, getRequestedPosition(req));
+  const hoursFor = await getCityHoursLookup();
+  const byDistance: PublishedPlace[] = sortByDistanceFrom(withServiceStatus(published.items, now, hoursFor), getRequestedPosition(req));
   const allItems = kind === "pharmacies" ? (wantsOnDutyOnly(req) ? byDistance.filter((item) => item.onDuty === true) : sortOnDutyFirst(byDistance)) : byDistance;
   const isPremium = await getPremiumAccessFromRequest(req);
   const items = isPremium ? allItems : allItems.slice(0, PREMIUM_RESULT_LIMIT);
