@@ -80,19 +80,39 @@ describe("import du tableur (pnpm import:pharmacies)", () => {
 describe("annuaire versionné dans le dépôt", () => {
   const directory = validateDirectory(JSON.parse(readFileSync("server/data/pharmacies.json", "utf8")));
 
-  it("contient Ouagadougou et Bobo-Dioulasso, uniquement avec coordonnées et sans colonnes inutiles", () => {
+  it("contient les villes importées, uniquement avec coordonnées et sans colonnes inutiles", () => {
     const byCity = new Map<string, number>();
     for (const pharmacy of directory.pharmacies) byCity.set(pharmacy.city, (byCity.get(pharmacy.city) ?? 0) + 1);
-    expect(Object.fromEntries(byCity)).toEqual({ "Bobo-Dioulasso": 70, Ouagadougou: 239 });
+    expect(Object.fromEntries(byCity)).toEqual({
+      Banfora: 5,
+      "Bobo-Dioulasso": 70,
+      Dori: 2,
+      Dédougou: 4,
+      "Fada N'gourma": 4,
+      Gaoua: 3,
+      Kaya: 5,
+      Koudougou: 7,
+      Ouagadougou: 239,
+      Ouahigouya: 5,
+      Tenkodogo: 5,
+      Ziniaré: 2,
+    });
     for (const pharmacy of directory.pharmacies) {
       expect(Number.isFinite(pharmacy.latitude) && Number.isFinite(pharmacy.longitude)).toBe(true);
       expect(Object.keys(pharmacy).every((key) => ["id", "city", "name", "phone", "dutyGroup", "address", "latitude", "longitude"].includes(key))).toBe(true);
     }
   });
 
-  it("renseigne le groupe de garde de toutes les pharmacies sauf une (Diyama, groupe absent du fichier)", () => {
-    const withoutGroup = directory.pharmacies.filter((pharmacy) => pharmacy.dutyGroup === null).map((pharmacy) => pharmacy.name);
+  it("renseigne le groupe de garde à Ouagadougou et Bobo-Dioulasso, sauf Diyama (groupe absent du fichier)", () => {
+    const groupCities = new Set(["Ouagadougou", "Bobo-Dioulasso"]);
+    const withoutGroup = directory.pharmacies.filter((pharmacy) => groupCities.has(pharmacy.city) && pharmacy.dutyGroup === null).map((pharmacy) => pharmacy.name);
     expect(withoutGroup).toEqual(["Pharmacie Diyama"]);
+  });
+
+  it("n'attribue pas de groupe dans les villes dont la garde se fait par listes", () => {
+    // Les groupes proposés pour ces villes ne correspondaient pas aux listes de l'ONPBF : ils ne sont pas importés.
+    const groupCities = new Set(["Ouagadougou", "Bobo-Dioulasso"]);
+    expect(directory.pharmacies.filter((pharmacy) => !groupCities.has(pharmacy.city) && pharmacy.dutyGroup !== null)).toEqual([]);
   });
 });
 
