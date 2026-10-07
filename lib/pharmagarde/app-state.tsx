@@ -10,6 +10,7 @@ import { distanceKm, filterPlacesByCity, inferCityFromAddressParts, inferNearest
 import { getDefaultLocationFallback } from "./location-policy";
 import { DISTANCE_UNAVAILABLE_LABEL, resolveReferenceLocation } from "./reference-location";
 import { resolvePlaceStatus, sortPlacesByOpenThenDistance } from "./place-ordering";
+import { formatPriceRange, medicineFormLabel } from "./medicines";
 import { fetchPremiumStatus, initPremiumPayment, limitFreeResults, type PaymentInitResponse, type PremiumPlanId } from "./premium";
 import { AppPreferences, CombinedSearchItem, Coordinates, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "./types";
 
@@ -84,13 +85,13 @@ function toFavoriteFromPlace(place: HealthPlace): FavoriteItem {
 }
 
 function toFavoriteFromMedicine(medicine: Medicine): FavoriteItem {
-  const price = medicine.priceApprox !== undefined ? `${medicine.priceApprox.toLocaleString("fr-FR")} FCFA` : undefined;
+  const price = medicine.priceApprox !== undefined ? formatPriceRange(medicine.priceApprox, medicine.priceMax) : undefined;
   return {
     id: medicine.id,
     entityType: "medicine",
     title: medicine.name,
-    subtitle: medicine.category,
-    metadata: [medicine.ageCategory, medicine.pharmaceuticalType, price].filter(Boolean).join(" · "),
+    subtitle: medicineFormLabel(medicine) || medicine.category,
+    metadata: [medicine.productType, price].filter(Boolean).join(" · "),
   };
 }
 

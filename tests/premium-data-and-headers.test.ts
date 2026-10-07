@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 
 import type { NextFunction, Request, Response } from "express";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -59,6 +60,17 @@ describe("S12 · médicaments servis par le serveur aux seuls abonnés", async (
     expect(body.medicaments.length).toBeGreaterThanOrEqual(20);
     expect(body.meta.itemCount).toBe(body.medicaments.length);
     expect(res.headers["Cache-Control"]).toBe("private, no-store");
+  });
+
+  it("compresse le catalogue pour les clients qui acceptent gzip", async () => {
+    getAuthenticatedDbUser.mockResolvedValue({ id: 1, subscriptionEnd: new Date(Date.now() + 86_400_000) });
+    let sent: Buffer | undefined;
+    const res = Object.assign(new FakeResponse(), { end: (chunk: Buffer) => void (sent = chunk) });
+    await route({ ...req, headers: { "accept-encoding": "gzip, deflate" } } as unknown as Request, res as unknown as Response);
+    expect(res.headers["Content-Encoding"]).toBe("gzip");
+    const body = JSON.parse(gunzipSync(sent!).toString("utf8")) as { medicaments: unknown[]; meta: { itemCount: number } };
+    expect(body.meta.itemCount).toBe(body.medicaments.length);
+    expect(sent!.length).toBeLessThan(200_000);
   });
 
   it("le catalogue n'est plus embarqué dans l'app", () => {

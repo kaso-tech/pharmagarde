@@ -6,6 +6,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-na
 import { AppChrome, EmptyState, MedicineCard, PlaceCard, SearchField } from "@/components/pharmagarde/app-ui";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
+import { medicineSearchText } from "@/lib/pharmagarde/medicines";
 import { HealthPlace, Medicine } from "@/lib/pharmagarde/types";
 
 type SearchListItem =
@@ -21,10 +22,6 @@ function normalizeSearchText(value?: string) {
 
 function placeSearchText(place: HealthPlace) {
   return normalizeSearchText([place.name, place.address, place.city, place.type === "pharmacy" ? "Pharmacie" : "Clinique"].filter(Boolean).join(" "));
-}
-
-function medicineSearchText(medicine: Medicine) {
-  return normalizeSearchText([medicine.name, medicine.category, medicine.ageCategory, medicine.pharmaceuticalType, "Médicament"].filter(Boolean).join(" "));
 }
 
 export default function SearchScreen() {

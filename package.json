@@ -18,7 +18,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "qr": "node scripts/generate_qr.mjs",
-    "import:pharmacies": "tsx scripts/import-pharmacies.ts"
+    "import:pharmacies": "tsx scripts/import-pharmacies.ts",
+    "import:medicines": "tsx scripts/import-medicines.ts"
   },
   "dependencies": {
     "@expo/dom-webview": "~57.0.1",
