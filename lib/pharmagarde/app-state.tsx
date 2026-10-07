@@ -9,7 +9,7 @@ import { fetchClinics, fetchMedicines, fetchPharmacies, getDefaultApiBaseUrl, no
 import { distanceKm, filterPlacesByCity, inferCityFromAddressParts, inferNearestKnownCity, normalizeCityName } from "./city-utils";
 import { getDefaultLocationFallback } from "./location-policy";
 import { DISTANCE_UNAVAILABLE_LABEL, resolveReferenceLocation } from "./reference-location";
-import { sortPlacesByOpenThenDistance } from "./place-ordering";
+import { resolvePlaceStatus, sortPlacesByOpenThenDistance } from "./place-ordering";
 import { fetchPremiumStatus, initPremiumPayment, limitFreeResults, type PaymentInitResponse, type PremiumPlanId } from "./premium";
 import { AppPreferences, CombinedSearchItem, Coordinates, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "./types";
 
@@ -75,7 +75,7 @@ function toFavoriteFromPlace(place: HealthPlace): FavoriteItem {
     entityType: place.type,
     title: place.name,
     subtitle: place.address ?? place.city,
-    metadata: place.distanceLabel ?? (place.onDuty === true ? "De garde" : place.isOpen === true ? "Ouvert" : undefined),
+    metadata: place.distanceLabel ?? (place.onDuty === true ? "Garde" : place.isOpen === true ? "Ouvert" : undefined),
     phone: place.phone,
     rating: place.rating,
     latitude: place.latitude,
@@ -148,6 +148,21 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
   const [locationMessage, setLocationMessage] = useState<string | undefined>(undefined);
   const [pharmacies, setPharmacies] = useState<HealthPlace[]>([]);
   const [clinics, setClinics] = useState<HealthPlace[]>([]);
+
+  // Statuts (garde, ouvert, fermé) recalculés chaque minute : une relève de garde ou une heure de
+  // fermeture passée se voit sans recharger les listes.
+  useEffect(() => {
+    const refreshStatuses = (places: HealthPlace[]) => {
+      const now = new Date();
+      const next = places.map((place) => resolvePlaceStatus(place, now));
+      return next.some((place, index) => place !== places[index]) ? sortPlacesByOpenThenDistance(next) : places;
+    };
+    const timer = setInterval(() => {
+      setPharmacies(refreshStatuses);
+      setClinics(refreshStatuses);
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, []);
   // S12 : le catalogue vient du serveur, réservé aux abonnés Premium.
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [isPremium, setIsPremium] = useState(false);
@@ -379,7 +394,7 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
     ]);
 
     if (pharmacyResult.status === "fulfilled") {
-      const nextPharmacies = sortPlacesByOpenThenDistance(withLocalDistances(filterPlacesByCity(pharmacyResult.value, activeCity), referenceLocation));
+      const nextPharmacies = sortPlacesByOpenThenDistance(withLocalDistances(filterPlacesByCity(pharmacyResult.value, activeCity), referenceLocation).map((place) => resolvePlaceStatus(place)));
       const displayedPharmacies = limitFreeResults(nextPharmacies, isPremium);
       console.info("[PharmaGarde Frontend] Réponse pharmacies reçue", { selectedCity: activeCity, receivedCount: pharmacyResult.value.length, displayedCount: displayedPharmacies.length, isPremium, pharmacies: displayedPharmacies });
       setPharmacies(displayedPharmacies);
@@ -389,7 +404,7 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
     }
 
     if (clinicResult.status === "fulfilled") {
-      const nextClinics = sortPlacesByOpenThenDistance(withLocalDistances(filterPlacesByCity(clinicResult.value, activeCity), referenceLocation));
+      const nextClinics = sortPlacesByOpenThenDistance(withLocalDistances(filterPlacesByCity(clinicResult.value, activeCity), referenceLocation).map((place) => resolvePlaceStatus(place)));
       const displayedClinics = limitFreeResults(nextClinics, isPremium);
       console.info("[PharmaGarde Frontend] Réponse healthcare reçue", { selectedCity: activeCity, receivedCount: clinicResult.value.length, displayedCount: displayedClinics.length, isPremium });
       setClinics(displayedClinics);

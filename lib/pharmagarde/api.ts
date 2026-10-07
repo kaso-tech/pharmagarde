@@ -2,12 +2,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Coordinates, HealthPlace, Medicine } from "./types";
 import { normalizeCityName } from "./city-utils";
+import { parseWeeklyHours } from "./opening-hours";
 
 const DEFAULT_TIMEOUT_MS = 12000;
-const CLIENT_CACHE_PREFIX = "pharmagarde:api-cache:v2:";
+// v3 : les réponses antérieures aux statuts (garde, ouvert, fermé) sont ignorées. Le cache frais est
+// court car la garde et les horaires changent ; hors connexion, la dernière réponse reste utilisée.
+const CLIENT_CACHE_PREFIX = "pharmagarde:api-cache:v3:";
 const CLIENT_CACHE_TTL_MS: Record<"pharmacies" | "clinics" | "medicines", number> = {
-  pharmacies: 24 * 60 * 60 * 1000,
-  clinics: 7 * 24 * 60 * 60 * 1000,
+  pharmacies: 5 * 60 * 1000,
+  clinics: 30 * 60 * 1000,
   medicines: 24 * 60 * 60 * 1000,
 };
 
@@ -105,7 +108,9 @@ function normalizePlace(raw: Record<string, unknown>, type: "pharmacy" | "clinic
     openingHours: getString(raw, ["openingHours", "opening_hours", "horaires"]),
     dutyGroup: getNumber(raw, ["dutyGroup", "groupe", "groupeGarde"]),
     onDuty: getBoolean(raw, ["onDuty", "garde"]),
+    dutyStart: getString(raw, ["dutyStart"]),
     dutyEnd: getString(raw, ["dutyEnd"]),
+    serviceHours: parseWeeklyHours(raw.serviceHours) ?? undefined,
   };
 }
 

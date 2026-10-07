@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { DUTY_ROTATIONS, dutyStatusAt, dutyWeekAt, findDutyRotation, type DutyRotation } from "../server/duty-roster";
-import { sortOnDutyFirst, withDutyStatus, type CachedHealthPlace } from "../server/pharmagarde-cache";
-import { placeStatusLabel, sortPlacesByOpenThenDistance } from "../lib/pharmagarde/place-ordering";
+import { sortInServiceFirst, withDutyStatus, withServiceStatus, type CachedHealthPlace } from "../server/pharmagarde-cache";
+import { DEFAULT_WEEKLY_HOURS } from "../lib/pharmagarde/opening-hours";
+import { placeStatusLabel, resolvePlaceStatus, sortPlacesByOpenThenDistance } from "../lib/pharmagarde/place-ordering";
 
 const ouaga = findDutyRotation("Ouagadougou")!;
 const bobo = findDutyRotation("bobo dioulasso")!;
@@ -58,23 +59,41 @@ describe("publication du statut de garde", () => {
     { id: "kaya", type: "Pharmacie", category: "pharmacy", name: "Kaya", city: "Kaya", dutyGroup: 4 },
   ];
 
-  it("marque les pharmacies de garde et les place devant, sans toucher aux villes non programmées", () => {
-    const published = sortOnDutyFirst(withDutyStatus(items, at));
+  it("marque les pharmacies de garde, sans toucher aux villes non programmées", () => {
+    const published = withDutyStatus(items, at);
     expect(published.map((item) => [item.id, item.onDuty])).toEqual([
-      ["g4-loin", true],
       ["g2-proche", false],
+      ["g4-loin", true],
       ["kaya", undefined],
     ]);
-    expect(published[0]).toMatchObject({ dutyStart: "2026-10-03T08:00:00.000Z", dutyEnd: "2026-10-10T08:00:00.000Z" });
+    expect(published[1]).toMatchObject({ dutyStart: "2026-10-03T08:00:00.000Z", dutyEnd: "2026-10-10T08:00:00.000Z" });
   });
 
-  it("affiche « De garde » dans l'application et trie la garde en premier", () => {
-    expect(placeStatusLabel({ onDuty: true, isOpen: false })).toBe("De garde");
+  it("place devant la pharmacie en service la plus proche, de garde ou non", () => {
+    // Mardi midi : tout est ouvert, l’ordre par distance est conservé.
+    const daytime = sortInServiceFirst(withServiceStatus(items, at, () => DEFAULT_WEEKLY_HOURS));
+    expect(daytime.map((item) => item.id)).toEqual(["g2-proche", "g4-loin", "kaya"]);
+    // Mardi 23 h : seule la pharmacie de garde est en service.
+    const night = sortInServiceFirst(withServiceStatus(items, new Date("2026-10-06T23:00:00Z"), () => DEFAULT_WEEKLY_HOURS));
+    expect(night.map((item) => [item.id, item.status])).toEqual([["g4-loin", "on_duty"], ["g2-proche", "closed"], ["kaya", "closed"]]);
+  });
+
+  it("affiche « Garde » dans l'application et trie la plus proche en service en premier", () => {
+    expect(placeStatusLabel({ onDuty: true, isOpen: false })).toBe("Garde");
     expect(placeStatusLabel({ isOpen: true })).toBe("Ouvert");
     const sorted = sortPlacesByOpenThenDistance([
+      { id: "fermee", type: "pharmacy", name: "Fermée", isOpen: false, distanceKm: 0.1 },
+      { id: "garde", type: "pharmacy", name: "Garde", onDuty: true, distanceKm: 4 },
       { id: "ouvert", type: "pharmacy", name: "Ouverte", isOpen: true, distanceKm: 0.2 },
-      { id: "garde", type: "pharmacy", name: "De garde", onDuty: true, distanceKm: 4 },
     ]);
-    expect(sorted.map((place) => place.id)).toEqual(["garde", "ouvert"]);
+    expect(sorted.map((place) => place.id)).toEqual(["ouvert", "garde", "fermee"]);
+  });
+
+  it("recalcule le statut sur le téléphone à partir des horaires et de la fin de garde reçus", () => {
+    const fromCache = { id: "p", type: "pharmacy" as const, name: "P", onDuty: true, isOpen: true, dutyStart: "2026-10-03T08:00:00.000Z", dutyEnd: "2026-10-10T08:00:00.000Z", serviceHours: DEFAULT_WEEKLY_HOURS };
+    expect(resolvePlaceStatus(fromCache, new Date("2026-10-09T23:00:00Z"))).toMatchObject({ onDuty: true, isOpen: true });
+    // Garde terminée samedi 10 octobre à 8 h : ouverte selon ses horaires jusqu'à midi, fermée ensuite.
+    expect(resolvePlaceStatus(fromCache, new Date("2026-10-10T09:00:00Z"))).toMatchObject({ onDuty: false, isOpen: true });
+    expect(resolvePlaceStatus(fromCache, new Date("2026-10-10T13:00:00Z"))).toMatchObject({ onDuty: false, isOpen: false });
   });
 });

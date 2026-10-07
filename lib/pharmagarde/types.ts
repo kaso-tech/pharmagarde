@@ -1,3 +1,5 @@
+import type { WeeklyHours } from "./opening-hours";
+
 export type EntityType = "pharmacy" | "clinic" | "medicine";
 
 export type Coordinates = {
@@ -26,8 +28,11 @@ export type HealthPlace = {
   dutyGroup?: number;
   /** Pharmacie de garde cette semaine, calculé par le serveur selon la programmation de la ville. */
   onDuty?: boolean;
-  /** Fin de la garde en cours (samedi 8 h), au format ISO. */
+  /** Début et fin de la garde en cours (samedi 8 h), au format ISO. */
+  dutyStart?: string;
   dutyEnd?: string;
+  /** Horaires de service de la semaine (horaires propres ou de la ville), pour recalculer le statut. */
+  serviceHours?: WeeklyHours;
 };
 
 export type MedicineAgeCategory = "Enfant" | "Adulte" | "Tous";

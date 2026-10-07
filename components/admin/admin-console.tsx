@@ -670,7 +670,7 @@ function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange, error, p
         ) : (
           <WeeklyHoursEditor value={form.openingHours} onChange={(value) => onChange("openingHours", value)} />
         )}
-        {form.kind === "pharmacy" ? <Text style={[styles.fieldHint, { color: palette.muted }]}>De garde, la pharmacie est ouverte 24 h/24.</Text> : null}
+        {form.kind === "pharmacy" ? <Text style={[styles.fieldHint, { color: palette.muted }]}>En garde, la pharmacie est ouverte 24 h/24.</Text> : null}
       </View>
       {missingCoordinates ? <Text style={[styles.fieldHint, { color: palette.muted }]}>* Coordonnées obligatoires pour une pharmacie, pour l’afficher sur la carte.</Text> : null}
       {error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{error}</Text> : null}
@@ -1085,7 +1085,7 @@ function Audit() {
 
 const DUTY_COLUMNS: readonly Column[] = [
   { key: "period", label: "Semaine (relève à 8 h)", flex: 2.4 },
-  { key: "group", label: "De garde", flex: 1 },
+  { key: "group", label: "Garde", flex: 1 },
   { key: "count", label: "Pharmacies", flex: 1, align: "right" },
 ];
 

@@ -591,9 +591,13 @@ export function withServiceStatus(items: readonly CachedHealthPlace[], at: Date,
   });
 }
 
-/** Pharmacies de garde en premier, l'ordre (par distance) étant conservé à l'intérieur de chaque bloc. */
-export function sortOnDutyFirst<T extends { onDuty?: boolean }>(items: readonly T[]): T[] {
-  return [...items.filter((item) => item.onDuty === true), ...items.filter((item) => item.onDuty !== true)];
+/**
+ * Établissements en service en premier (de garde ou ouverts, sans distinction), l'ordre par distance
+ * étant conservé à l'intérieur de chaque bloc : le plus proche en service passe devant.
+ */
+export function sortInServiceFirst<T extends { onDuty?: boolean; isOpen?: boolean }>(items: readonly T[]): T[] {
+  const inService = (item: T) => item.onDuty === true || item.isOpen === true;
+  return [...items.filter(inService), ...items.filter((item) => !inService(item))];
 }
 
 function dutyMeta(cityFilter: RequestedCityFilter, at: Date) {
@@ -619,12 +623,13 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
   const cityFilter = getRequestedCityFilter(req);
   // Tri par distance depuis la position envoyée par l'app, avant la limite gratuite : un
   // utilisateur sans abonnement reçoit les 3 lieux les plus proches, pas les 3 premiers de la liste.
-  // Pharmacies : celles de garde passent devant, et `?onDuty=1` ne renvoie qu'elles.
+  // Les établissements en service passent devant (avant la limite gratuite) ; pour les pharmacies,
+  // `?onDuty=1` ne renvoie que celles de garde.
   const published = await selectPublishedItems(kind, cityFilter);
   const now = new Date();
   const hoursFor = await getCityHoursLookup();
   const byDistance: PublishedPlace[] = sortByDistanceFrom(withServiceStatus(published.items, now, hoursFor), getRequestedPosition(req));
-  const allItems = kind === "pharmacies" ? (wantsOnDutyOnly(req) ? byDistance.filter((item) => item.onDuty === true) : sortOnDutyFirst(byDistance)) : byDistance;
+  const allItems = kind === "pharmacies" && wantsOnDutyOnly(req) ? byDistance.filter((item) => item.onDuty === true) : sortInServiceFirst(byDistance);
   const isPremium = await getPremiumAccessFromRequest(req);
   const items = isPremium ? allItems : allItems.slice(0, PREMIUM_RESULT_LIMIT);
   const responseCity = cityFilter.supportedCity?.name ?? cityFilter.rawCity ?? null;
