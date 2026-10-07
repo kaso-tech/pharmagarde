@@ -5,7 +5,7 @@ import { Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from "re
 
 import { GlobalAppShell } from "@/components/pharmagarde/app-shell";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
-import { placeStatusLabel } from "@/lib/pharmagarde/place-ordering";
+import { placeHoursLabel, placeStatusLabel } from "@/lib/pharmagarde/place-ordering";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 import { CombinedSearchItem, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "@/lib/pharmagarde/types";
 
@@ -118,6 +118,7 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
   const accent = place.type === "pharmacy" ? palette.brand : palette.clinic;
   const ratingLabel = place.rating !== undefined ? `${place.rating.toFixed(1)}/5` : "Note inconnue";
   const phoneLabel = place.phone ?? "Téléphone indisponible";
+  const hoursLabel = placeHoursLabel(place);
   const typeLabel = localPlaceTypeLabel(place);
   const canNavigate = place.latitude !== undefined && place.longitude !== undefined;
 
@@ -164,6 +165,12 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
               <Text numberOfLines={1} style={[styles.compactInfoText, { color: place.phone ? palette.text : palette.muted }]}>{phoneLabel}</Text>
             </View>
           </View>
+          {hoursLabel ? (
+            <View style={styles.hoursInfoRow}>
+              <MaterialIcons name="schedule" size={15} color={accent} />
+              <Text style={[styles.compactInfoText, styles.hoursInfoText, { color: palette.text }]}>{hoursLabel}</Text>
+            </View>
+          ) : null}
           <View style={styles.cardActions}>
             <Pressable accessibilityRole="button" style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.cardMuted, opacity: place.phone ? 1 : 0.46 }, pressed && place.phone ? styles.pressedScale : undefined]} disabled={!place.phone} onPress={(event) => { event.stopPropagation(); haptic.light(); callPhone(place.phone); }}>
               <MaterialIcons name="call" size={18} color={place.phone ? accent : palette.muted} />
@@ -307,6 +314,8 @@ const styles = StyleSheet.create({
   pricePill: { minHeight: 30, borderRadius: 15, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   medicineDetails: { marginTop: 2 },
   placeExpandableContent: { marginTop: 2 },
+  hoursInfoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  hoursInfoText: { flex: 1 },
   placeInfoRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 9 },
   compactInfoPill: { minHeight: 26, borderRadius: 13, paddingHorizontal: 6, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
   typeInfoPill: { flexShrink: 1, maxWidth: 108 },

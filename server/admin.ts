@@ -2,11 +2,12 @@ import { TRPCError } from "@trpc/server";
 import { count, desc, eq, gt, isNotNull, like, notLike, or } from "drizzle-orm";
 import { z } from "zod";
 
-import { auditLogs, directoryEntries, transactions, users } from "../drizzle/schema";
+import { auditLogs, cityHours, directoryEntries, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
+import { listCityHours, reloadCityHours } from "./city-hours";
 import { reloadDirectoryOverrides } from "./directory-overrides";
 import { DUTY_ROTATIONS, dutyWeekAt, isPharmacyOnDuty } from "./duty-roster";
-import { cityMatchKey, directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
+import { cityMatchKey, weeklyHoursSchema, directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
 import { adminProcedure, router } from "./_core/trpc";
 
 const pageSchema = z.object({
@@ -26,6 +27,15 @@ const dutyOverviewSchema = z.object({
   weeks: z.number().int().min(1).max(26).default(8),
 });
 
+const cityHoursSchema = z.object({
+  city: z.string().trim().min(2).max(96),
+  openingHours: weeklyHoursSchema,
+});
+
+const cityHoursResetSchema = z.object({
+  city: z.string().trim().min(2).max(96),
+});
+
 const auditListSchema = pageSchema.extend({
   /** Les consultations de pages sont journalisées mais masquées par défaut. */
   includeViews: z.boolean().default(false),
@@ -36,7 +46,7 @@ const userListSchema = pageSchema.extend({
 });
 
 const activitySchema = z.object({
-  area: z.enum(["dashboard", "directory", "duty", "users", "premium", "audit"]),
+  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit"]),
 });
 
 function failIfNoDb<T>(db: T | null): T {
@@ -165,6 +175,7 @@ export const adminRouter = router({
               longitude: entry.longitude,
               dutyGroup: entry.dutyGroup,
               establishmentType: entry.establishmentType,
+              openingHours: entry.openingHours,
             },
           });
         await tx.insert(auditLogs).values({
@@ -213,6 +224,7 @@ export const adminRouter = router({
               longitude: entry.longitude ?? null,
               dutyGroup: entry.dutyGroup ?? null,
               establishmentType: entry.establishmentType ?? null,
+              openingHours: current ? current.openingHours : source?.openingHours ? JSON.stringify(source.openingHours) : null,
             })
             .onDuplicateKeyUpdate({ set: { status: "archived" } });
           await tx.insert(auditLogs).values({
@@ -277,6 +289,47 @@ export const adminRouter = router({
             .map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name, phone: pharmacy.phone, address: pharmacy.address })),
         };
       });
+    }),
+  }),
+
+  hours: router({
+    /** Horaires de service par ville (ceux par défaut tant qu'une ville n'a pas les siens). */
+    cities: adminProcedure.query(async () => {
+      const cities = listDirectoryCities(await readMergedDirectory()).map((city) => city.name);
+      return listCityHours(cities);
+    }),
+
+    setCity: adminProcedure.input(cityHoursSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const openingHours = JSON.stringify(input.openingHours);
+      await db.transaction(async (tx) => {
+        await tx.insert(cityHours).values({ city: input.city, openingHours }).onDuplicateKeyUpdate({ set: { openingHours } });
+        await tx.insert(auditLogs).values({
+          actorUserId: ctx.user.id,
+          action: "city_hours.updated",
+          targetType: "city",
+          targetId: input.city,
+          metadata: safeMetadata({ source: "admin_console" }),
+        });
+      });
+      await reloadCityHours();
+      return { city: input.city };
+    }),
+
+    resetCity: adminProcedure.input(cityHoursResetSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      await db.transaction(async (tx) => {
+        await tx.delete(cityHours).where(eq(cityHours.city, input.city));
+        await tx.insert(auditLogs).values({
+          actorUserId: ctx.user.id,
+          action: "city_hours.reset",
+          targetType: "city",
+          targetId: input.city,
+          metadata: safeMetadata({ source: "admin_console" }),
+        });
+      });
+      await reloadCityHours();
+      return { city: input.city };
     }),
   }),
 

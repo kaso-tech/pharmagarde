@@ -5,10 +5,11 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
+import { DEFAULT_WEEKLY_HOURS, WEEK_DAYS, WEEK_DAY_LABELS, formatWeeklyHours, validateWeeklyHours, type WeekDay, type WeeklyHours } from "@/lib/pharmagarde/opening-hours";
 import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-confirmation";
 import { haptic, premiumRadius, premiumSpacing, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 
-type AdminSection = "dashboard" | "directory" | "duty" | "users" | "premium" | "audit";
+type AdminSection = "dashboard" | "directory" | "duty" | "hours" | "users" | "premium" | "audit";
 type DirectoryKind = "pharmacy" | "healthcare";
 type Tone = "brand" | "success" | "warning" | "danger" | "muted" | "clinic";
 
@@ -23,6 +24,9 @@ type DirectoryForm = {
   longitude: string;
   dutyGroup: string;
   establishmentType: string;
+  /** « city » : horaires de la ville ; « custom » : horaires propres à l'établissement. */
+  hoursMode: "city" | "custom";
+  openingHours: WeeklyHours;
 };
 
 /** Largeur à partir de laquelle la console passe en mise en page bureau : menu latéral fixe et tableaux. */
@@ -34,6 +38,7 @@ const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; label: str
   { section: "dashboard", href: "/admin", label: "Tableau de bord", icon: "dashboard" },
   { section: "directory", href: "/admin/annuaire", label: "Annuaire", icon: "local-pharmacy" },
   { section: "duty", href: "/admin/gardes", label: "Gardes", icon: "event" },
+  { section: "hours", href: "/admin/horaires", label: "Horaires", icon: "schedule" },
   { section: "users", href: "/admin/utilisateurs", label: "Utilisateurs", icon: "group" },
   { section: "premium", href: "/admin/abonnements", label: "Premium", icon: "workspace-premium" },
   { section: "audit", href: "/admin/journal", label: "Journal", icon: "receipt-long" },
@@ -43,6 +48,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   dashboard: "Tableau de bord",
   directory: "Annuaire",
   duty: "Gardes",
+  hours: "Horaires",
   users: "Utilisateurs",
   premium: "Premium",
   audit: "Journal d’audit",
@@ -52,6 +58,7 @@ const SECTION_SUBTITLES: Record<AdminSection, string> = {
   dashboard: "Vue d’ensemble des comptes, des paiements et de l’annuaire.",
   directory: "Pharmacies et structures de santé publiées dans l’application.",
   duty: "Groupe de garde de chaque ville. La garde change chaque samedi à 8 h.",
+  hours: "Horaires de service par ville, fixés par l’ONPBF. Une pharmacie de garde est ouverte 24 h/24.",
   users: "Comptes inscrits, vérification du téléphone et abonnement.",
   premium: "Paiements Ligdi Cash et abonnements associés.",
   audit: "Actions réalisées dans la console d’administration.",
@@ -78,6 +85,9 @@ const AUDIT_ACTIONS: Record<string, string> = {
   "admin.dashboard.viewed": "Consultation du tableau de bord",
   "admin.directory.viewed": "Consultation de l’annuaire",
   "admin.duty.viewed": "Consultation des gardes",
+  "admin.hours.viewed": "Consultation des horaires",
+  "city_hours.updated": "Horaires de ville modifiés",
+  "city_hours.reset": "Horaires de ville rétablis",
   "admin.users.viewed": "Consultation des utilisateurs",
   "admin.premium.viewed": "Consultation des paiements",
   "admin.audit.viewed": "Consultation du journal",
@@ -87,6 +97,7 @@ const AUDIT_TARGETS: Record<string, string> = {
   pharmacy: "Pharmacie",
   healthcare: "Structure de santé",
   admin_console: "Console",
+  city: "Ville",
 };
 
 const DUTY_GROUP_OPTIONS = [
@@ -118,6 +129,8 @@ const EMPTY_DIRECTORY_FORM: DirectoryForm = {
   longitude: "",
   dutyGroup: "",
   establishmentType: "Centre de santé",
+  hoursMode: "city",
+  openingHours: DEFAULT_WEEKLY_HOURS,
 };
 
 const WideLayoutContext = createContext(false);
@@ -586,13 +599,51 @@ function ConfirmationModal({ itemName, visible, loading, onClose, onConfirm }: {
   );
 }
 
-function DirectoryFormFields({ form, cityNames, onChange, error, pending, onCancel, onSubmit }: { form: DirectoryForm; cityNames: readonly string[]; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void; error?: string | null; pending: boolean; onCancel: () => void; onSubmit: () => void }) {
+function cloneHours(hours: WeeklyHours): WeeklyHours {
+  return Object.fromEntries(WEEK_DAYS.map((day) => [day, hours[day].map((range) => ({ ...range }))])) as WeeklyHours;
+}
+
+/** Éditeur d'une semaine d'horaires : pour chaque jour, des plages ouverture–fermeture (aucune = fermé). */
+function WeeklyHoursEditor({ value, onChange }: { value: WeeklyHours; onChange: (value: WeeklyHours) => void }) {
+  const palette = usePremiumPalette();
+  const update = (day: WeekDay, ranges: WeeklyHours[WeekDay]) => onChange({ ...cloneHours(value), [day]: ranges });
+  const error = validateWeeklyHours(value);
+  return (
+    <View style={styles.hoursEditor}>
+      {WEEK_DAYS.map((day) => {
+        const ranges = value[day];
+        return (
+          <View key={day} style={[styles.hoursDay, { borderBottomColor: palette.border }]}>
+            <Text style={[styles.hoursDayLabel, { color: palette.text }]}>{WEEK_DAY_LABELS[day]}</Text>
+            <View style={styles.hoursRanges}>
+              {ranges.length === 0 ? <Text style={[styles.listMeta, { color: palette.muted }]}>Fermé</Text> : null}
+              {ranges.map((range, index) => (
+                <View key={index} style={styles.hoursRange}>
+                  <TextInput accessibilityLabel={`${WEEK_DAY_LABELS[day]}, ouverture`} value={range.open} onChangeText={(open) => update(day, ranges.map((item, position) => (position === index ? { ...item, open } : item)))} placeholder="08:00" placeholderTextColor={palette.muted} style={[styles.timeInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.card }]} />
+                  <Text style={[styles.listMeta, { color: palette.muted }]}>à</Text>
+                  <TextInput accessibilityLabel={`${WEEK_DAY_LABELS[day]}, fermeture`} value={range.close} onChangeText={(close) => update(day, ranges.map((item, position) => (position === index ? { ...item, close } : item)))} placeholder="20:00" placeholderTextColor={palette.muted} style={[styles.timeInput, { color: palette.text, borderColor: palette.border, backgroundColor: palette.card }]} />
+                  <IconAction icon="close" label={`Retirer la plage du ${WEEK_DAY_LABELS[day].toLowerCase()}`} color={palette.muted} onPress={() => update(day, ranges.filter((_, position) => position !== index))} />
+                </View>
+              ))}
+            </View>
+            {ranges.length < 4 ? <IconAction icon="add" label={`Ajouter une plage le ${WEEK_DAY_LABELS[day].toLowerCase()}`} color={palette.brand} onPress={() => update(day, [...ranges, ranges.length ? { open: "15:00", close: "19:00" } : { open: "08:00", close: "20:00" }])} /> : null}
+          </View>
+        );
+      })}
+      {error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{error}</Text> : <Text style={[styles.fieldHint, { color: palette.muted }]}>{formatWeeklyHours(value)}</Text>}
+    </View>
+  );
+}
+
+function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange, error, pending, onCancel, onSubmit }: { form: DirectoryForm; cityNames: readonly string[]; cityHoursFor: (city: string) => WeeklyHours; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void; error?: string | null; pending: boolean; onCancel: () => void; onSubmit: () => void }) {
   const palette = usePremiumPalette();
   const [otherCity, setOtherCity] = useState(false);
   const showOtherCity = otherCity || (!!form.city && !cityNames.includes(form.city));
   const cityOptions = [...cityNames.map((name) => ({ value: name, label: name })), { value: OTHER_CITY, label: "Autre ville…" }];
   const missingCoordinates = form.kind === "pharmacy" && (numberOrNull(form.latitude) === null || numberOrNull(form.longitude) === null);
-  const cannotSave = pending || !form.name.trim() || !form.city.trim() || missingCoordinates;
+  const invalidHours = form.hoursMode === "custom" && !!validateWeeklyHours(form.openingHours);
+  const cannotSave = pending || !form.name.trim() || !form.city.trim() || missingCoordinates || invalidHours;
+  const cityHours = cityHoursFor(form.city);
   const coordinateSuffix = form.kind === "pharmacy" ? " *" : "";
   return (
     <View style={styles.formFields}>
@@ -622,6 +673,23 @@ function DirectoryFormFields({ form, cityNames, onChange, error, pending, onCanc
       ) : (
         <Field label="Type d’établissement" value={form.establishmentType} onChangeText={(value) => onChange("establishmentType", value)} />
       )}
+      <View style={styles.fieldWrap}>
+        <Text style={[styles.fieldLabel, { color: palette.text }]}>Horaires de service</Text>
+        <SegmentControl
+          value={form.hoursMode}
+          onChange={(value) => {
+            onChange("hoursMode", value as DirectoryForm["hoursMode"]);
+            if (value === "custom" && form.hoursMode === "city") onChange("openingHours", cloneHours(cityHours));
+          }}
+          options={[{ value: "city", label: "Horaires de la ville" }, { value: "custom", label: "Horaires propres" }]}
+        />
+        {form.hoursMode === "city" ? (
+          <Text style={[styles.fieldHint, { color: palette.muted }]}>{form.city ? `${form.city} : ` : ""}{formatWeeklyHours(cityHours)}</Text>
+        ) : (
+          <WeeklyHoursEditor value={form.openingHours} onChange={(value) => onChange("openingHours", value)} />
+        )}
+        {form.kind === "pharmacy" ? <Text style={[styles.fieldHint, { color: palette.muted }]}>De garde, la pharmacie est ouverte 24 h/24.</Text> : null}
+      </View>
       {missingCoordinates ? <Text style={[styles.fieldHint, { color: palette.muted }]}>* Coordonnées obligatoires pour une pharmacie, pour l’afficher sur la carte.</Text> : null}
       {error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{error}</Text> : null}
       <View style={styles.formActions}>
@@ -711,7 +779,7 @@ function Directory() {
   };
   const openEdit = (item: DirectoryItem) => {
     upsert.reset();
-    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé" });
+    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS });
     setShowForm(true);
   };
   const submit = () => {
@@ -726,14 +794,17 @@ function Directory() {
       longitude: numberOrNull(form.longitude),
       dutyGroup: form.kind === "pharmacy" && form.dutyGroup ? Number(form.dutyGroup) : null,
       establishmentType: form.kind === "healthcare" ? form.establishmentType || null : null,
+      openingHours: form.hoursMode === "custom" ? form.openingHours : null,
     });
   };
 
   const groupLabel = (item: DirectoryItem) => item.kind === "pharmacy" ? (item.dutyGroup ? `Groupe ${item.dutyGroup}` : "Sans groupe") : item.establishmentType ?? "Établissement";
   const formTitle = form.id ? "Modifier l’établissement" : "Nouvel établissement";
+  const hours = trpc.admin.hours.cities.useQuery(undefined, { retry: 1 });
+  const cityHoursFor = (name: string) => hours.data?.find((entry) => entry.city.localeCompare(name, "fr", { sensitivity: "base" }) === 0)?.hours ?? DEFAULT_WEEKLY_HOURS;
   const cities = directory.data?.cities ?? [];
   const cityNames = cities.map((entry) => entry.name);
-  const formFields = <DirectoryFormFields key={form.id ?? "nouveau"} form={form} cityNames={cityNames} onChange={updateField} error={upsert.error?.message} pending={upsert.isPending} onCancel={closeForm} onSubmit={submit} />;
+  const formFields = <DirectoryFormFields key={form.id ?? "nouveau"} form={form} cityNames={cityNames} cityHoursFor={cityHoursFor} onChange={updateField} error={upsert.error?.message} pending={upsert.isPending} onCancel={closeForm} onSubmit={submit} />;
   const rows = directory.data?.items ?? [];
   const total = directory.data?.total ?? 0;
   const archivedView = status === "archived";
@@ -1113,12 +1184,75 @@ function Duty() {
   );
 }
 
+function HoursPage() {
+  const palette = usePremiumPalette();
+  const wide = useWideLayout();
+  const utils = trpc.useUtils();
+  const cities = trpc.admin.hours.cities.useQuery(undefined, { retry: 1 });
+  const [editing, setEditing] = useState<{ city: string; hours: WeeklyHours } | null>(null);
+  const refresh = async () => {
+    haptic.success();
+    setEditing(null);
+    await utils.admin.hours.cities.invalidate();
+  };
+  const setCity = trpc.admin.hours.setCity.useMutation({ onSuccess: refresh });
+  const resetCity = trpc.admin.hours.resetCity.useMutation({ onSuccess: refresh });
+  const rows = cities.data ?? [];
+  const invalid = editing ? !!validateWeeklyHours(editing.hours) : false;
+  return (
+    <AdminPage section="hours">
+      {resetCity.error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{resetCity.error.message}</Text> : null}
+      <PageState loading={cities.isLoading} error={cities.error} onRetry={() => cities.refetch()} empty={!rows.length}>
+        <View style={[styles.dutyGrid, wide && styles.dutyGridWide]}>
+          {rows.map((entry) => (
+            <View key={entry.city} style={[styles.dutyCard, wide && styles.hoursCardWide, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={styles.dutyHeader}>
+                <Text style={[styles.dutyCity, styles.listMain, { color: palette.text }]}>{entry.city}</Text>
+                <StatusBadge label={entry.custom ? "Personnalisés" : "Par défaut"} tone={entry.custom ? "brand" : "muted"} />
+              </View>
+              {WEEK_DAYS.map((day) => (
+                <View key={day} style={styles.hoursSummaryRow}>
+                  <Text style={[styles.listMeta, { color: palette.muted, width: 86 }]}>{WEEK_DAY_LABELS[day]}</Text>
+                  <Text style={[styles.listMeta, { color: entry.hours[day].length ? palette.text : palette.muted }]}>{entry.hours[day].length ? entry.hours[day].map((range) => `${range.open} – ${range.close}`).join(", ") : "Fermé"}</Text>
+                </View>
+              ))}
+              <View style={styles.rowActions}>
+                <Pressable accessibilityRole="button" style={[styles.compactAction, { borderColor: palette.border }]} onPress={() => { setCity.reset(); setEditing({ city: entry.city, hours: cloneHours(entry.hours) }); }}><MaterialIcons name="edit" size={17} color={palette.brand} /><Text style={[styles.compactActionText, { color: palette.brand }]}>Modifier</Text></Pressable>
+                {entry.custom ? <Pressable accessibilityRole="button" disabled={resetCity.isPending} style={[styles.compactAction, { borderColor: palette.border }]} onPress={() => resetCity.mutate({ city: entry.city })}><MaterialIcons name="restart-alt" size={17} color={palette.muted} /><Text style={[styles.compactActionText, { color: palette.muted }]}>Rétablir par défaut</Text></Pressable> : null}
+              </View>
+            </View>
+          ))}
+        </View>
+      </PageState>
+      <Modal visible={!!editing} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
+        <View style={[styles.modalRoot, { backgroundColor: palette.overlay }]}>
+          <View style={[styles.hoursModal, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={[styles.panelHeader, { borderBottomColor: palette.border }]}>
+              <Text accessibilityRole="header" style={[styles.cardHeading, { color: palette.text }]}>Horaires de {editing?.city}</Text>
+              <IconAction icon="close" label="Fermer" color={palette.text} onPress={() => setEditing(null)} />
+            </View>
+            <ScrollView contentContainerStyle={styles.panelContent}>
+              {editing ? <WeeklyHoursEditor value={editing.hours} onChange={(value) => setEditing({ ...editing, hours: value })} /> : null}
+              {setCity.error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{setCity.error.message}</Text> : null}
+              <View style={styles.formActions}>
+                <Pressable accessibilityRole="button" style={[styles.secondaryButton, { borderColor: palette.border }]} onPress={() => setEditing(null)}><Text style={[styles.secondaryText, { color: palette.text }]}>Annuler</Text></Pressable>
+                <Pressable accessibilityRole="button" disabled={setCity.isPending || invalid} style={[styles.primaryButton, { backgroundColor: palette.brand }, (setCity.isPending || invalid) && styles.disabled]} onPress={() => editing && setCity.mutate({ city: editing.city, openingHours: editing.hours })}>{setCity.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.retryText}>Enregistrer</Text>}</Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </AdminPage>
+  );
+}
+
 export function AdminConsoleScreen({ section }: { section: AdminSection }) {
   return (
     <AdminShell section={section}>
       {section === "dashboard" ? <Dashboard /> : null}
       {section === "directory" ? <Directory /> : null}
       {section === "duty" ? <Duty /> : null}
+      {section === "hours" ? <HoursPage /> : null}
       {section === "users" ? <Users /> : null}
       {section === "premium" ? <Premium /> : null}
       {section === "audit" ? <Audit /> : null}
@@ -1201,6 +1335,15 @@ const styles = StyleSheet.create({
   selectOptionText: { fontSize: 14, lineHeight: 19, fontWeight: "700" },
   fieldHint: { fontSize: 12, lineHeight: 17, fontWeight: "600" },
   dutyGrid: { gap: 14 },
+  hoursCardWide: { flexBasis: 320, flexGrow: 1, maxWidth: 460 },
+  hoursSummaryRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  hoursModal: { width: "100%", maxWidth: 560, maxHeight: "90%", borderRadius: premiumRadius.lg, borderWidth: 1, overflow: "hidden" },
+  hoursEditor: { gap: 4 },
+  hoursDay: { minHeight: 52, paddingVertical: 6, flexDirection: "row", alignItems: "center", gap: 8, borderBottomWidth: 1 },
+  hoursDayLabel: { width: 78, fontSize: 13, lineHeight: 18, fontWeight: "800" },
+  hoursRanges: { flex: 1, gap: 6 },
+  hoursRange: { flexDirection: "row", alignItems: "center", gap: 6 },
+  timeInput: { width: 66, minHeight: 36, borderRadius: 9, borderWidth: 1, paddingHorizontal: 8, fontSize: 13, fontWeight: "700", textAlign: "center" },
   dutyGridWide: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" },
   dutyCard: { borderRadius: premiumRadius.md, borderWidth: 1, padding: 16, gap: 12 },
   dutyCardWide: { flexBasis: 480, flexGrow: 1 },
