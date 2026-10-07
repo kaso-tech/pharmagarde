@@ -66,8 +66,8 @@ describe("trois statuts : de garde, ouvert, fermé", () => {
   it("publie un résumé des horaires et un libellé lisible dans l'application", () => {
     const [garde, pasGarde] = withServiceStatus(items, monday21h, hoursFor);
     expect(pasGarde?.openingHours).toBe("Lun–Ven 8 h–20 h · Sam 8 h–12 h · Dim fermé");
-    expect(placeStatusLabel(garde!)).toBe("De garde");
+    expect(placeStatusLabel(garde!)).toBe("Garde");
     expect(placeStatusLabel(pasGarde!)).toBe("Fermé");
-    expect(placeHoursLabel(garde!)).toBe("De garde, ouverte 24 h/24 jusqu’au samedi 10 octobre à 8 h");
+    expect(placeHoursLabel(garde!)).toBe("Garde : ouverte 24 h/24 jusqu’au samedi 10 octobre à 8 h");
   });
 });

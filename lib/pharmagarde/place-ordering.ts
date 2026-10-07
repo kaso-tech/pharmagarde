@@ -1,11 +1,28 @@
+import { isOpenAt } from "./opening-hours";
 import { HealthPlace } from "./types";
 
 const UNKNOWN_DISTANCE_KM = Number.POSITIVE_INFINITY;
 
-/** Pharmacies de garde d'abord, puis les lieux ouverts, puis les autres. */
+/**
+ * Lieux en service d'abord (de garde ou ouverts selon leurs horaires, sans distinction), puis ceux au
+ * statut inconnu, puis les fermés ; à l'intérieur de chaque bloc, du plus proche au plus loin.
+ */
 function openRank(place: HealthPlace) {
-  if (place.onDuty === true) return 0;
-  return place.isOpen === true ? 1 : 2;
+  if (place.onDuty === true || place.isOpen === true) return 0;
+  return place.isOpen === false ? 2 : 1;
+}
+
+/**
+ * Recalcule le statut à l'instant présent à partir des horaires et de la période de garde reçus du
+ * serveur : une liste gardée en cache sur le téléphone garde ainsi un statut juste.
+ */
+export function resolvePlaceStatus<T extends HealthPlace>(place: T, at: Date = new Date()): T {
+  const now = at.getTime();
+  const dutyStart = place.dutyStart ? Date.parse(place.dutyStart) : Number.NaN;
+  const dutyEnd = place.dutyEnd ? Date.parse(place.dutyEnd) : Number.NaN;
+  const onDuty = place.onDuty === true && Number.isFinite(dutyEnd) ? now < dutyEnd && (!Number.isFinite(dutyStart) || now >= dutyStart) : place.onDuty;
+  const isOpen = onDuty === true ? true : place.serviceHours ? isOpenAt(place.serviceHours, at) : place.isOpen;
+  return onDuty === place.onDuty && isOpen === place.isOpen ? place : { ...place, onDuty, isOpen };
 }
 
 function distanceRank(place: HealthPlace) {
@@ -29,7 +46,7 @@ export function sortPlacesByOpenThenDistance(places: HealthPlace[]) {
 
 /** Libellé du badge de statut : la garde prime sur les horaires d'ouverture. */
 export function placeStatusLabel(place: Pick<HealthPlace, "isOpen" | "onDuty">) {
-  if (place.onDuty === true) return "De garde";
+  if (place.onDuty === true) return "Garde";
   return place.isOpen === true ? "Ouvert" : place.isOpen === false ? "Fermé" : "Statut inconnu";
 }
 
@@ -39,7 +56,7 @@ export function placeHoursLabel(place: Pick<HealthPlace, "onDuty" | "dutyEnd" | 
     const end = place.dutyEnd ? new Date(place.dutyEnd) : null;
     // Heure du Burkina Faso = UTC.
     const until = end && Number.isFinite(end.getTime()) ? ` jusqu’au ${new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(end)} à ${end.getUTCHours()} h` : "";
-    return `De garde, ouverte 24 h/24${until}`;
+    return `Garde : ouverte 24 h/24${until}`;
   }
   return place.openingHours ?? null;
 }

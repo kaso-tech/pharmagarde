@@ -29,7 +29,9 @@ describe("premium ui contract", () => {
     expect(shell).toContain("DrawerBackdrop");
     expect(shell).toContain('Platform.OS === "android"');
     expect(shell).toContain("Animated.timing");
-    expect(shell).toContain("contentOpacity");
+    // Plus de fondu du contenu à chaque changement d'écran : le cadre des onglets est monté une fois.
+    expect(shell).not.toContain("contentOpacity");
+    expect(shell).toContain("export function TabsShell");
     expect(shell).toContain("usePremiumPalette");
     expect(shell).toContain("haptic.light");
   });
@@ -39,6 +41,8 @@ describe("premium ui contract", () => {
     const appUi = read("components/pharmagarde/app-ui.tsx");
 
     expect(tabsLayout).not.toContain("GlobalAppShell");
+    expect(tabsLayout).toContain("<TabsShell>");
+    expect(read("components/pharmagarde/app-shell.tsx")).toContain("if (insideTabs) return <>{props.children}</>;");
     expect(appUi).toContain("return <GlobalAppShell subtitle={subtitle} hideHeaderSearch={hideHeaderSearch}>{children}</GlobalAppShell>;");
   });
 

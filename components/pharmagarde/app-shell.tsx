@@ -1,10 +1,11 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "expo-router";
-import { PropsWithChildren, ReactNode, useEffect, useMemo, useState } from "react";
+import { PropsWithChildren, ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { FavoriteBorderIcon, MenuIcon } from "@/components/pharmagarde/header-icons";
 import { MenuContent } from "@/components/pharmagarde/menu-content";
 import { ScreenContainer } from "@/components/screen-container";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
@@ -37,6 +38,7 @@ function titleForPath(pathname: string, subtitle?: string) {
   if (pathname.includes("contribution")) return "Contribution";
   if (pathname.includes("info")) return "Informations";
   if (pathname.includes("ville")) return "Ville";
+  if (pathname === "/" || pathname.endsWith("/index")) return "Accueil";
   return "PharmaGarde BF";
 }
 
@@ -60,14 +62,14 @@ function AppHeader({ title, onOpenMenu, rightAccessory, hideSearch = false }: { 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Ouvrir le menu"
-        android_ripple={{ color: "rgba(255, 255, 255, 0.28)", borderless: true }}
+        android_ripple={{ color: "rgba(0, 128, 0, 0.16)", borderless: false }}
         style={({ pressed }) => [styles.headerButton, styles.headerButtonOnGreen, pressed ? styles.pressedScale : undefined]}
         onPress={() => {
           haptic.light();
           onOpenMenu();
         }}
       >
-        <MaterialIcons name="menu" size={24} color={palette.brand} />
+        <MenuIcon size={24} color={palette.brand} />
       </Pressable>
 
       {hideSearch ? (
@@ -96,14 +98,14 @@ function AppHeader({ title, onOpenMenu, rightAccessory, hideSearch = false }: { 
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Ouvrir les favoris"
-          android_ripple={{ color: "rgba(255, 255, 255, 0.28)", borderless: true }}
+          android_ripple={{ color: "rgba(0, 128, 0, 0.16)", borderless: false }}
           style={({ pressed }) => [styles.headerButton, styles.headerButtonOnGreen, pressed ? styles.pressedScale : undefined]}
           onPress={() => {
             haptic.selection();
             router.push("/pharmagarde/favoris" as never);
           }}
         >
-          <MaterialIcons name="favorite-border" size={23} color={palette.brand} />
+          <FavoriteBorderIcon size={23} color={palette.brand} />
         </Pressable>
       </View>
     </View>
@@ -192,28 +194,44 @@ function DrawerOverlay({ visible, onClose }: { visible: boolean; onClose: () => 
   );
 }
 
-export function GlobalAppShell({ children, subtitle, showFooter = true, rightAccessory, hideHeaderSearch = false }: ShellProps) {
+/** Vrai à l'intérieur des onglets : le cadre (en-tête, pied de page) y est déjà affiché par TabsShell. */
+const TabsShellContext = createContext(false);
+
+function AppShellFrame({ children, subtitle, showFooter = true, rightAccessory, hideHeaderSearch = false }: ShellProps) {
   const pathname = usePathname();
   const palette = usePremiumPalette();
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [contentOpacity] = useState(() => new Animated.Value(1));
   const title = useMemo(() => titleForPath(pathname, subtitle), [pathname, subtitle]);
-
-  useEffect(() => {
-    contentOpacity.setValue(0.94);
-    Animated.timing(contentOpacity, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-  }, [contentOpacity, pathname]);
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} className="" containerClassName="">
       <View style={[styles.shell, { backgroundColor: palette.background }]}> 
         <AppHeader title={title} onOpenMenu={() => setDrawerVisible(true)} rightAccessory={rightAccessory} hideSearch={hideHeaderSearch} />
-        <Animated.View style={[styles.content, { backgroundColor: palette.background, opacity: contentOpacity }]}>{children}</Animated.View>
+        <View style={[styles.content, { backgroundColor: palette.background }]}>{children}</View>
         {showFooter ? <AppFooter /> : null}
         <DrawerOverlay visible={drawerVisible} onClose={() => setDrawerVisible(false)} />
       </View>
     </ScreenContainer>
   );
+}
+
+/**
+ * Cadre commun aux onglets du pied de page, monté une seule fois : changer d'onglet ne remplace que
+ * le contenu, sans recréer l'en-tête ni le pied de page (ce qui faisait sauter l'écran à la première
+ * ouverture de chaque onglet).
+ */
+export function TabsShell({ children }: PropsWithChildren) {
+  return (
+    <TabsShellContext.Provider value>
+      <AppShellFrame>{children}</AppShellFrame>
+    </TabsShellContext.Provider>
+  );
+}
+
+export function GlobalAppShell(props: ShellProps) {
+  const insideTabs = useContext(TabsShellContext);
+  if (insideTabs) return <>{props.children}</>;
+  return <AppShellFrame {...props} />;
 }
 
 export function AppChrome({ children, subtitle, hideHeaderSearch }: PropsWithChildren<{ subtitle?: string; hideHeaderSearch?: boolean }>) {
@@ -243,7 +261,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
+    overflow: "hidden",
   },
   headerButtonOnGreen: { backgroundColor: "#DDFBE8", borderColor: "#B7F3CE" },
   pressedScale: { opacity: 0.88, transform: [{ scale: 0.97 }] },

@@ -22,7 +22,7 @@ function favoriteFromPlace(place: HealthPlace): FavoriteItem {
     entityType: place.type,
     title: place.name,
     subtitle: place.address ?? place.city,
-    metadata: place.distanceLabel ?? (place.onDuty === true ? "De garde" : place.isOpen === true ? "Ouvert" : undefined),
+    metadata: place.distanceLabel ?? (place.onDuty === true ? "Garde" : place.isOpen === true ? "Ouvert" : undefined),
     phone: place.phone,
     rating: place.rating,
     latitude: place.latitude,
