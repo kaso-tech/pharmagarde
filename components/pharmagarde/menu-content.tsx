@@ -105,9 +105,9 @@ export function MenuContent({ onClose }: MenuContentProps) {
         <DrawerSection title="Contribution">
           <DrawerActionRow
             icon="add-business"
-            title="Nouvelle Pharmacie"
-            active={pathname.includes("nouvelle-pharmacie")}
-            onPress={() => navigate("/pharmagarde/contribution/nouvelle-pharmacie")}
+            title="Nouvel établissement"
+            active={pathname.includes("nouvel-etablissement")}
+            onPress={() => navigate("/pharmagarde/contribution/nouvel-etablissement")}
           />
           <DrawerActionRow
             icon="report-problem"

@@ -13,7 +13,7 @@ describe("drawer PharmaGarde", () => {
       expect(menu).toContain(`title=\"${section}\"`);
     }
 
-    for (const label of ["Mode sombre", "Langue", "Type de carte", "Ville", "Nouvelle Pharmacie", "Signaler un problème", "Abonnement"]) {
+    for (const label of ["Mode sombre", "Langue", "Type de carte", "Ville", "Nouvel établissement", "Signaler un problème", "Abonnement"]) {
       expect(menu).toContain(label);
     }
 
@@ -42,7 +42,7 @@ describe("drawer PharmaGarde", () => {
     expect(menu).toContain("updatePreference(\"mapType\"");
     expect(menu).toContain("updatePreference(\"city\"");
     expect(menu).not.toContain("/pharmagarde/ville");
-    expect(menu).toContain("/pharmagarde/contribution/nouvelle-pharmacie");
+    expect(menu).toContain("/pharmagarde/contribution/nouvel-etablissement");
     expect(menu).toContain("/pharmagarde/contribution/signaler-probleme");
     expect(menu).toContain("/pharmagarde/info/");
     expect(menu).toContain("/pharmagarde/abonnement");
