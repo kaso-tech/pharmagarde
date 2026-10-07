@@ -9,6 +9,7 @@ import { DEFAULT_WEEKLY_HOURS, WEEK_DAYS, WEEK_DAY_LABELS, formatWeeklyHours, va
 import { LocationPicker } from "@/components/pharmagarde/location-picker";
 import { WeeklyHoursEditor, cloneHours } from "@/components/pharmagarde/weekly-hours-editor";
 import { getKnownCityCoordinates } from "@/lib/pharmagarde/city-utils";
+import { INSURERS, formatInsurers, isInsurerId, normalizeInsurerIds, type InsurerId } from "@/lib/pharmagarde/insurances";
 import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-confirmation";
 import { haptic, premiumRadius, premiumSpacing, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 
@@ -30,6 +31,8 @@ type DirectoryForm = {
   /** « city » : horaires de la ville ; « custom » : horaires propres à l'établissement. */
   hoursMode: "city" | "custom";
   openingHours: WeeklyHours;
+  /** Assurances acceptées (identifiants de lib/pharmagarde/insurances.ts). */
+  insurances: InsurerId[];
 };
 
 /** Largeur à partir de laquelle la console passe en mise en page bureau : menu latéral fixe et tableaux. */
@@ -134,6 +137,7 @@ const EMPTY_DIRECTORY_FORM: DirectoryForm = {
   establishmentType: "Centre de santé",
   hoursMode: "city",
   openingHours: DEFAULT_WEEKLY_HOURS,
+  insurances: [],
 };
 
 const WideLayoutContext = createContext(false);
@@ -656,6 +660,27 @@ function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange, error, p
         <Field label="Type d’établissement" value={form.establishmentType} onChangeText={(value) => onChange("establishmentType", value)} />
       )}
       <View style={styles.fieldWrap}>
+        <Text style={[styles.fieldLabel, { color: palette.text }]}>Assurances acceptées</Text>
+        <View style={styles.chipWrap}>
+          {INSURERS.map((insurer) => {
+            const selected = form.insurances.includes(insurer.id);
+            return (
+              <Pressable
+                key={insurer.id}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: selected }}
+                style={({ pressed }) => [styles.chip, { borderColor: selected ? palette.brand : palette.border, backgroundColor: selected ? palette.softGreen : palette.card }, pressed && styles.pressed]}
+                onPress={() => onChange("insurances", selected ? form.insurances.filter((id) => id !== insurer.id) : [...form.insurances, insurer.id])}
+              >
+                {selected ? <MaterialIcons name="check" size={14} color={palette.brand} /> : null}
+                <Text style={[styles.chipText, { color: selected ? palette.brand : palette.text }]}>{insurer.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={[styles.fieldHint, { color: palette.muted }]}>{form.insurances.length ? `${form.insurances.length} assurance${form.insurances.length > 1 ? "s" : ""} : ${formatInsurers(form.insurances)}` : "Aucune assurance renseignée."}</Text>
+      </View>
+      <View style={styles.fieldWrap}>
         <Text style={[styles.fieldLabel, { color: palette.text }]}>Horaires de service</Text>
         <SegmentControl
           value={form.hoursMode}
@@ -701,6 +726,7 @@ const DIRECTORY_COLUMNS: readonly Column[] = [
   { key: "city", label: "Ville", flex: 1.2 },
   { key: "group", label: "Groupe / type", flex: 1.2 },
   { key: "phone", label: "Téléphone", flex: 1.3 },
+  { key: "insurances", label: "Assurances", flex: 1.3 },
   { key: "source", label: "Source", flex: 1 },
   { key: "actions", label: "", width: 92, align: "right" },
 ];
@@ -714,14 +740,15 @@ function Directory() {
   const [status, setStatus] = useState<"active" | "archived">("active");
   const [city, setCity] = useState("");
   const [dutyGroup, setDutyGroup] = useState<DutyGroupFilter>("all");
+  const [insurance, setInsurance] = useState("");
   const [form, setForm] = useState<DirectoryForm>(EMPTY_DIRECTORY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; kind: DirectoryKind; name: string } | null>(null);
   const debouncedSearch = useDebouncedValue(search.trim());
   const effectiveGroup = kind === "healthcare" ? "all" : dutyGroup;
-  const [page, setPage] = usePage([kind, debouncedSearch, status, city, effectiveGroup].join("|"));
+  const [page, setPage] = usePage([kind, debouncedSearch, status, city, effectiveGroup, insurance].join("|"));
   const directory = trpc.admin.directory.list.useQuery(
-    { kind, search: debouncedSearch || undefined, status, city: city || undefined, dutyGroup: effectiveGroup, page, limit: PAGE_SIZE },
+    { kind, search: debouncedSearch || undefined, status, city: city || undefined, dutyGroup: effectiveGroup, insurance: isInsurerId(insurance) ? insurance : undefined, page, limit: PAGE_SIZE },
     { retry: 1, placeholderData: (previous) => previous },
   );
   const upsert = trpc.admin.directory.upsert.useMutation({
@@ -761,7 +788,7 @@ function Directory() {
   };
   const openEdit = (item: DirectoryItem) => {
     upsert.reset();
-    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS });
+    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS, insurances: normalizeInsurerIds(item.insurances) });
     setShowForm(true);
   };
   const submit = () => {
@@ -777,6 +804,7 @@ function Directory() {
       dutyGroup: form.kind === "pharmacy" && form.dutyGroup ? Number(form.dutyGroup) : null,
       establishmentType: form.kind === "healthcare" ? form.establishmentType || null : null,
       openingHours: form.hoursMode === "custom" ? form.openingHours : null,
+      insurances: form.insurances,
     });
   };
 
@@ -806,6 +834,7 @@ function Directory() {
         <View style={[styles.filterRow, wide && styles.filterRowWide]}>
           <SelectField label="Ville" style={styles.filterSelect} value={city} options={cityFilterOptions} onChange={setCity} />
           {kind !== "healthcare" ? <SelectField label="Groupe de garde" style={styles.filterSelect} value={dutyGroup} options={DUTY_GROUP_FILTER_OPTIONS} onChange={(value) => setDutyGroup(value as DutyGroupFilter)} /> : null}
+          <SelectField label="Assurance" style={styles.filterSelect} value={insurance} options={[{ value: "", label: "Toutes les assurances" }, ...INSURERS.map((insurer) => ({ value: insurer.id, label: insurer.label }))]} onChange={setInsurance} />
           <SegmentControl style={wide ? styles.statusSegment : undefined} value={status} onChange={(value) => setStatus(value as "active" | "archived")} options={[{ value: "active", label: "Publiées" }, { value: "archived", label: "Archivées" }]} />
         </View>
         {restore.error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{restore.error.message}</Text> : null}
@@ -836,6 +865,8 @@ function Directory() {
                     return <CellText muted={item.kind === "pharmacy" && !item.dutyGroup}>{groupLabel(item)}</CellText>;
                   case "phone":
                     return <CellText>{item.phone ?? "—"}</CellText>;
+                  case "insurances":
+                    return <CellText muted={!item.insurances.length} small>{item.insurances.length ? formatInsurers(item.insurances) : "—"}</CellText>;
                   case "source":
                     return <SourceBadge item={item} />;
                   case "actions":
@@ -1316,6 +1347,9 @@ const styles = StyleSheet.create({
   selectOption: { minHeight: 44, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   selectOptionText: { fontSize: 14, lineHeight: 19, fontWeight: "700" },
   fieldHint: { fontSize: 12, lineHeight: 17, fontWeight: "600" },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chip: { minHeight: 32, borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 4 },
+  chipText: { fontSize: 12, lineHeight: 16, fontWeight: "800" },
   dutyGrid: { gap: 14 },
   hoursCardWide: { flexBasis: 320, flexGrow: 1, maxWidth: 460 },
   hoursSummaryRow: { flexDirection: "row", alignItems: "center", gap: 8 },

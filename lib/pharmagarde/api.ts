@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Coordinates, HealthPlace, Medicine } from "./types";
 import { normalizeCityName } from "./city-utils";
+import { normalizeInsurerIds } from "./insurances";
 import { parseWeeklyHours } from "./opening-hours";
 
 const DEFAULT_TIMEOUT_MS = 12000;
@@ -111,6 +112,7 @@ function normalizePlace(raw: Record<string, unknown>, type: "pharmacy" | "clinic
     dutyStart: getString(raw, ["dutyStart"]),
     dutyEnd: getString(raw, ["dutyEnd"]),
     serviceHours: parseWeeklyHours(raw.serviceHours) ?? undefined,
+    insurances: normalizeInsurerIds(raw.insurances),
   };
 }
 

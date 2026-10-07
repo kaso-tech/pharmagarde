@@ -26,6 +26,7 @@ function entry(value: Partial<DirectoryEntry> & Pick<DirectoryEntry, "id" | "kin
     dutyGroup: null,
     establishmentType: null,
     openingHours: null,
+    insurances: null,
     createdAt: new Date("2026-10-06T10:00:00.000Z"),
     updatedAt: new Date("2026-10-06T10:00:00.000Z"),
     ...value,

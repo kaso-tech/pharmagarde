@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { DirectoryEntry } from "../drizzle/schema";
+import { INSURER_IDS, normalizeInsurerIds } from "../lib/pharmagarde/insurances";
 import { WEEK_DAYS, parseWeeklyHours, validateWeeklyHours, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { SUPPORTED_CITIES, getCacheState, type CachedHealthPlace } from "./pharmagarde-cache";
 import { DUTY_GROUPS, isInBurkinaFaso, loadPharmacyDirectory, normalizeBurkinaPhone, slugify } from "./pharmacy-directory";
@@ -22,6 +23,8 @@ export type AdminDirectoryItem = {
   establishmentType: string | null;
   /** Horaires propres ; null = horaires de la ville. */
   openingHours: WeeklyHours | null;
+  /** Assurances acceptées (identifiants de lib/pharmagarde/insurances.ts). */
+  insurances: string[];
   source: "annuaire" | "cache" | "admin";
   managed: boolean;
   updatedAt: string | null;
@@ -51,6 +54,8 @@ export const directoryUpsertSchema = z
     establishmentType: z.string().trim().max(64).nullable().optional(),
     /** Horaires propres ; null ou absent = horaires de la ville. */
     openingHours: weeklyHoursSchema.nullable().optional(),
+    /** Assurances acceptées ; vide = aucune assurance renseignée. */
+    insurances: z.array(z.enum(INSURER_IDS)).max(INSURER_IDS.length).optional(),
   })
   .superRefine((value, ctx) => {
     const hasLatitude = value.latitude !== null && value.latitude !== undefined;
@@ -99,6 +104,7 @@ export type NormalizedDirectoryUpsert = {
   dutyGroup: number | null;
   establishmentType: string | null;
   openingHours: string | null;
+  insurances: string | null;
 };
 
 function compact(value: string) {
@@ -134,6 +140,7 @@ export function normalizeDirectoryUpsert(input: DirectoryUpsertInput, knownCitie
     dutyGroup: input.kind === "pharmacy" ? input.dutyGroup ?? null : null,
     establishmentType: input.kind === "healthcare" ? input.establishmentType ?? "Centre de santé" : "Pharmacie",
     openingHours: input.openingHours ? JSON.stringify(input.openingHours) : null,
+    insurances: input.insurances?.length ? JSON.stringify(normalizeInsurerIds(input.insurances)) : null,
   };
 }
 
@@ -157,6 +164,7 @@ function pharmacyItems(directory: Awaited<ReturnType<typeof loadPharmacyDirector
     dutyGroup: item.dutyGroup,
     establishmentType: "Pharmacie",
     openingHours: null,
+    insurances: [],
     source: "annuaire",
     managed: false,
     updatedAt: directory.updatedAt,
@@ -177,6 +185,7 @@ function healthcareItems(items: CachedHealthPlace[]): AdminDirectoryItem[] {
     dutyGroup: null,
     establishmentType: item.type,
     openingHours: null,
+    insurances: [],
     source: "cache",
     managed: false,
     updatedAt: item.updatedAt ?? null,
@@ -215,6 +224,7 @@ export function mergeAdminDirectoryItems(baseItems: AdminDirectoryItem[], overri
       dutyGroup: kind === "pharmacy" ? override.dutyGroup ?? null : null,
       establishmentType: override.establishmentType ?? current?.establishmentType ?? (kind === "pharmacy" ? "Pharmacie" : "Centre de santé"),
       openingHours: parseWeeklyHours(override.openingHours),
+      insurances: normalizeInsurerIds(override.insurances),
       source: "admin",
       managed: true,
       updatedAt: toIso(override.updatedAt),
@@ -232,6 +242,8 @@ export type AdminDirectoryFilter = {
   city?: string;
   /** « none » : pharmacies sans groupe de garde. */
   dutyGroup?: "all" | "none" | "1" | "2" | "3" | "4";
+  /** Identifiant d'assurance acceptée. */
+  insurance?: string;
 };
 
 export function filterAdminDirectoryItems(items: AdminDirectoryItem[], input: AdminDirectoryFilter) {
@@ -244,6 +256,7 @@ export function filterAdminDirectoryItems(items: AdminDirectoryItem[], input: Ad
     if (cityKey && cityMatchKey(item.city) !== cityKey) return false;
     if (dutyGroup === "none" && (item.kind !== "pharmacy" || item.dutyGroup !== null)) return false;
     if (dutyGroup !== "all" && dutyGroup !== "none" && item.dutyGroup !== Number(dutyGroup)) return false;
+    if (input.insurance && !item.insurances.includes(input.insurance)) return false;
     if (!search) return true;
     return [item.name, item.city, item.phone ?? "", item.address ?? "", item.establishmentType ?? ""].some((value) => value.toLocaleLowerCase("fr").includes(search));
   });

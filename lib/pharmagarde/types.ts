@@ -33,6 +33,8 @@ export type HealthPlace = {
   dutyEnd?: string;
   /** Horaires de service de la semaine (horaires propres ou de la ville), pour recalculer le statut. */
   serviceHours?: WeeklyHours;
+  /** Assurances acceptées (identifiants de lib/pharmagarde/insurances.ts). */
+  insurances?: string[];
 };
 
 export type MedicineAgeCategory = "Enfant" | "Adulte" | "Tous";
