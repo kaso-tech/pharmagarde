@@ -39,14 +39,30 @@ export type HealthPlace = {
 
 export type MedicineAgeCategory = "Enfant" | "Adulte" | "Tous";
 
+/** Liste de la Liste nationale des produits essentiels de santé à laquelle appartient le produit. */
+export type MedicineProductType = "Médicaments enfants" | "Médicaments adultes" | "Intrants nutritionnels" | "Dispositifs médicaux";
+
 export type Medicine = {
   id: string;
   type: "medicine";
   name: string;
+  /** Type de produit (liste d'origine). */
+  productType?: MedicineProductType;
+  /** Catégorie : groupe pharmaco-thérapeutique ou catégorie de dispositifs (ex. « 6. ANTI-INFECTIEUX »). */
   category?: string;
+  /** Sous-catégorie (ex. « 6.2.1 Antibiotiques du groupe Access »). */
+  subcategory?: string;
   ageCategory?: MedicineAgeCategory;
+  /** Forme pharmaceutique (comprimé, injectable…). */
   pharmaceuticalType?: string;
+  dosage?: string;
+  /** Prix approximatif en FCFA, ou bas de la fourchette lorsque priceMax est renseigné. */
   priceApprox?: number;
+  priceMax?: number;
+  /** Unité à laquelle s'applique le prix (ex. « par comprimé »). */
+  priceUnit?: string;
+  /** Prix public officiel fixé par arrêté (sinon estimation). */
+  priceOfficial?: boolean;
   description?: string;
   imageUrl?: string;
 };

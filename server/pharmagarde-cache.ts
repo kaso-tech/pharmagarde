@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response } from "express";
 import { timingSafeEqual } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -9,7 +10,8 @@ import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-over
 import { formatWeeklyHours, isOpenAt, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { getCityHoursLookup } from "./city-hours";
 import { DUTY_ROTATIONS, dutyStatusAt, dutyWeekAt, findDutyRotation } from "./duty-roster";
-import { ESSENTIAL_MEDICINES, MEDICINES_NOTICE } from "./medicines-data";
+import type { Medicine } from "../lib/pharmagarde/types";
+import { getEssentialMedicines, MEDICINES_NOTICE } from "./medicines-data";
 import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
@@ -674,12 +676,36 @@ async function sendMedicinesDataset(req: Request, res: Response) {
     return;
   }
 
-  res.json({
-    medicaments: ESSENTIAL_MEDICINES,
-    medicines: ESSENTIAL_MEDICINES,
-    data: ESSENTIAL_MEDICINES,
-    meta: { premiumRequired: true, itemCount: ESSENTIAL_MEDICINES.length, notice: MEDICINES_NOTICE },
-  });
+  let response: MedicinesResponse;
+  try {
+    response = getMedicinesResponse();
+  } catch (error) {
+    console.error("[Médicaments] Catalogue illisible :", error instanceof Error ? error.message : error);
+    res.status(503).json({ error: "MEDICINES_UNAVAILABLE", message: "Catalogue des médicaments momentanément indisponible." });
+    return;
+  }
+  res.setHeader("Vary", "Accept-Encoding");
+  // Près de 1 800 produits (~650 Ko) : la réponse est envoyée compressée aux clients qui l'acceptent.
+  if (/\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""))) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Encoding", "gzip");
+    res.end(response.gzip);
+    return;
+  }
+  res.json(response.payload);
+}
+
+type MedicinesResponse = { payload: { medicaments: Medicine[]; meta: { premiumRequired: true; itemCount: number; notice: string } }; gzip: Buffer };
+let medicinesResponse: MedicinesResponse | null = null;
+
+/** Réponse préparée une seule fois : le catalogue versionné ne change qu'au redéploiement. */
+function getMedicinesResponse(): MedicinesResponse {
+  if (!medicinesResponse) {
+    const medicines = getEssentialMedicines();
+    const payload = { medicaments: medicines, meta: { premiumRequired: true as const, itemCount: medicines.length, notice: MEDICINES_NOTICE } };
+    medicinesResponse = { payload, gzip: gzipSync(JSON.stringify(payload)) };
+  }
+  return medicinesResponse;
 }
 
 function safeEqual(a: string, b: string) {

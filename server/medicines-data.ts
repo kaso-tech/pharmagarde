@@ -1,449 +1,63 @@
-import type { Medicine } from "../lib/pharmagarde/types";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import type { Medicine, MedicineProductType } from "../lib/pharmagarde/types";
 
 // S12 : catalogue servi uniquement par le serveur (GET /medicaments) aux abonnés Premium. Il n'est
-// plus embarqué dans l'app, où il était lisible sans abonnement.
+// pas embarqué dans l'app, où il serait lisible sans abonnement.
+//
+// Source : Liste nationale des médicaments et autres produits essentiels de santé du Burkina Faso
+// (édition 2023), versionnée dans server/data/medicines.json et générée à partir du tableur par
+// `pnpm import:medicines chemin/vers/liste.xlsx`.
 
-export const ESSENTIAL_MEDICINES: Medicine[] = [
-  {
-    id: "paracetamol-500mg",
-    type: "medicine",
-    name: "Paracétamol 500 mg",
-    category: "Antalgique et antipyrétique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 300,
-    description: "Traitement symptomatique de la douleur légère à modérée et de la fièvre.",
-  },
-  {
-    id: "paracetamol-sirop",
-    type: "medicine",
-    name: "Paracétamol pédiatrique",
-    category: "Antalgique et antipyrétique",
-    ageCategory: "Enfant",
-    pharmaceuticalType: "Sirop",
-    priceApprox: 850,
-    description: "Forme pédiatrique utilisée contre la fièvre et les douleurs de l’enfant selon le poids.",
-  },
-  {
-    id: "ibuprofene-400mg",
-    type: "medicine",
-    name: "Ibuprofène 400 mg",
-    category: "Anti-inflammatoire",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 600,
-    description: "Anti-inflammatoire non stéroïdien utilisé pour douleurs, inflammation et fièvre lorsque non contre-indiqué.",
-  },
-  {
-    id: "amoxicilline-500mg",
-    type: "medicine",
-    name: "Amoxicilline 500 mg",
-    category: "Antibiotique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Gélule",
-    priceApprox: 1500,
-    description: "Antibiotique de la famille des pénicillines, délivré sur avis médical.",
-  },
-  {
-    id: "amoxicilline-sirop",
-    type: "medicine",
-    name: "Amoxicilline pédiatrique",
-    category: "Antibiotique",
-    ageCategory: "Enfant",
-    pharmaceuticalType: "Suspension buvable",
-    priceApprox: 1800,
-    description: "Suspension pédiatrique à utiliser uniquement sur prescription et selon le poids de l’enfant.",
-  },
-  {
-    id: "amoxicilline-acide-clavulanique",
-    type: "medicine",
-    name: "Amoxicilline + acide clavulanique",
-    category: "Antibiotique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Comprimé / suspension",
-    priceApprox: 3500,
-    description: "Association antibiotique utilisée sur prescription pour certaines infections bactériennes.",
-  },
-  {
-    id: "azithromycine-500mg",
-    type: "medicine",
-    name: "Azithromycine 500 mg",
-    category: "Antibiotique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 2500,
-    description: "Macrolide prescrit pour certaines infections bactériennes respiratoires ou génitales.",
-  },
-  {
-    id: "metronidazole-250mg",
-    type: "medicine",
-    name: "Métronidazole 250 mg",
-    category: "Antibiotique / antiparasitaire",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 700,
-    description: "Traitement de certaines infections digestives, gynécologiques ou parasitaires sur avis médical.",
-  },
-  {
-    id: "ciprofloxacine-500mg",
-    type: "medicine",
-    name: "Ciprofloxacine 500 mg",
-    category: "Antibiotique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 1600,
-    description: "Fluoroquinolone réservée à certaines infections bactériennes, à utiliser sur prescription.",
-  },
-  {
-    id: "doxycycline-100mg",
-    type: "medicine",
-    name: "Doxycycline 100 mg",
-    category: "Antibiotique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 900,
-    description: "Cycline utilisée dans certaines infections et indications spécifiques selon décision médicale.",
-  },
-  {
-    id: "artemether-lumefantrine-adulte",
-    type: "medicine",
-    name: "Artéméther + luméfantrine adulte",
-    category: "Antipaludique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 1200,
-    description: "Association antipaludique couramment utilisée pour le paludisme simple selon protocole national.",
-  },
-  {
-    id: "artemether-lumefantrine-enfant",
-    type: "medicine",
-    name: "Artéméther + luméfantrine enfant",
-    category: "Antipaludique",
-    ageCategory: "Enfant",
-    pharmaceuticalType: "Comprimé dispersible",
-    priceApprox: 900,
-    description: "Forme pédiatrique d’association antipaludique, administrée selon le poids et le protocole médical.",
-  },
-  {
-    id: "artesunate-injectable",
-    type: "medicine",
-    name: "Artésunate injectable",
-    category: "Antipaludique d’urgence",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Injectable",
-    priceApprox: 2500,
-    description: "Médicament hospitalier utilisé pour le paludisme grave sous surveillance médicale.",
-  },
-  {
-    id: "quinine-injectable",
-    type: "medicine",
-    name: "Quinine injectable",
-    category: "Antipaludique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Injectable",
-    priceApprox: 1800,
-    description: "Antipaludique utilisé dans des indications spécifiques en milieu de soins.",
-  },
-  {
-    id: "sro-sachet",
-    type: "medicine",
-    name: "Sels de réhydratation orale",
-    category: "Réhydratation",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Sachet",
-    priceApprox: 150,
-    description: "Solution de réhydratation utilisée en cas de diarrhée pour prévenir la déshydratation.",
-  },
-  {
-    id: "zinc-20mg",
-    type: "medicine",
-    name: "Zinc 20 mg",
-    category: "Supplémentation",
-    ageCategory: "Enfant",
-    pharmaceuticalType: "Comprimé dispersible",
-    priceApprox: 500,
-    description: "Complément souvent associé à la prise en charge de la diarrhée chez l’enfant.",
-  },
-  {
-    id: "albendazole-400mg",
-    type: "medicine",
-    name: "Albendazole 400 mg",
-    category: "Antiparasitaire",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 250,
-    description: "Traitement de certaines parasitoses intestinales selon les recommandations de santé publique.",
-  },
-  {
-    id: "mebendazole-100mg",
-    type: "medicine",
-    name: "Mébendazole 100 mg",
-    category: "Antiparasitaire",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 350,
-    description: "Anthelminthique indiqué contre différents vers intestinaux selon avis de santé.",
-  },
-  {
-    id: "cotrimoxazole-480mg",
-    type: "medicine",
-    name: "Cotrimoxazole 480 mg",
-    category: "Antibiotique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Comprimé / suspension",
-    priceApprox: 900,
-    description: "Association sulfaméthoxazole-triméthoprime utilisée dans certaines infections sur prescription.",
-  },
-  {
-    id: "ceftriaxone-injectable",
-    type: "medicine",
-    name: "Ceftriaxone injectable",
-    category: "Antibiotique injectable",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Injectable",
-    priceApprox: 1200,
-    description: "Céphalosporine injectable réservée aux soins encadrés par un professionnel de santé.",
-  },
-  {
-    id: "gentamicine-injectable",
-    type: "medicine",
-    name: "Gentamicine injectable",
-    category: "Antibiotique injectable",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Injectable",
-    priceApprox: 700,
-    description: "Aminoside utilisé en milieu de soins avec surveillance adaptée.",
-  },
-  {
-    id: "salbutamol-inhalateur",
-    type: "medicine",
-    name: "Salbutamol inhalateur",
-    category: "Bronchodilatateur",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Inhalateur",
-    priceApprox: 3500,
-    description: "Traitement de secours des crises d’asthme ou bronchospasmes selon prescription.",
-  },
-  {
-    id: "cetirizine-10mg",
-    type: "medicine",
-    name: "Cétirizine 10 mg",
-    category: "Antihistaminique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Comprimé / sirop",
-    priceApprox: 800,
-    description: "Antiallergique utilisé contre rhinite allergique, urticaire ou démangeaisons.",
-  },
-  {
-    id: "loratadine-10mg",
-    type: "medicine",
-    name: "Loratadine 10 mg",
-    category: "Antihistaminique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 900,
-    description: "Antihistaminique non sédatif pour symptômes allergiques.",
-  },
-  {
-    id: "omeprazole-20mg",
-    type: "medicine",
-    name: "Oméprazole 20 mg",
-    category: "Antiulcéreux",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Gélule",
-    priceApprox: 1000,
-    description: "Inhibiteur de la pompe à protons utilisé contre reflux gastrique et ulcères selon indication.",
-  },
-  {
-    id: "fer-acide-folique",
-    type: "medicine",
-    name: "Fer + acide folique",
-    category: "Supplémentation",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 600,
-    description: "Supplémentation utilisée notamment en prévention ou prise en charge de l’anémie et pendant la grossesse.",
-  },
-  {
-    id: "vitamine-a-capsule",
-    type: "medicine",
-    name: "Vitamine A",
-    category: "Supplémentation",
-    ageCategory: "Enfant",
-    pharmaceuticalType: "Capsule",
-    priceApprox: 250,
-    description: "Supplément de santé publique utilisé pour prévenir la carence en vitamine A.",
-  },
-  {
-    id: "folic-acid-5mg",
-    type: "medicine",
-    name: "Acide folique 5 mg",
-    category: "Supplémentation",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 400,
-    description: "Supplément indiqué dans certaines anémies et pendant la grossesse selon avis médical.",
-  },
-  {
-    id: "metformine-500mg",
-    type: "medicine",
-    name: "Metformine 500 mg",
-    category: "Antidiabétique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 1200,
-    description: "Médicament de référence du diabète de type 2, à prendre selon prescription et suivi glycémique.",
-  },
-  {
-    id: "glibenclamide-5mg",
-    type: "medicine",
-    name: "Glibenclamide 5 mg",
-    category: "Antidiabétique",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 700,
-    description: "Sulfamide hypoglycémiant utilisé dans certains diabètes de type 2 sous surveillance médicale.",
-  },
-  {
-    id: "amlodipine-5mg",
-    type: "medicine",
-    name: "Amlodipine 5 mg",
-    category: "Antihypertenseur",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 1000,
-    description: "Inhibiteur calcique utilisé dans l’hypertension artérielle selon prescription.",
-  },
-  {
-    id: "hydrochlorothiazide-25mg",
-    type: "medicine",
-    name: "Hydrochlorothiazide 25 mg",
-    category: "Antihypertenseur",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 650,
-    description: "Diurétique utilisé dans l’hypertension ou certains œdèmes sous contrôle médical.",
-  },
-  {
-    id: "captopril-25mg",
-    type: "medicine",
-    name: "Captopril 25 mg",
-    category: "Antihypertenseur",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 900,
-    description: "Inhibiteur de l’enzyme de conversion utilisé dans l’hypertension et certaines urgences encadrées.",
-  },
-  {
-    id: "aspirine-100mg",
-    type: "medicine",
-    name: "Aspirine 100 mg",
-    category: "Antiagrégant",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 500,
-    description: "Dose antiagrégante utilisée dans certaines indications cardiovasculaires sur prescription.",
-  },
-  {
-    id: "chlorhexidine-solution",
-    type: "medicine",
-    name: "Chlorhexidine",
-    category: "Antiseptique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Solution",
-    priceApprox: 900,
-    description: "Antiseptique local pour soins cutanés, plaies superficielles ou soins du cordon selon indication.",
-  },
-  {
-    id: "povidone-iodee",
-    type: "medicine",
-    name: "Povidone iodée",
-    category: "Antiseptique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Solution",
-    priceApprox: 1000,
-    description: "Antiseptique cutané utilisé pour la désinfection de plaies ou préparation de soins.",
-  },
-  {
-    id: "hydrocortisone-creme",
-    type: "medicine",
-    name: "Hydrocortisone 1 %",
-    category: "Dermatologie",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Crème",
-    priceApprox: 1200,
-    description: "Corticoïde local faible utilisé brièvement pour certaines inflammations cutanées.",
-  },
-  {
-    id: "clotrimazole-creme",
-    type: "medicine",
-    name: "Clotrimazole 1 %",
-    category: "Antifongique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Crème",
-    priceApprox: 1000,
-    description: "Antifongique local utilisé contre certaines mycoses cutanées.",
-  },
-  {
-    id: "nystatine-suspension",
-    type: "medicine",
-    name: "Nystatine suspension",
-    category: "Antifongique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Suspension buvable",
-    priceApprox: 1600,
-    description: "Traitement de certaines candidoses buccales ou digestives selon prescription.",
-  },
-  {
-    id: "diazepam-injectable",
-    type: "medicine",
-    name: "Diazépam injectable",
-    category: "Urgence neurologique",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Injectable",
-    priceApprox: 900,
-    description: "Médicament d’urgence utilisé contre certaines convulsions en milieu encadré.",
-  },
-  {
-    id: "adrenaline-injectable",
-    type: "medicine",
-    name: "Adrénaline injectable",
-    category: "Urgence",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Injectable",
-    priceApprox: 1000,
-    description: "Médicament d’urgence utilisé notamment dans l’anaphylaxie ou la réanimation sous surveillance.",
-  },
-  {
-    id: "glucose-iv",
-    type: "medicine",
-    name: "Glucose injectable",
-    category: "Perfusion",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Solution injectable",
-    priceApprox: 750,
-    description: "Solution de perfusion utilisée en milieu de soins selon indication clinique.",
-  },
-  {
-    id: "ringer-lactate",
-    type: "medicine",
-    name: "Ringer lactate",
-    category: "Perfusion",
-    ageCategory: "Tous",
-    pharmaceuticalType: "Solution injectable",
-    priceApprox: 900,
-    description: "Solution de remplissage utilisée pour réhydratation ou prise en charge en milieu de soins.",
-  },
-  {
-    id: "contraceptif-oral-combine",
-    type: "medicine",
-    name: "Contraceptif oral combiné",
-    category: "Santé reproductive",
-    ageCategory: "Adulte",
-    pharmaceuticalType: "Comprimé",
-    priceApprox: 1000,
-    description: "Méthode contraceptive hormonale à choisir avec un professionnel de santé selon le profil médical.",
-  },
-];
+export const MEDICINES_CATALOG_PATH = process.env.PHARMAGARDE_MEDICINES_CATALOG ?? path.join(process.cwd(), "server", "data", "medicines.json");
 
-export const MEDICINES_NOTICE = "Liste locale indicative de médicaments essentiels courants au Burkina Faso avec prix approximatifs en FCFA. Les prix peuvent varier selon la ville, la disponibilité et le point de vente.";
+export const MEDICINE_PRODUCT_TYPES: readonly MedicineProductType[] = ["Médicaments enfants", "Médicaments adultes", "Intrants nutritionnels", "Dispositifs médicaux"];
+
+export type MedicinesCatalog = {
+  version: 1;
+  source: string;
+  updatedAt: string;
+  medicines: Medicine[];
+};
+
+export const MEDICINES_NOTICE =
+  "Liste nationale des médicaments et autres produits essentiels de santé du Burkina Faso (édition 2023). Prix approximatifs en FCFA, à l’unité indiquée : prix public officiel lorsqu’il est fixé par arrêté, estimation sinon. Les prix peuvent varier selon la ville, la disponibilité et le point de vente.";
+
+function fail(index: number, message: string): never {
+  throw new Error(`Catalogue des médicaments, produit ${index + 1} : ${message}`);
+}
+
+/** Vérifie le catalogue versionné : identifiants uniques, type connu, prix cohérents. */
+export function validateMedicinesCatalog(raw: unknown): MedicinesCatalog {
+  const catalog = raw as Partial<MedicinesCatalog> | null;
+  if (!catalog || catalog.version !== 1 || !Array.isArray(catalog.medicines)) throw new Error("Catalogue des médicaments illisible (version 1 attendue).");
+  const ids = new Set<string>();
+  catalog.medicines.forEach((medicine, index) => {
+    if (!medicine || typeof medicine.id !== "string" || !medicine.id) fail(index, "identifiant manquant");
+    if (ids.has(medicine.id)) fail(index, `identifiant en double (${medicine.id})`);
+    ids.add(medicine.id);
+    if (medicine.type !== "medicine" || typeof medicine.name !== "string" || !medicine.name.trim()) fail(index, "nom manquant");
+    if (!medicine.productType || !MEDICINE_PRODUCT_TYPES.includes(medicine.productType)) fail(index, `type inconnu (${String(medicine.productType)})`);
+    const { priceApprox, priceMax } = medicine;
+    if (priceApprox !== undefined && !(Number.isFinite(priceApprox) && priceApprox > 0)) fail(index, "prix invalide");
+    if (priceMax !== undefined && !(priceApprox !== undefined && Number.isFinite(priceMax) && priceMax >= priceApprox)) fail(index, "fourchette de prix invalide");
+  });
+  return { version: 1, source: String(catalog.source ?? ""), updatedAt: String(catalog.updatedAt ?? ""), medicines: catalog.medicines };
+}
+
+let loaded: MedicinesCatalog | null = null;
+
+/** Catalogue lu une seule fois depuis server/data/medicines.json. */
+export function getMedicinesCatalog(filePath = MEDICINES_CATALOG_PATH): MedicinesCatalog {
+  if (!loaded || filePath !== MEDICINES_CATALOG_PATH) {
+    const catalog = validateMedicinesCatalog(JSON.parse(readFileSync(filePath, "utf8")));
+    if (filePath !== MEDICINES_CATALOG_PATH) return catalog;
+    loaded = catalog;
+  }
+  return loaded;
+}
+
+export function getEssentialMedicines(): Medicine[] {
+  return getMedicinesCatalog().medicines;
+}

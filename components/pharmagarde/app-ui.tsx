@@ -6,6 +6,7 @@ import { Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from "re
 import { GlobalAppShell } from "@/components/pharmagarde/app-shell";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { formatInsurers } from "@/lib/pharmagarde/insurances";
+import { formatPriceRange, medicineFormLabel } from "@/lib/pharmagarde/medicines";
 import { placeHoursLabel, placeStatusLabel } from "@/lib/pharmagarde/place-ordering";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 import { CombinedSearchItem, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "@/lib/pharmagarde/types";
@@ -44,8 +45,15 @@ export function MedicalDisclaimer({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function formatMedicinePrice(priceApprox?: number) {
-  return priceApprox !== undefined ? `${priceApprox.toLocaleString("fr-FR")} FCFA` : "Prix variable";
+/** Prix en FCFA : valeur unique ou fourchette (« 1 500 – 2 500 FCFA »). */
+export function formatMedicinePrice(priceApprox?: number, priceMax?: number) {
+  return formatPriceRange(priceApprox, priceMax);
+}
+
+function medicineIcon(medicine: Medicine): keyof typeof MaterialIcons.glyphMap {
+  if (medicine.productType === "Dispositifs médicaux") return "medical-services";
+  if (medicine.productType === "Intrants nutritionnels") return "restaurant";
+  return "medication";
 }
 
 export function AppChrome({ children, subtitle, hideHeaderSearch }: PropsWithChildren<{ subtitle?: string; hideHeaderSearch?: boolean }>) {
@@ -198,15 +206,21 @@ export function MedicineCard({ medicine }: { medicine: Medicine }) {
   const { favoriteKeys, toggleFavorite } = usePharmaGarde();
   const palette = usePremiumPalette();
   const [expanded, setExpanded] = useState(false);
-  const priceLabel = formatMedicinePrice(medicine.priceApprox);
+  const priceLabel = formatMedicinePrice(medicine.priceApprox, medicine.priceMax);
+  const formLabel = medicineFormLabel(medicine);
   const favorite: FavoriteItem = {
     id: medicine.id,
     entityType: "medicine",
     title: medicine.name,
-    subtitle: medicine.category,
-    metadata: [medicine.ageCategory, medicine.pharmaceuticalType, priceLabel].filter(Boolean).join(" · "),
+    subtitle: formLabel || medicine.category,
+    metadata: [medicine.productType, priceLabel].filter(Boolean).join(" · "),
   };
   const active = favoriteKeys.has(favoriteKey("medicine", medicine.id));
+  const details: [string, string | undefined][] = [
+    ["Catégorie", medicine.category],
+    ["Sous-catégorie", medicine.subcategory],
+    ["Prix", medicine.priceApprox !== undefined ? [priceLabel, medicine.priceUnit, medicine.priceOfficial ? "prix officiel" : "estimation"].filter(Boolean).join(" · ") : undefined],
+  ];
   return (
     <Pressable
       accessibilityRole="button"
@@ -215,22 +229,23 @@ export function MedicineCard({ medicine }: { medicine: Medicine }) {
       onPress={() => { haptic.selection(); setExpanded((current) => !current); }}
     >
       <View style={styles.cardHeader}>
-        {medicine.imageUrl ? <Image source={{ uri: medicine.imageUrl }} style={styles.medicineImage} /> : <View style={[styles.medicineFallback, { backgroundColor: palette.softGreen }]}><MaterialIcons name="medication" size={23} color={palette.brand} /></View>}
+        {medicine.imageUrl ? <Image source={{ uri: medicine.imageUrl }} style={styles.medicineImage} /> : <View style={[styles.medicineFallback, { backgroundColor: palette.softGreen }]}><MaterialIcons name={medicineIcon(medicine)} size={23} color={palette.brand} /></View>}
         <View style={styles.cardTitleArea}>
           <Text style={[styles.cardTitle, { color: palette.text }]}>{medicine.name}</Text>
-          <Text style={[styles.cardSubtitle, { color: palette.muted }]}>{medicine.category ?? "Catégorie non renseignée"}</Text>
+          <Text style={[styles.cardSubtitle, { color: palette.muted }]}>{formLabel || medicine.category || "Catégorie non renseignée"}</Text>
         </View>
-        <View style={[styles.pricePill, { backgroundColor: palette.softGreen }]}><Text numberOfLines={1} style={[styles.priceText, { color: palette.brand }]}>{priceLabel}</Text></View>
+        <View style={[styles.pricePill, styles.medicinePricePill, { backgroundColor: palette.softGreen }]}><Text numberOfLines={2} style={[styles.priceText, { color: palette.brand }]}>{priceLabel}</Text></View>
       </View>
       {expanded ? (
         <View style={styles.medicineDetails}>
           <View style={styles.metaRow}>
-            <View style={[styles.metaPill, { backgroundColor: palette.cardMuted }]}><Text style={[styles.metaText, { color: palette.text }]}>{medicine.ageCategory ?? "Tous"}</Text></View>
-            <View style={[styles.metaPill, { backgroundColor: palette.cardMuted }]}><Text style={[styles.metaText, { color: palette.text }]}>{medicine.pharmaceuticalType ?? "Type inconnu"}</Text></View>
-            <Pressable accessibilityRole="button" hitSlop={10} style={({ pressed }) => [styles.favoriteButton, pressed ? styles.pressedScale : undefined]} onPress={() => { haptic.light(); toggleFavorite(favorite); }}>
+            {medicine.productType ? <View style={[styles.metaPill, { backgroundColor: palette.cardMuted }]}><Text style={[styles.metaText, { color: palette.text }]}>{medicine.productType}</Text></View> : null}
+            {medicine.pharmaceuticalType ? <View style={[styles.metaPill, { backgroundColor: palette.cardMuted }]}><Text style={[styles.metaText, { color: palette.text }]}>{medicine.pharmaceuticalType}</Text></View> : null}
+            <Pressable accessibilityRole="button" accessibilityLabel={active ? "Retirer des favoris" : "Ajouter aux favoris"} hitSlop={10} style={({ pressed }) => [styles.favoriteButton, pressed ? styles.pressedScale : undefined]} onPress={() => { haptic.light(); toggleFavorite(favorite); }}>
               <MaterialIcons name={active ? "favorite" : "favorite-border"} size={23} color={active ? palette.danger : palette.muted} />
             </Pressable>
           </View>
+          {details.map(([label, value]) => (value ? <Text key={label} style={[styles.medicineDetailLine, { color: palette.muted }]}><Text style={[styles.medicineDetailLabel, { color: palette.text }]}>{label} : </Text>{value}</Text> : null))}
           {medicine.description ? <Text style={[styles.description, { color: palette.muted }]}>{medicine.description}</Text> : null}
           <MedicalDisclaimer compact />
         </View>
@@ -329,6 +344,9 @@ const styles = StyleSheet.create({
   phoneInfoPill: { flex: 1, minWidth: 82, justifyContent: "flex-start" },
   compactInfoText: { fontSize: 10, lineHeight: 12, fontWeight: "900" },
   priceText: { fontSize: 12, lineHeight: 15, fontWeight: "900" },
+  medicinePricePill: { maxWidth: "42%", flexShrink: 1, paddingVertical: 4 },
+  medicineDetailLine: { fontSize: 13, lineHeight: 19, fontWeight: "600", marginTop: 8 },
+  medicineDetailLabel: { fontWeight: "900" },
   cardActions: { flexDirection: "row", gap: 9, marginTop: 13 },
   secondaryButton: { flex: 1, minHeight: 43, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   secondaryButtonText: { fontSize: 13, lineHeight: 17, fontWeight: "900" },
