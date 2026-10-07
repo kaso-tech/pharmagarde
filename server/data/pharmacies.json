@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-07T13:31:28.572Z",
+  "updatedAt": "2026-10-07T13:58:05.188Z",
   "pharmacies": [
     {
       "id": "ph-banfora-charclam",
@@ -800,6 +800,24 @@
       "dutyGroup": null,
       "latitude": 14.0247,
       "longitude": -0.032119
+    },
+    {
+      "id": "ph-dori-cellal",
+      "city": "Dori",
+      "name": "Pharmacie Cellal",
+      "phone": "+226 20 99 01 68",
+      "dutyGroup": null,
+      "latitude": 14.034512,
+      "longitude": -0.037271
+    },
+    {
+      "id": "ph-fada-ngourma-gourma",
+      "city": "Fada N'gourma",
+      "name": "Pharmacie Gourma",
+      "phone": "+226 61 25 45 48",
+      "dutyGroup": null,
+      "latitude": 12.05904,
+      "longitude": 0.3641
     },
     {
       "id": "ph-fada-ngourma-nungu",

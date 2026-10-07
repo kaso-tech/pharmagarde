@@ -86,9 +86,9 @@ describe("annuaire versionné dans le dépôt", () => {
     expect(Object.fromEntries(byCity)).toEqual({
       Banfora: 5,
       "Bobo-Dioulasso": 70,
-      Dori: 2,
+      Dori: 3,
       Dédougou: 4,
-      "Fada N'gourma": 4,
+      "Fada N'gourma": 5,
       Gaoua: 3,
       Kaya: 5,
       Koudougou: 7,
