@@ -4,6 +4,7 @@ import { PropsWithChildren, ReactNode, createContext, useContext, useEffect, use
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { useAuth } from "@/hooks/use-auth";
+import { setSessionToken } from "@/lib/_core/auth";
 import { trpc } from "@/lib/trpc";
 import { DEFAULT_WEEKLY_HOURS, WEEK_DAYS, WEEK_DAY_LABELS, formatWeeklyHours, validateWeeklyHours, type WeeklyHours } from "@/lib/pharmagarde/opening-hours";
 import { LocationPicker } from "@/components/pharmagarde/location-picker";
@@ -11,9 +12,10 @@ import { WeeklyHoursEditor, cloneHours } from "@/components/pharmagarde/weekly-h
 import { getKnownCityCoordinates } from "@/lib/pharmagarde/city-utils";
 import { INSURERS, formatInsurers, isInsurerId, normalizeInsurerIds, type InsurerId } from "@/lib/pharmagarde/insurances";
 import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-confirmation";
+import { MIN_PASSWORD_LENGTH } from "@/lib/pharmagarde/auth-validation";
 import { haptic, premiumRadius, premiumSpacing, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 
-type AdminSection = "dashboard" | "directory" | "duty" | "hours" | "users" | "premium" | "audit";
+type AdminSection = "dashboard" | "directory" | "duty" | "hours" | "users" | "premium" | "audit" | "account";
 type DirectoryKind = "pharmacy" | "healthcare";
 type Tone = "brand" | "success" | "warning" | "danger" | "muted" | "clinic";
 
@@ -48,6 +50,7 @@ const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; label: str
   { section: "users", href: "/admin/utilisateurs", label: "Utilisateurs", icon: "group" },
   { section: "premium", href: "/admin/abonnements", label: "Premium", icon: "workspace-premium" },
   { section: "audit", href: "/admin/journal", label: "Journal", icon: "receipt-long" },
+  { section: "account", href: "/admin/compte", label: "Mon compte", icon: "manage-accounts" },
 ];
 
 const SECTION_TITLES: Record<AdminSection, string> = {
@@ -58,6 +61,7 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   users: "Utilisateurs",
   premium: "Premium",
   audit: "Journal d’audit",
+  account: "Mon compte",
 };
 
 const SECTION_SUBTITLES: Record<AdminSection, string> = {
@@ -68,6 +72,7 @@ const SECTION_SUBTITLES: Record<AdminSection, string> = {
   users: "Comptes inscrits, vérification du téléphone et abonnement.",
   premium: "Paiements Ligdi Cash et abonnements associés.",
   audit: "Actions réalisées dans la console d’administration.",
+  account: "Vos informations de connexion et votre mot de passe.",
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -75,6 +80,7 @@ const PLAN_LABELS: Record<string, string> = {
   month: "1 mois",
   quarter: "3 mois",
   semester: "6 mois",
+  offered: "Offert (console)",
 };
 
 const TRANSACTION_STATUS: Record<string, { label: string; tone: Tone }> = {
@@ -97,6 +103,11 @@ const AUDIT_ACTIONS: Record<string, string> = {
   "admin.users.viewed": "Consultation des utilisateurs",
   "admin.premium.viewed": "Consultation des paiements",
   "admin.audit.viewed": "Consultation du journal",
+  "admin.account.viewed": "Consultation de mon compte",
+  "account.updated": "Profil modifié",
+  "account.password_changed": "Mot de passe modifié",
+  "users.premium_granted": "Premium offert",
+  "users.premium_revoked": "Premium retiré",
 };
 
 const AUDIT_TARGETS: Record<string, string> = {
@@ -377,7 +388,7 @@ function AdminShell({ section, children }: PropsWithChildren<{ section: AdminSec
     );
   }
 
-  const identity = displayIdentity({ phone: access.data.phone, email: access.data.email, id: access.data.id });
+  const identity = displayIdentity({ name: access.data.name, phone: access.data.phone, email: access.data.email, id: access.data.id });
 
   if (wide) {
     return (
@@ -559,7 +570,7 @@ function SegmentControl({ value, onChange, options, style }: { value: string; on
   );
 }
 
-function Field({ label, value, onChangeText, placeholder, keyboardType = "default", multiline = false }: { label: string; value: string; onChangeText: (value: string) => void; placeholder?: string; keyboardType?: "default" | "phone-pad" | "numeric"; multiline?: boolean }) {
+function Field({ label, value, onChangeText, placeholder, keyboardType = "default", multiline = false, secure = false, autoComplete, editable = true }: { label: string; value: string; onChangeText: (value: string) => void; placeholder?: string; keyboardType?: "default" | "phone-pad" | "numeric" | "email-address"; multiline?: boolean; secure?: boolean; autoComplete?: "name" | "email" | "current-password" | "new-password"; editable?: boolean }) {
   const palette = usePremiumPalette();
   return (
     <View style={styles.fieldWrap}>
@@ -571,7 +582,12 @@ function Field({ label, value, onChangeText, placeholder, keyboardType = "defaul
         placeholderTextColor={palette.muted}
         keyboardType={keyboardType}
         multiline={multiline}
-        style={[styles.fieldInput, multiline ? styles.fieldMultiline : undefined, { color: palette.text, backgroundColor: palette.card, borderColor: palette.border }]}
+        secureTextEntry={secure}
+        autoComplete={autoComplete}
+        autoCapitalize={secure || keyboardType === "email-address" ? "none" : undefined}
+        editable={editable}
+        accessibilityLabel={label}
+        style={[styles.fieldInput, multiline ? styles.fieldMultiline : undefined, { color: editable ? palette.text : palette.muted, backgroundColor: editable ? palette.card : palette.cardMuted, borderColor: palette.border }]}
       />
     </View>
   );
@@ -940,6 +956,7 @@ const USER_COLUMNS: readonly Column[] = [
   { key: "premium", label: "Premium jusqu’au", flex: 1.3 },
   { key: "created", label: "Inscription", flex: 1.2 },
   { key: "lastSignedIn", label: "Dernière connexion", flex: 1.2 },
+  { key: "actions", label: "", width: 132, align: "right" },
 ];
 
 function Users() {
@@ -950,7 +967,14 @@ function Users() {
   const [page, setPage] = usePage(debouncedSearch);
   const users = trpc.admin.users.list.useQuery({ search: debouncedSearch || undefined, page, limit: PAGE_SIZE }, { retry: 1, placeholderData: (previous) => previous });
   const rows = users.data?.items ?? [];
+  const [giftTarget, setGiftTarget] = useState<GiftTarget | null>(null);
   const pagination = <Pagination page={page} limit={PAGE_SIZE} total={users.data?.total ?? 0} onChange={setPage} />;
+  const giftButton = (user: GiftTarget, compact = false) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Offrir le Premium à ${displayIdentity(user)}`} style={({ pressed }) => [styles.compactAction, compact ? undefined : styles.giftButton, { borderColor: palette.border }, pressed && styles.pressed]} onPress={() => setGiftTarget(user)}>
+      <MaterialIcons name="card-giftcard" size={17} color={palette.clinic} />
+      <Text style={[styles.compactActionText, { color: palette.clinic }]}>{isActiveSubscription(user.subscriptionEnd) ? "Gérer Premium" : "Offrir Premium"}</Text>
+    </Pressable>
+  );
   return (
     <AdminPage section="users">
       <View style={[styles.toolbar, wide && styles.toolbarWide]}>
@@ -980,7 +1004,9 @@ function Users() {
                 case "role":
                   return <CellText muted={user.role !== "admin"}>{user.role === "admin" ? "Administrateur" : "Utilisateur"}</CellText>;
                 case "premium":
-                  return <CellText muted={!user.subscriptionEnd}>{user.subscriptionEnd ? formatShortDate(user.subscriptionEnd) : "Non actif"}</CellText>;
+                  return isActiveSubscription(user.subscriptionEnd) ? <CellText>{formatShortDate(user.subscriptionEnd)}</CellText> : <CellText muted>Non actif</CellText>;
+                case "actions":
+                  return giftButton(user);
                 case "created":
                   return <CellText muted>{formatShortDate(user.createdAt)}</CellText>;
                 case "lastSignedIn":
@@ -991,10 +1017,11 @@ function Users() {
             }}
           />
         ) : (
-          <View style={styles.list}>{rows.map((user) => <View key={user.id} style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}><View style={styles.userTop}><View style={[styles.avatar, { backgroundColor: palette.softGreen }]}><Text style={[styles.avatarText, { color: palette.brand }]}>{displayIdentity(user).slice(0, 1).toLocaleUpperCase("fr")}</Text></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{displayIdentity(user)}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{user.phone ?? user.email ?? "Coordonnée absente"}</Text></View><StatusBadge label={user.verificationStatus === "verified" ? "Vérifié" : "À vérifier"} tone={user.verificationStatus === "verified" ? "success" : "warning"} /></View><View style={styles.detailRow}><Text style={[styles.listMeta, { color: palette.muted }]}>Vérification : {user.phoneVerifiedAt ? formatDate(user.phoneVerifiedAt) : "Non vérifié"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Rôle : {user.role === "admin" ? "Administrateur" : "Utilisateur"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Premium : {user.subscriptionEnd ? formatDate(user.subscriptionEnd) : "Non actif"}</Text></View></View>)}</View>
+          <View style={styles.list}>{rows.map((user) => <View key={user.id} style={[styles.listCard, { backgroundColor: palette.card, borderColor: palette.border }]}><View style={styles.userTop}><View style={[styles.avatar, { backgroundColor: palette.softGreen }]}><Text style={[styles.avatarText, { color: palette.brand }]}>{displayIdentity(user).slice(0, 1).toLocaleUpperCase("fr")}</Text></View><View style={styles.listMain}><Text style={[styles.listTitle, { color: palette.text }]}>{displayIdentity(user)}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>{user.phone ?? user.email ?? "Coordonnée absente"}</Text></View><StatusBadge label={user.verificationStatus === "verified" ? "Vérifié" : "À vérifier"} tone={user.verificationStatus === "verified" ? "success" : "warning"} /></View><View style={styles.detailRow}><Text style={[styles.listMeta, { color: palette.muted }]}>Vérification : {user.phoneVerifiedAt ? formatDate(user.phoneVerifiedAt) : "Non vérifié"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Rôle : {user.role === "admin" ? "Administrateur" : "Utilisateur"}</Text><Text style={[styles.listMeta, { color: palette.muted }]}>Premium : {isActiveSubscription(user.subscriptionEnd) ? formatDate(user.subscriptionEnd) : "Non actif"}</Text></View><View style={styles.rowActions}>{giftButton(user, true)}</View></View>)}</View>
         )}
         {pagination}
       </PageState>
+      <PremiumGiftModal target={giftTarget} onClose={() => setGiftTarget(null)} />
     </AdminPage>
   );
 }
@@ -1259,6 +1286,207 @@ function HoursPage() {
   );
 }
 
+function AccountCard({ title, icon, children }: PropsWithChildren<{ title: string; icon: keyof typeof MaterialIcons.glyphMap }>) {
+  const palette = usePremiumPalette();
+  return (
+    <View style={[styles.accountCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <View style={styles.accountCardHeader}>
+        <View style={[styles.typeIcon, { backgroundColor: palette.softGreen }]}><MaterialIcons name={icon} size={20} color={palette.brand} /></View>
+        <Text accessibilityRole="header" style={[styles.cardHeading, { color: palette.text }]}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function Account() {
+  const utils = trpc.useUtils();
+  const palette = usePremiumPalette();
+  const wide = useWideLayout();
+  const account = trpc.admin.account.get.useQuery(undefined, { retry: 1 });
+  const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
+  const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [notice, setNotice] = useState<{ area: "profile" | "password"; text: string } | null>(null);
+
+  const data = account.data;
+  const form = profile ?? { name: data?.name ?? "", email: data?.email ?? "" };
+  const update = trpc.admin.account.update.useMutation({
+    onSuccess: async () => {
+      setProfile(null);
+      setNotice({ area: "profile", text: "Profil enregistré." });
+      await Promise.all([utils.admin.account.get.invalidate(), utils.admin.access.invalidate()]);
+    },
+  });
+  const changePassword = trpc.admin.account.changePassword.useMutation({
+    onSuccess: async ({ token }) => {
+      // Les autres sessions sont révoquées : la session en cours continue avec le nouveau jeton.
+      await setSessionToken(token);
+      setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setNotice({ area: "password", text: "Mot de passe modifié. Vos autres appareils ont été déconnectés." });
+      await utils.admin.account.get.invalidate();
+    },
+  });
+
+  const profileChanged = !!data && (form.name.trim() !== (data.name ?? "") || form.email.trim().toLowerCase() !== (data.email ?? ""));
+  const profileInvalid = form.name.trim().length < 2;
+  const tooShort = passwords.newPassword.length > 0 && passwords.newPassword.trim().length < MIN_PASSWORD_LENGTH;
+  const mismatch = passwords.confirmPassword.length > 0 && passwords.newPassword !== passwords.confirmPassword;
+  const passwordIncomplete = (data?.hasPassword && !passwords.currentPassword) || !passwords.newPassword || !passwords.confirmPassword || tooShort || mismatch;
+  const editProfile = (key: "name" | "email", value: string) => {
+    setNotice(null);
+    setProfile({ ...form, [key]: value });
+  };
+  const editPassword = (key: keyof typeof passwords, value: string) => {
+    setNotice(null);
+    setPasswords((current) => ({ ...current, [key]: value }));
+  };
+
+  return (
+    <AdminPage section="account">
+      <PageState loading={account.isLoading} error={account.error} onRetry={() => account.refetch()}>
+        {data ? (
+          <View style={[styles.accountGrid, wide && styles.accountGridWide]}>
+            <AccountCard title="Profil" icon="person">
+              <View style={styles.formFields}>
+                <Field label="Nom" value={form.name} onChangeText={(value) => editProfile("name", value)} autoComplete="name" />
+                <Field label="Adresse e-mail" value={form.email} onChangeText={(value) => editProfile("email", value)} placeholder="Facultatif" keyboardType="email-address" autoComplete="email" />
+                <Field label="Téléphone (identifiant de connexion)" value={data.phone ?? "—"} onChangeText={() => undefined} editable={false} />
+                <View style={styles.accountFacts}>
+                  <Text style={[styles.fieldHint, { color: palette.muted }]}>Rôle : {data.role === "admin" ? "Administrateur" : "Utilisateur"}</Text>
+                  <Text style={[styles.fieldHint, { color: palette.muted }]}>Téléphone : {data.phoneVerifiedAt ? `vérifié le ${formatShortDate(data.phoneVerifiedAt)}` : "non vérifié"}</Text>
+                  <Text style={[styles.fieldHint, { color: palette.muted }]}>Compte créé le {formatDate(data.createdAt)}</Text>
+                  <Text style={[styles.fieldHint, { color: palette.muted }]}>Dernière connexion : {formatDate(data.lastSignedIn)}</Text>
+                </View>
+                {update.error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{update.error.message}</Text> : null}
+                {notice?.area === "profile" ? <Text style={[styles.inlineSuccess, { color: palette.success }]}>{notice.text}</Text> : null}
+                <View style={styles.formActions}>
+                  <Pressable accessibilityRole="button" style={[styles.secondaryButton, { borderColor: palette.border }, !profileChanged && styles.disabled]} disabled={!profileChanged || update.isPending} onPress={() => setProfile(null)}><Text style={[styles.secondaryText, { color: palette.text }]}>Annuler</Text></Pressable>
+                  <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: palette.brand }, (!profileChanged || profileInvalid) && styles.disabled]} disabled={!profileChanged || profileInvalid || update.isPending} onPress={() => update.mutate({ name: form.name.trim(), email: form.email.trim() })}>{update.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.retryText}>Enregistrer</Text>}</Pressable>
+                </View>
+              </View>
+            </AccountCard>
+            <AccountCard title="Mot de passe" icon="lock">
+              <View style={styles.formFields}>
+                {data.hasPassword ? <Field label="Mot de passe actuel" value={passwords.currentPassword} onChangeText={(value) => editPassword("currentPassword", value)} secure autoComplete="current-password" /> : <Text style={[styles.fieldHint, { color: palette.muted }]}>Ce compte n’a pas encore de mot de passe : définissez-en un.</Text>}
+                <Field label="Nouveau mot de passe" value={passwords.newPassword} onChangeText={(value) => editPassword("newPassword", value)} secure autoComplete="new-password" />
+                <Field label="Confirmer le nouveau mot de passe" value={passwords.confirmPassword} onChangeText={(value) => editPassword("confirmPassword", value)} secure autoComplete="new-password" />
+                <Text style={[styles.fieldHint, { color: tooShort ? palette.danger : palette.muted }]}>Au moins {MIN_PASSWORD_LENGTH} caractères. Après le changement, vos autres appareils sont déconnectés.</Text>
+                {mismatch ? <Text style={[styles.inlineError, { color: palette.danger }]}>Les deux mots de passe ne correspondent pas.</Text> : null}
+                {changePassword.error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{changePassword.error.message}</Text> : null}
+                {notice?.area === "password" ? <Text style={[styles.inlineSuccess, { color: palette.success }]}>{notice.text}</Text> : null}
+                <View style={styles.formActions}>
+                  <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: palette.brand }, passwordIncomplete && styles.disabled]} disabled={!!passwordIncomplete || changePassword.isPending} onPress={() => changePassword.mutate(passwords)}>{changePassword.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.retryText}>Changer le mot de passe</Text>}</Pressable>
+                </View>
+              </View>
+            </AccountCard>
+          </View>
+        ) : null}
+      </PageState>
+    </AdminPage>
+  );
+}
+
+const GIFT_DURATION_OPTIONS = [
+  { value: "7", label: "1 semaine" },
+  { value: "30", label: "1 mois" },
+  { value: "90", label: "3 mois" },
+  { value: "180", label: "6 mois" },
+  { value: "365", label: "1 an" },
+  { value: "custom", label: "Autre" },
+] as const;
+
+type GiftTarget = { id: number; name: string | null; phone: string | null; email: string | null; subscriptionEnd: string | null };
+
+function isActiveSubscription(value: string | null | undefined, now = Date.now()) {
+  return !!value && new Date(value).getTime() > now;
+}
+
+/** Fin d'abonnement après le cadeau : prolonge l'abonnement en cours, sinon part d'aujourd'hui. */
+function giftEndPreview(subscriptionEnd: string | null, durationDays: number, now = Date.now()) {
+  const start = isActiveSubscription(subscriptionEnd, now) ? new Date(subscriptionEnd!).getTime() : now;
+  return new Date(start + durationDays * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function PremiumGiftModal({ target, onClose }: { target: GiftTarget | null; onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const palette = usePremiumPalette();
+  const [duration, setDuration] = useState<string>("30");
+  const [customDays, setCustomDays] = useState("");
+  const [reason, setReason] = useState("");
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const refresh = () => Promise.all([utils.admin.users.list.invalidate(), utils.admin.premium.transactions.invalidate(), utils.admin.dashboard.invalidate()]);
+  const close = () => {
+    setDuration("30");
+    setCustomDays("");
+    setReason("");
+    setConfirmRevoke(false);
+    grant.reset();
+    revoke.reset();
+    onClose();
+  };
+  const grant = trpc.admin.users.grantPremium.useMutation({ onSuccess: async () => { await refresh(); close(); } });
+  const revoke = trpc.admin.users.revokePremium.useMutation({ onSuccess: async () => { await refresh(); close(); } });
+
+  const durationDays = duration === "custom" ? Number.parseInt(customDays, 10) : Number(duration);
+  const validDuration = Number.isInteger(durationDays) && durationDays >= 1 && durationDays <= 366;
+  const active = isActiveSubscription(target?.subscriptionEnd);
+  const pending = grant.isPending || revoke.isPending;
+  const error = grant.error?.message ?? revoke.error?.message;
+
+  return (
+    <Modal visible={!!target} transparent animationType="fade" onRequestClose={close}>
+      <View style={[styles.modalRoot, { backgroundColor: palette.overlay }]}>
+        <ScrollView style={styles.giftScroll} contentContainerStyle={styles.giftScrollContent} keyboardShouldPersistTaps="handled">
+          <View style={[styles.giftCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+            <View style={styles.accountCardHeader}>
+              <View style={[styles.typeIcon, { backgroundColor: `${palette.clinic}18` }]}><MaterialIcons name="card-giftcard" size={20} color={palette.clinic} /></View>
+              <Text accessibilityRole="header" style={[styles.cardHeading, { color: palette.text }]}>Offrir le Premium</Text>
+              <IconAction icon="close" label="Fermer" color={palette.text} onPress={close} />
+            </View>
+            {target ? (
+              <>
+                <Text style={[styles.listTitle, { color: palette.text }]}>{displayIdentity(target)}</Text>
+                <Text style={[styles.fieldHint, { color: palette.muted }]}>{active ? `Premium actif jusqu’au ${formatDate(target.subscriptionEnd)} : la durée offerte s’ajoute à l’abonnement en cours.` : "Aucun Premium actif : l’offre commence maintenant."}</Text>
+                <View style={styles.fieldWrap}>
+                  <Text style={[styles.fieldLabel, { color: palette.text }]}>Durée offerte</Text>
+                  <View style={styles.chipWrap}>
+                    {GIFT_DURATION_OPTIONS.map((option) => {
+                      const selected = duration === option.value;
+                      return (
+                        <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ selected }} style={({ pressed }) => [styles.chip, { borderColor: selected ? palette.brand : palette.border, backgroundColor: selected ? palette.softGreen : palette.card }, pressed && styles.pressed]} onPress={() => setDuration(option.value)}>
+                          <Text style={[styles.chipText, { color: selected ? palette.brand : palette.text }]}>{option.label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+                {duration === "custom" ? <Field label="Nombre de jours (1 à 366)" value={customDays} onChangeText={(value) => setCustomDays(value.replace(/\D/g, ""))} keyboardType="numeric" /> : null}
+                <Field label="Motif (facultatif)" value={reason} onChangeText={setReason} placeholder="Ex. partenaire, geste commercial" />
+                {validDuration ? <Text style={[styles.fieldHint, { color: palette.text }]}>Premium jusqu’au <Text style={styles.strongText}>{formatDate(giftEndPreview(target.subscriptionEnd, durationDays))}</Text>. L’offre apparaît dans Premium (0 F CFA) et dans le journal.</Text> : <Text style={[styles.fieldHint, { color: palette.danger }]}>Indiquez une durée entre 1 et 366 jours.</Text>}
+                {error ? <Text style={[styles.inlineError, { color: palette.danger }]}>{error}</Text> : null}
+                {confirmRevoke ? (
+                  <View style={[styles.revokeBox, { borderColor: palette.danger }]}>
+                    <Text style={[styles.fieldHint, { color: palette.text }]}>Retirer le Premium met fin à l’abonnement immédiatement, sans remboursement. Confirmer ?</Text>
+                    <View style={styles.formActions}>
+                      <Pressable accessibilityRole="button" style={[styles.secondaryButton, { borderColor: palette.border }]} disabled={pending} onPress={() => setConfirmRevoke(false)}><Text style={[styles.secondaryText, { color: palette.text }]}>Non</Text></Pressable>
+                      <Pressable accessibilityRole="button" style={[styles.dangerButton, { backgroundColor: palette.danger }]} disabled={pending} onPress={() => revoke.mutate({ userId: target.id, reason: reason.trim() || undefined })}>{revoke.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.retryText}>Retirer</Text>}</Pressable>
+                    </View>
+                  </View>
+                ) : null}
+                <View style={[styles.formActions, styles.giftActions]}>
+                  {active && !confirmRevoke ? <Pressable accessibilityRole="button" style={[styles.secondaryButton, { borderColor: palette.danger }]} disabled={pending} onPress={() => setConfirmRevoke(true)}><Text style={[styles.secondaryText, { color: palette.danger }]}>Retirer le Premium</Text></Pressable> : null}
+                  <Pressable accessibilityRole="button" style={[styles.secondaryButton, { borderColor: palette.border }]} disabled={pending} onPress={close}><Text style={[styles.secondaryText, { color: palette.text }]}>Annuler</Text></Pressable>
+                  <Pressable accessibilityRole="button" style={[styles.primaryButton, { backgroundColor: palette.brand }, !validDuration && styles.disabled]} disabled={!validDuration || pending} onPress={() => grant.mutate({ userId: target.id, durationDays, reason: reason.trim() || undefined })}>{grant.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.retryText}>Offrir</Text>}</Pressable>
+                </View>
+              </>
+            ) : null}
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
 export function AdminConsoleScreen({ section }: { section: AdminSection }) {
   return (
     <AdminShell section={section}>
@@ -1269,6 +1497,7 @@ export function AdminConsoleScreen({ section }: { section: AdminSection }) {
       {section === "users" ? <Users /> : null}
       {section === "premium" ? <Premium /> : null}
       {section === "audit" ? <Audit /> : null}
+      {section === "account" ? <Account /> : null}
     </AdminShell>
   );
 }
@@ -1383,6 +1612,19 @@ const styles = StyleSheet.create({
   secondaryText: { fontSize: 14, fontWeight: "900" },
   primaryButton: { minHeight: 42, borderRadius: 11, minWidth: 116, paddingHorizontal: 15, alignItems: "center", justifyContent: "center" },
   inlineError: { fontSize: 13, lineHeight: 18, fontWeight: "700" },
+  inlineSuccess: { fontSize: 13, lineHeight: 18, fontWeight: "800" },
+  strongText: { fontWeight: "900" },
+  accountGrid: { gap: 16 },
+  accountGridWide: { flexDirection: "row", alignItems: "flex-start" },
+  accountCard: { flex: 1, borderRadius: premiumRadius.md, borderWidth: 1, padding: 18, gap: 14, maxWidth: 560 },
+  accountCardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  accountFacts: { gap: 3 },
+  giftScroll: { width: "100%", maxWidth: 480 },
+  giftScrollContent: { flexGrow: 1, justifyContent: "center" },
+  giftCard: { borderRadius: premiumRadius.lg, borderWidth: 1, padding: 20, gap: 12 },
+  giftActions: { flexWrap: "wrap" },
+  giftButton: { flex: 0, paddingHorizontal: 10 },
+  revokeBox: { borderWidth: 1, borderRadius: 11, padding: 12, gap: 6 },
   iconButton: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   table: { borderRadius: premiumRadius.md, borderWidth: 1, overflow: "hidden" },
   tableHead: { minHeight: 40, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", borderBottomWidth: 1 },

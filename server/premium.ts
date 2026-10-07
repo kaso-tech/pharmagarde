@@ -66,11 +66,15 @@ export function getPremiumStatusForUser(user?: Pick<User, "subscriptionEnd"> | n
   };
 }
 
-export function calculateSubscriptionEnd(currentEnd: Date | string | null | undefined, planId: PremiumPlanId, now = new Date()) {
-  const plan = PREMIUM_PLANS[planId];
+/** Prolonge un abonnement de `durationDays` jours, à partir de sa fin s'il est encore actif, sinon de maintenant. */
+export function extendSubscriptionEnd(currentEnd: Date | string | null | undefined, durationDays: number, now = new Date()) {
   const current = currentEnd ? new Date(currentEnd) : null;
   const startsAt = current && Number.isFinite(current.getTime()) && current.getTime() > now.getTime() ? current : now;
-  return new Date(startsAt.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
+  return new Date(startsAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+}
+
+export function calculateSubscriptionEnd(currentEnd: Date | string | null | undefined, planId: PremiumPlanId, now = new Date()) {
+  return extendSubscriptionEnd(currentEnd, PREMIUM_PLANS[planId].durationDays, now);
 }
 
 function stringValue(value: unknown): string | undefined {
