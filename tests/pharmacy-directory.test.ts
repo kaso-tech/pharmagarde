@@ -7,6 +7,7 @@ import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 
 import { mergeIntoDirectory, readPharmacySheet } from "../scripts/import-pharmacies";
+import { DUTY_ROTATIONS } from "../server/duty-roster";
 import { displayPharmacyName, normalizeBurkinaPhone, parseDutyGroup, validateDirectory } from "../server/pharmacy-directory";
 
 const HEADER = ["N°", "Ville", "Pharmacie", "Téléphone", "Groupe", "Situation géographique", "Latitude", "Longitude", "Précision géo", "Repère géocodé", "Source", "Distance centre-ville (km)"];
@@ -103,16 +104,23 @@ describe("annuaire versionné dans le dépôt", () => {
     }
   });
 
-  it("renseigne le groupe de garde à Ouagadougou et Bobo-Dioulasso, sauf Diyama (groupe absent du fichier)", () => {
-    const groupCities = new Set(["Ouagadougou", "Bobo-Dioulasso"]);
+  it("renseigne le groupe de garde dans les villes programmées, sauf Diyama (groupe absent du fichier)", () => {
+    const groupCities = new Set(DUTY_ROTATIONS.map((rotation) => rotation.city));
     const withoutGroup = directory.pharmacies.filter((pharmacy) => groupCities.has(pharmacy.city) && pharmacy.dutyGroup === null).map((pharmacy) => pharmacy.name);
     expect(withoutGroup).toEqual(["Pharmacie Diyama"]);
   });
 
-  it("n'attribue pas de groupe dans les villes dont la garde se fait par listes", () => {
-    // Les groupes proposés pour ces villes ne correspondaient pas aux listes de l'ONPBF : ils ne sont pas importés.
-    const groupCities = new Set(["Ouagadougou", "Bobo-Dioulasso"]);
+  it("n'attribue pas de groupe dans les villes dont la programmation n'est pas confirmée", () => {
+    const groupCities = new Set(DUTY_ROTATIONS.map((rotation) => rotation.city));
     expect(directory.pharmacies.filter((pharmacy) => !groupCities.has(pharmacy.city) && pharmacy.dutyGroup !== null)).toEqual([]);
+  });
+
+  it("place chaque pharmacie dans un groupe existant de la rotation de sa ville (Salus Mater : groupe 2 à Kaya)", () => {
+    for (const pharmacy of directory.pharmacies) {
+      const rotation = DUTY_ROTATIONS.find((item) => item.city === pharmacy.city);
+      if (rotation && pharmacy.dutyGroup !== null) expect(pharmacy.dutyGroup).toBeLessThanOrEqual(rotation.turns.length);
+    }
+    expect(directory.pharmacies.find((pharmacy) => pharmacy.id === "ph-kaya-salus-mater")?.dutyGroup).toBe(2);
   });
 });
 

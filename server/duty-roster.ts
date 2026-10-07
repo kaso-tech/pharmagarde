@@ -5,9 +5,9 @@ import { slugify } from "./pharmacy-directory";
  *
  * La garde dure une semaine et change chaque samedi à 8 h (heure du Burkina Faso, UTC+0 toute
  * l'année, donc 8 h UTC). Chaque ville fait tourner une liste de tours dans un ordre fixe :
- * - Ouagadougou et Bobo-Dioulasso : les groupes 1 → 2 → 3 → 4 de l'annuaire ;
- * - les autres villes : des listes fixes de pharmacies (ex. Koudougou, 3 listes), à ajouter avec
- *   leurs pharmacies dans l'annuaire.
+ * - par groupes de l'annuaire, dans l'ordre 1 → 2 → … (4 groupes à Ouagadougou et Bobo-Dioulasso,
+ *   2 ou 3 dans les autres villes programmées) ;
+ * - ou par listes fixes de pharmacies (identifiants de l'annuaire).
  *
  * Un tour de référence (une semaine connue et le tour de garde de cette semaine) suffit à
  * calculer toutes les semaines, passées et futures.
@@ -40,12 +40,27 @@ export type DutyWeek = {
 export const DUTY_HANDOVER_HOUR_UTC = 8;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-const GROUP_TURNS: readonly DutyTurn[] = [1, 2, 3, 4].map((dutyGroup) => ({ label: `Groupe ${dutyGroup}`, dutyGroup }));
+function groupTurns(count: number): DutyTurn[] {
+  return Array.from({ length: count }, (_, index) => ({ label: `Groupe ${index + 1}`, dutyGroup: index + 1 }));
+}
 
-/** Base communiquée par l'Ordre : groupe 4 de garde du samedi 3 au samedi 10 octobre 2026, 8 h. */
+/** Rotation par groupes, à partir du groupe de garde de la semaine du samedi 3 au samedi 10 octobre 2026, 8 h. */
+function groupRotation(city: string, groupCount: number, groupOnDutyOct3: number): DutyRotation {
+  return { city, reference: { start: "2026-10-03", turnIndex: groupOnDutyOct3 - 1 }, turns: groupTurns(groupCount) };
+}
+
+/**
+ * Groupes de garde communiqués pour la semaine du 3 au 10 octobre 2026. Les villes absentes
+ * (Dédougou, Dori, Fada N'gourma, Gaoua, Ziniaré) n'ont pas encore de programmation confirmée.
+ */
 export const DUTY_ROTATIONS: readonly DutyRotation[] = [
-  { city: "Ouagadougou", reference: { start: "2026-10-03", turnIndex: 3 }, turns: GROUP_TURNS },
-  { city: "Bobo-Dioulasso", reference: { start: "2026-10-03", turnIndex: 3 }, turns: GROUP_TURNS },
+  groupRotation("Ouagadougou", 4, 4),
+  groupRotation("Bobo-Dioulasso", 4, 4),
+  groupRotation("Koudougou", 3, 3),
+  groupRotation("Banfora", 3, 3),
+  groupRotation("Kaya", 2, 2),
+  groupRotation("Tenkodogo", 2, 1),
+  groupRotation("Ouahigouya", 2, 1),
 ];
 
 function cityKey(value: string | null | undefined) {
