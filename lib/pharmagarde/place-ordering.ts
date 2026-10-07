@@ -44,10 +44,23 @@ export function sortPlacesByOpenThenDistance(places: HealthPlace[]) {
   return [...places].sort(comparePlacesByOpenThenDistance);
 }
 
+export type PlaceStatusKind = "on_duty" | "open" | "closed" | "unknown";
+
+/** État visuel stable : la garde prime toujours sur l'état d'ouverture ordinaire. */
+export function placeStatusKind(place: Pick<HealthPlace, "isOpen" | "onDuty">): PlaceStatusKind {
+  if (place.onDuty === true) return "on_duty";
+  if (place.isOpen === true) return "open";
+  if (place.isOpen === false) return "closed";
+  return "unknown";
+}
+
 /** Libellé du badge de statut : la garde prime sur les horaires d'ouverture. */
 export function placeStatusLabel(place: Pick<HealthPlace, "isOpen" | "onDuty">) {
-  if (place.onDuty === true) return "Garde";
-  return place.isOpen === true ? "Ouvert" : place.isOpen === false ? "Fermé" : "Statut inconnu";
+  const status = placeStatusKind(place);
+  if (status === "on_duty") return "Garde";
+  if (status === "open") return "Ouvert";
+  if (status === "closed") return "Fermé";
+  return "Statut inconnu";
 }
 
 /** Ligne d'horaires : la garde (24 h/24 jusqu'à la relève) prime sur les horaires de service. */

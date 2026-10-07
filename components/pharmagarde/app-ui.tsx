@@ -7,7 +7,7 @@ import { GlobalAppShell } from "@/components/pharmagarde/app-shell";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { formatInsurers } from "@/lib/pharmagarde/insurances";
 import { formatPriceRange, medicineFormLabel } from "@/lib/pharmagarde/medicines";
-import { placeHoursLabel, placeStatusLabel } from "@/lib/pharmagarde/place-ordering";
+import { placeHoursLabel, placeStatusKind } from "@/lib/pharmagarde/place-ordering";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 import { CombinedSearchItem, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "@/lib/pharmagarde/types";
 
@@ -109,6 +109,26 @@ export function SearchField({ value, onChangeText, placeholder = "Rechercher", i
   );
 }
 
+/** Badge placé à droite du nom : les couleurs et pictogrammes restent compréhensibles sans le texte. */
+export function PlaceStatusBadge({ place }: { place: Pick<HealthPlace, "isOpen" | "onDuty"> }) {
+  const palette = usePremiumPalette();
+  const kind = placeStatusKind(place);
+  const status = kind === "on_duty"
+    ? { label: "De garde", icon: "nightlight-round" as const, color: "#B45309", background: "rgba(245, 158, 11, 0.16)" }
+    : kind === "open"
+      ? { label: "Ouverte", icon: "check-circle" as const, color: palette.success, background: palette.softGreen }
+      : kind === "closed"
+        ? { label: "Fermée", icon: "cancel" as const, color: palette.danger, background: "rgba(225, 29, 72, 0.11)" }
+        : { label: "Inconnu", icon: "help-outline" as const, color: palette.muted, background: palette.cardMuted };
+
+  return (
+    <View accessible accessibilityRole="text" accessibilityLabel={`Statut : ${status.label}`} style={[styles.statusBadge, { backgroundColor: status.background, borderColor: `${status.color}55` }]}>
+      <MaterialIcons name={status.icon} size={13} color={status.color} />
+      <Text numberOfLines={1} style={[styles.statusBadgeText, { color: status.color }]}>{status.label}</Text>
+    </View>
+  );
+}
+
 export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace; isExpanded: boolean; onToggle: () => void }) {
   const { favoriteKeys, toggleFavorite } = usePharmaGarde();
   const palette = usePremiumPalette();
@@ -143,15 +163,15 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
           <MaterialIcons name={place.type === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={20} color="#FFFFFF" />
         </View>
         <View style={styles.cardTitleArea}>
-          <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={1}>{place.name}</Text>
+          <View style={styles.cardTitleRow}>
+            <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={1}>{place.name}</Text>
+            <PlaceStatusBadge place={place} />
+          </View>
           <Text style={[styles.cardSubtitle, { color: palette.muted }]} numberOfLines={2}>{place.address ?? place.city ?? "Adresse non renseignée"}</Text>
         </View>
         <View style={styles.placeHeaderMeta}>
           <View style={[styles.metaPill, { backgroundColor: palette.cardMuted }]}> 
             <Text style={[styles.metaText, { color: palette.text }]}>{place.distanceLabel ?? (place.distanceKm !== undefined ? `${place.distanceKm.toFixed(1)} km` : "Distance indisponible")}</Text>
-          </View>
-          <View style={[styles.metaPill, { backgroundColor: place.isOpen === false && place.onDuty !== true ? "rgba(225, 29, 72, 0.1)" : palette.softGreen }]}> 
-            <Text style={[styles.metaText, { color: place.isOpen === false && place.onDuty !== true ? palette.danger : palette.success }]}>{placeStatusLabel(place)}</Text>
           </View>
         </View>
       </View>
@@ -326,10 +346,13 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   markerBadge: { width: 46, height: 46, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   cardTitleArea: { flex: 1 },
-  cardTitle: { fontSize: 16, lineHeight: 21, fontWeight: "900" },
+  cardTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  cardTitle: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: "900" },
   cardSubtitle: { fontSize: 12, lineHeight: 18, fontWeight: "700", marginTop: 2 },
   favoriteButton: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   placeHeaderMeta: { alignItems: "flex-end", gap: 6, flexShrink: 0 },
+  statusBadge: { minHeight: 24, maxWidth: 92, borderRadius: 12, borderWidth: 1, paddingHorizontal: 7, flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 0 },
+  statusBadgeText: { fontSize: 10, lineHeight: 13, fontWeight: "900" },
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 13 },
   metaPill: { minHeight: 30, borderRadius: 15, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
   metaText: { fontSize: 12, lineHeight: 15, fontWeight: "900" },

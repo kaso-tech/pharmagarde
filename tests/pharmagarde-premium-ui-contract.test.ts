@@ -84,6 +84,13 @@ describe("cartes pharmacies et cliniques", () => {
 
     expect(placeCard).toContain("styles.placeHeaderMeta");
     expect(placeCard.indexOf("styles.placeHeaderMeta")).toBeLessThan(placeCard.indexOf("{isExpanded ? ("));
+    expect(appUi).toContain("export function PlaceStatusBadge");
+    expect(appUi).toContain('label: "De garde"');
+    expect(appUi).toContain('label: "Ouverte"');
+    expect(appUi).toContain('label: "Fermée"');
+    expect(placeCard).toContain("styles.cardTitleRow");
+    expect(placeCard.indexOf("<PlaceStatusBadge place={place} />")).toBeGreaterThan(placeCard.indexOf("styles.cardTitleRow"));
+    expect(placeCard.indexOf("<PlaceStatusBadge place={place} />")).toBeLessThan(placeCard.indexOf("styles.cardSubtitle"));
     expect(placeCard).toContain("isExpanded: boolean");
     expect(placeCard).toContain("onToggle: () => void");
     expect(placeCard).toContain("onPress={() => { haptic.selection(); onToggle(); }}");
@@ -102,6 +109,9 @@ describe("cartes pharmacies et cliniques", () => {
     expect(placeCard.indexOf("{typeLabel}")).toBeLessThan(placeCard.indexOf('name="star"'));
     expect(mapPlaceCard).toContain("styles.placeHeaderMeta");
     expect(mapPlaceCard.indexOf("styles.placeHeaderMeta")).toBeLessThan(mapPlaceCard.indexOf("{isExpanded ? ("));
+    expect(mapPlaceCard).toContain("styles.placeTitleRow");
+    expect(mapPlaceCard.indexOf("<PlaceStatusBadge place={place} />")).toBeGreaterThan(mapPlaceCard.indexOf("styles.placeTitleRow"));
+    expect(mapPlaceCard.indexOf("<PlaceStatusBadge place={place} />")).toBeLessThan(mapPlaceCard.indexOf("styles.placeSubtitle"));
     expect(mapPlaceCard).toContain("place.distanceLabel");
     expect(mapPlaceCard).toContain("Distance indisponible");
     expect(mapPlaceCard).not.toContain("Distance inconnue");
@@ -110,8 +120,8 @@ describe("cartes pharmacies et cliniques", () => {
     expect(placeCard).toContain("Distance indisponible");
     expect(placeCard).not.toContain("Distance inconnue");
     expect(placeCard).not.toContain("Position à préciser");
-    // Libellé commun (garde, ouvert, fermé, statut inconnu) : lib/pharmagarde/place-ordering.ts.
-    expect(mapPlaceCard).toContain("placeStatusLabel(place)");
+    // Badge commun (garde, ouvert, fermé, statut inconnu) placé à droite du nom.
+    expect(mapPlaceCard).toContain("<PlaceStatusBadge place={place} />");
     expect(read("lib/pharmagarde/place-ordering.ts")).toContain("Statut inconnu");
     expect(mapPlaceCard).toContain("isExpanded: boolean");
     expect(mapPlaceCard).toContain("onToggle: () => void");
