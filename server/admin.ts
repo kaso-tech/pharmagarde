@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { count, desc, eq, gt, isNotNull, like, notLike, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNotNull, like, ne, notLike, or } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
 import { auditLogs, cityHours, directoryEntries, transactions, users } from "../drizzle/schema";
@@ -10,6 +11,12 @@ import { reloadDirectoryOverrides } from "./directory-overrides";
 import { DUTY_ROTATIONS, dutyWeekAt, isPharmacyOnDuty } from "./duty-roster";
 import { cityMatchKey, weeklyHoursSchema, directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
 import { adminProcedure, router } from "./_core/trpc";
+import { COOKIE_NAME, SESSION_TTL_MS } from "../shared/const.js";
+import { accountUpdateSchema, createAttemptLimiter, OFFERED_PLAN_ID, passwordChangeSchema, premiumGrantSchema, premiumRevokeSchema } from "./admin-account";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { hashPassword, verifyPassword } from "./_core/local-auth";
+import { sdk } from "./_core/sdk";
+import { extendSubscriptionEnd, isSubscriptionActive } from "./premium";
 
 const pageSchema = z.object({
   page: z.number().int().min(1).max(10_000).default(1),
@@ -48,7 +55,7 @@ const userListSchema = pageSchema.extend({
 });
 
 const activitySchema = z.object({
-  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit"]),
+  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account"]),
 });
 
 function failIfNoDb<T>(db: T | null): T {
@@ -89,6 +96,14 @@ async function writeAudit(
   });
 }
 
+const passwordAttempts = createAttemptLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
+
+async function readUser(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, userId: number) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "Utilisateur introuvable." });
+  return user;
+}
+
 function offsetOf(input: { page: number; limit: number }) {
   return (input.page - 1) * input.limit;
 }
@@ -116,6 +131,7 @@ export const adminRouter = router({
   access: adminProcedure.query(({ ctx }) => ({
     id: ctx.user.id,
     role: "admin" as const,
+    name: ctx.user.name,
     phone: ctx.user.phone,
     email: ctx.user.email,
   })),
@@ -129,6 +145,62 @@ export const adminRouter = router({
       targetId: input.area,
     });
     return { ok: true };
+  }),
+
+  /** Compte de l'administrateur connecté. */
+  account: router({
+    get: adminProcedure.query(async ({ ctx }) => {
+      const user = await readUser(failIfNoDb(await getDb()), ctx.user.id);
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        hasPassword: !!user.passwordHash,
+        phoneVerifiedAt: serializeDate(user.phoneVerifiedAt),
+        subscriptionEnd: serializeDate(user.subscriptionEnd),
+        createdAt: serializeDate(user.createdAt),
+        lastSignedIn: serializeDate(user.lastSignedIn),
+      };
+    }),
+
+    update: adminProcedure.input(accountUpdateSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const email = input.email || null;
+      if (email) {
+        // L'e-mail peut servir d'identifiant de connexion : il doit rester unique.
+        const [taken] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, email), ne(users.id, ctx.user.id))).limit(1);
+        if (taken) throw new TRPCError({ code: "CONFLICT", message: "Cette adresse e-mail est déjà utilisée par un autre compte." });
+      }
+      await db.update(users).set({ name: input.name, email }).where(eq(users.id, ctx.user.id));
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "account.updated", targetType: "user", targetId: String(ctx.user.id) });
+      return { name: input.name, email };
+    }),
+
+    /**
+     * Change le mot de passe puis déconnecte toutes les autres sessions du compte. La session en cours
+     * reçoit un nouveau jeton (cookie sur le web, renvoyé pour le stockage sur mobile).
+     */
+    changePassword: adminProcedure.input(passwordChangeSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const user = await readUser(db, ctx.user.id);
+      if (passwordAttempts.isBlocked(user.id)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Trop de tentatives. Réessayez dans quelques minutes." });
+      const currentPassword = input.currentPassword.trim();
+      if (user.passwordHash && !verifyPassword(currentPassword, user.passwordHash)) {
+        passwordAttempts.recordFailure(user.id);
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Mot de passe actuel incorrect." });
+      }
+      if (user.passwordHash && currentPassword === input.newPassword) throw new TRPCError({ code: "BAD_REQUEST", message: "Le nouveau mot de passe doit être différent de l’actuel." });
+      passwordAttempts.reset(user.id);
+
+      const now = new Date();
+      await db.update(users).set({ passwordHash: hashPassword(input.newPassword), sessionsValidAfter: now }).where(eq(users.id, user.id));
+      const token = await sdk.createSessionToken(user.openId, { name: user.phone ?? user.email ?? user.openId, expiresInMs: SESSION_TTL_MS });
+      ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: SESSION_TTL_MS });
+      await writeAudit(db, { actorUserId: user.id, action: "account.password_changed", targetType: "user", targetId: String(user.id) });
+      return { token };
+    }),
   }),
 
   dashboard: adminProcedure.query(async () => {
@@ -376,6 +448,46 @@ export const adminRouter = router({
         page: input.page,
         limit: input.limit,
       };
+    }),
+
+    /** Offre (ou prolonge) le Premium d'un utilisateur ; tracé comme une transaction gratuite. */
+    grantPremium: adminProcedure.input(premiumGrantSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const user = await readUser(db, input.userId);
+      const subscriptionEnd = extendSubscriptionEnd(user.subscriptionEnd, input.durationDays);
+      await db.update(users).set({ subscriptionEnd }).where(eq(users.id, user.id));
+      await db.insert(transactions).values({
+        userId: user.id,
+        provider: "admin",
+        merchantReference: `OFFERT-${Date.now()}-${randomBytes(4).toString("hex")}`,
+        planId: OFFERED_PLAN_ID,
+        amount: 0,
+        status: "success",
+      });
+      await writeAudit(db, {
+        actorUserId: ctx.user.id,
+        action: "users.premium_granted",
+        targetType: "user",
+        targetId: String(user.id),
+        metadata: { durationDays: input.durationDays, subscriptionEnd: subscriptionEnd.toISOString(), reason: input.reason || undefined },
+      });
+      return { userId: user.id, subscriptionEnd: subscriptionEnd.toISOString() };
+    }),
+
+    /** Met fin immédiatement au Premium d'un utilisateur. */
+    revokePremium: adminProcedure.input(premiumRevokeSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const user = await readUser(db, input.userId);
+      if (!isSubscriptionActive(user.subscriptionEnd)) throw new TRPCError({ code: "BAD_REQUEST", message: "Cet utilisateur n’a pas d’abonnement Premium actif." });
+      await db.update(users).set({ subscriptionEnd: new Date() }).where(eq(users.id, user.id));
+      await writeAudit(db, {
+        actorUserId: ctx.user.id,
+        action: "users.premium_revoked",
+        targetType: "user",
+        targetId: String(user.id),
+        metadata: { previousEnd: serializeDate(user.subscriptionEnd), reason: input.reason || undefined },
+      });
+      return { userId: user.id };
     }),
   }),
 
