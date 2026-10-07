@@ -5,6 +5,7 @@ import { Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from "re
 
 import { GlobalAppShell } from "@/components/pharmagarde/app-shell";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
+import { formatInsurers } from "@/lib/pharmagarde/insurances";
 import { placeHoursLabel, placeStatusLabel } from "@/lib/pharmagarde/place-ordering";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 import { CombinedSearchItem, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "@/lib/pharmagarde/types";
@@ -169,6 +170,12 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
             <View style={styles.hoursInfoRow}>
               <MaterialIcons name="schedule" size={15} color={accent} />
               <Text style={[styles.compactInfoText, styles.hoursInfoText, { color: palette.text }]}>{hoursLabel}</Text>
+            </View>
+          ) : null}
+          {place.insurances?.length ? (
+            <View style={styles.hoursInfoRow}>
+              <MaterialIcons name="health-and-safety" size={15} color={accent} />
+              <Text style={[styles.compactInfoText, styles.hoursInfoText, { color: palette.text }]}>Assurances : {formatInsurers(place.insurances)}</Text>
             </View>
           ) : null}
           <View style={styles.cardActions}>

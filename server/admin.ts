@@ -5,6 +5,7 @@ import { z } from "zod";
 import { auditLogs, cityHours, directoryEntries, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { listCityHours, reloadCityHours } from "./city-hours";
+import { INSURER_IDS } from "../lib/pharmagarde/insurances";
 import { reloadDirectoryOverrides } from "./directory-overrides";
 import { DUTY_ROTATIONS, dutyWeekAt, isPharmacyOnDuty } from "./duty-roster";
 import { cityMatchKey, weeklyHoursSchema, directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
@@ -21,6 +22,7 @@ const directoryListSchema = pageSchema.extend({
   status: z.enum(["active", "archived"]).default("active"),
   city: z.string().trim().max(96).optional(),
   dutyGroup: z.enum(["all", "none", "1", "2", "3", "4"]).default("all"),
+  insurance: z.enum(INSURER_IDS).optional(),
 });
 
 const dutyOverviewSchema = z.object({
@@ -176,6 +178,7 @@ export const adminRouter = router({
               dutyGroup: entry.dutyGroup,
               establishmentType: entry.establishmentType,
               openingHours: entry.openingHours,
+              insurances: entry.insurances,
             },
           });
         await tx.insert(auditLogs).values({
@@ -225,6 +228,7 @@ export const adminRouter = router({
               dutyGroup: entry.dutyGroup ?? null,
               establishmentType: entry.establishmentType ?? null,
               openingHours: current ? current.openingHours : source?.openingHours ? JSON.stringify(source.openingHours) : null,
+              insurances: current ? current.insurances : source?.insurances.length ? JSON.stringify(source.insurances) : null,
             })
             .onDuplicateKeyUpdate({ set: { status: "archived" } });
           await tx.insert(auditLogs).values({

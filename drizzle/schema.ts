@@ -66,6 +66,8 @@ export const directoryEntries = mysqlTable(
     establishmentType: varchar("establishmentType", { length: 64 }),
     /** Horaires de service propres (JSON, voir lib/pharmagarde/opening-hours.ts) ; null = horaires de la ville. */
     openingHours: text("openingHours"),
+    /** Assurances acceptées (JSON, identifiants de lib/pharmagarde/insurances.ts). */
+    insurances: text("insurances"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },

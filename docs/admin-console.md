@@ -74,3 +74,7 @@ Les horaires d'un établissement (pharmacie ou structure de santé) sont, par or
 3. par défaut : lundi à vendredi 8 h–20 h, samedi 8 h–12 h, dimanche fermé (`lib/pharmagarde/opening-hours.ts`).
 
 Les routes `/pharmacies` et `/healthcare` publient `status` (`on_duty`, `open`, `closed`), `isOpen`, `openingHours` (résumé lisible) et `serviceHours` (semaine détaillée), avec `Cache-Control: max-age=60`. La migration `0007_opening_hours` ajoute la table `city_hours` et la colonne `directory_entries.openingHours`.
+
+## Assurances
+
+La liste de référence des assurances (Ascoma, Coris, Faari+, GA, Gras Savoye, Maado, MCI, MSH, Mutraf, Olea, Onea, Raynal, Saham, Sonar, Sunu, UAB, Yelen) est dans `lib/pharmagarde/insurances.ts`. Dans la console, la fiche d'un établissement permet de cocher les assurances acceptées (colonne `directory_entries.insurances`, migration `0008_insurances`) et l'annuaire se filtre par assurance. Les routes `/pharmacies` et `/healthcare` publient `insurances` (identifiants) ; l'application affiche « Assurances : … » dans la carte de l'établissement.

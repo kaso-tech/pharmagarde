@@ -37,6 +37,8 @@ export type CachedHealthPlace = {
   openingHours?: string;
   /** Horaires de service propres saisis dans la console ; sinon ceux de la ville. */
   serviceHours?: WeeklyHours;
+  /** Assurances acceptées (identifiants de lib/pharmagarde/insurances.ts), saisies dans la console. */
+  insurances?: string[];
   /** « admin » : fiche créée ou corrigée dans la console d’administration. */
   source?: "annuaire" | "osm" | "local" | "admin";
   /** Groupe de garde de la pharmacie (1 à 4), issu de l'annuaire ; sert à la programmation des gardes. */
