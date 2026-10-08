@@ -5,6 +5,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { applyCorsHeaders } from "./_core/security";
+import { SUPPORTED_CITIES, type SupportedCity } from "./cities";
+import { getContentConfig } from "./content-config";
 import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-overrides";
 import { formatWeeklyHours, isOpenAt, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
@@ -12,7 +14,7 @@ import { getCityHoursLookup } from "./city-hours";
 import { currentDutyConfig, getDutyConfig, type DutyConfig } from "./duty-config";
 import { dutyStatusAt, dutyWeekAt, findDutyRotation } from "./duty-roster";
 import type { Medicine } from "../lib/pharmagarde/types";
-import { getEssentialMedicines, MEDICINES_NOTICE } from "./medicines-data";
+import { getPublishedMedicines, medicinesOverlayVersion, MEDICINES_NOTICE } from "./medicines-data";
 import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
@@ -75,27 +77,7 @@ type UpdateResult = {
   error?: string;
 };
 
-export type SupportedCity = {
-  name: string;
-  latitude: number;
-  longitude: number;
-};
-
-export const SUPPORTED_CITIES: SupportedCity[] = [
-  { name: "Ouagadougou", latitude: 12.3714, longitude: -1.5197 },
-  { name: "Bobo-Dioulasso", latitude: 11.1771, longitude: -4.2979 },
-  { name: "Koudougou", latitude: 12.2526, longitude: -2.3627 },
-  { name: "Ouahigouya", latitude: 13.5828, longitude: -2.4216 },
-  { name: "Kaya", latitude: 13.0917, longitude: -1.0844 },
-  { name: "Tenkodogo", latitude: 11.78, longitude: -0.3697 },
-  { name: "Fada N'gourma", latitude: 12.0616, longitude: 0.3587 },
-  { name: "Dori", latitude: 14.0354, longitude: -0.0345 },
-  { name: "Gaoua", latitude: 10.3256, longitude: -3.1742 },
-  { name: "Banfora", latitude: 10.6333, longitude: -4.7667 },
-  { name: "Ziniaré", latitude: 12.5822, longitude: -1.2983 },
-  { name: "Dédougou", latitude: 12.4634, longitude: -3.4608 },
-  { name: "Manga", latitude: 11.6636, longitude: -1.0731 },
-];
+export { SUPPORTED_CITIES, type SupportedCity } from "./cities";
 
 const PHARMACY_TTL_MS = 24 * 60 * 60 * 1000;
 const HEALTHCARE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -624,6 +606,8 @@ async function getPremiumAccessFromRequest(req: Request) {
 }
 
 async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, rootKey: "pharmacies" | "healthcare" | "cliniques") {
+  // Villes publiées et assurances actives à jour avant de lire la ville demandée.
+  await getContentConfig();
   const state = memoryCache[kind];
   const cityFilter = getRequestedCityFilter(req);
   // Tri par distance depuis la position envoyée par l'app, avant la limite gratuite : un
@@ -669,6 +653,7 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
 }
 
 async function sendMedicinesDataset(req: Request, res: Response) {
+  await getContentConfig();
   const isPremium = await getPremiumAccessFromRequest(req);
   applyCorsHeaders(req, res);
   res.setHeader("Cache-Control", "private, no-store");
@@ -697,15 +682,16 @@ async function sendMedicinesDataset(req: Request, res: Response) {
   res.json(response.payload);
 }
 
-type MedicinesResponse = { payload: { medicaments: Medicine[]; meta: { premiumRequired: true; itemCount: number; notice: string } }; gzip: Buffer };
+type MedicinesResponse = { version: number; payload: { medicaments: Medicine[]; meta: { premiumRequired: true; itemCount: number; notice: string } }; gzip: Buffer };
 let medicinesResponse: MedicinesResponse | null = null;
 
-/** Réponse préparée une seule fois : le catalogue versionné ne change qu'au redéploiement. */
+/** Réponse préparée une fois par version du catalogue (redéploiement ou modification dans la console). */
 function getMedicinesResponse(): MedicinesResponse {
-  if (!medicinesResponse) {
-    const medicines = getEssentialMedicines();
+  const version = medicinesOverlayVersion();
+  if (medicinesResponse?.version !== version) {
+    const medicines = getPublishedMedicines();
     const payload = { medicaments: medicines, meta: { premiumRequired: true as const, itemCount: medicines.length, notice: MEDICINES_NOTICE } };
-    medicinesResponse = { payload, gzip: gzipSync(JSON.stringify(payload)) };
+    medicinesResponse = { version, payload, gzip: gzipSync(JSON.stringify(payload)) };
   }
   return medicinesResponse;
 }

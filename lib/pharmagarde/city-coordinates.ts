@@ -5,7 +5,8 @@ export type KnownBurkinaCity = Coordinates & {
   aliases: string[];
 };
 
-export const PHARMAGARDE_CITIES = [
+/** Villes proposées dans l'application (liste de référence, remplacée par celle publiée par le serveur). */
+export const PHARMAGARDE_CITIES: string[] = [
   "Ouagadougou",
   "Bobo-Dioulasso",
   "Koudougou",
@@ -19,7 +20,7 @@ export const PHARMAGARDE_CITIES = [
   "Ziniaré",
   "Dédougou",
   "Manga",
-] as const;
+];
 
 export const KNOWN_BURKINA_CITIES: KnownBurkinaCity[] = [
   { name: "Ouagadougou", latitude: 12.3714, longitude: -1.5197, aliases: ["ouagadougou", "ouaga", "kadiogo"] },
@@ -36,3 +37,23 @@ export const KNOWN_BURKINA_CITIES: KnownBurkinaCity[] = [
   { name: "Dédougou", latitude: 12.4634, longitude: -3.4608, aliases: ["dédougou", "dedougou", "mouhoun"] },
   { name: "Manga", latitude: 11.6636, longitude: -1.0731, aliases: ["manga", "zoundwéogo", "zoundweogo"] },
 ];
+
+const DEFAULT_CITIES = [...KNOWN_BURKINA_CITIES];
+
+export type PublishedCity = Coordinates & { name: string; aliases?: string[] };
+
+/**
+ * Applique la liste des villes publiée par le serveur (`/app-config`) : les tableaux exportés sont
+ * modifiés sur place pour que tous les modules voient la même liste. Les alias de la liste de
+ * référence sont conservés ; une ville ajoutée depuis la console est reconnue par son nom et ses alias.
+ */
+export function setPublishedCities(list?: readonly PublishedCity[] | null) {
+  if (!list?.length) return;
+  const next = list.map((city) => {
+    const known = DEFAULT_CITIES.find((item) => item.name === city.name);
+    const aliases = [...new Set([city.name.toLowerCase(), ...(known?.aliases ?? []), ...(city.aliases ?? []).map((alias) => alias.toLowerCase())])];
+    return { name: city.name, latitude: city.latitude, longitude: city.longitude, aliases };
+  });
+  KNOWN_BURKINA_CITIES.splice(0, KNOWN_BURKINA_CITIES.length, ...next);
+  PHARMAGARDE_CITIES.splice(0, PHARMAGARDE_CITIES.length, ...next.map((city) => city.name));
+}

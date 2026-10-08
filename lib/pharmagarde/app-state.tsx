@@ -6,12 +6,13 @@ import { AppState, Platform } from "react-native";
 import { getAuthorizationHeader, subscribeSessionTokenChanges } from "@/lib/_core/auth";
 import { useThemeContext } from "@/lib/theme-provider";
 import { fetchClinics, fetchMedicines, fetchPharmacies, getDefaultApiBaseUrl, normalizeBaseUrl } from "./api";
+import { announcementsFor, applyAppConfig, fetchAppConfig, loadStoredAppConfig, premiumPlansOf, type AppAnnouncement, type AppConfig } from "./app-config";
 import { distanceKm, filterPlacesByCity, inferCityFromAddressParts, inferNearestKnownCity, normalizeCityName } from "./city-utils";
 import { getDefaultLocationFallback } from "./location-policy";
 import { DISTANCE_UNAVAILABLE_LABEL, resolveReferenceLocation } from "./reference-location";
 import { resolvePlaceStatus, sortPlacesByOpenThenDistance } from "./place-ordering";
 import { formatPriceRange, medicineFormLabel } from "./medicines";
-import { fetchPremiumStatus, initPremiumPayment, limitFreeResults, type PaymentInitResponse, type PremiumPlanId } from "./premium";
+import { fetchPremiumStatus, initPremiumPayment, limitFreeResults, type PaymentInitResponse, type PremiumPlan, type PremiumPlanId } from "./premium";
 import { AppPreferences, CombinedSearchItem, Coordinates, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "./types";
 
 const FAVORITES_KEY = "pharmagarde:favorites:v1";
@@ -66,6 +67,11 @@ type PharmaGardeContextValue = {
   refreshData: () => Promise<void>;
   toggleFavorite: (item: FavoriteItem) => Promise<void>;
   searchResults: CombinedSearchItem[];
+  /** Réglages publiés depuis la console (null tant qu'ils ne sont pas chargés). */
+  appConfig: AppConfig | null;
+  premiumPlans: PremiumPlan[];
+  /** Annonces en cours pour la ville sélectionnée. */
+  announcements: AppAnnouncement[];
 };
 
 const PharmaGardeContext = createContext<PharmaGardeContextValue | null>(null);
@@ -480,6 +486,34 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
     refreshData();
   }, [refreshData]);
 
+  // Réglages publiés depuis la console : la copie gardée sur l'appareil d'abord, puis le serveur
+  // (au démarrage, au retour au premier plan et toutes les 30 minutes).
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    const use = (config: AppConfig | null) => {
+      if (!mounted || !config) return;
+      applyAppConfig(config);
+      setAppConfig(config);
+    };
+    loadStoredAppConfig().then(use);
+    const refresh = () => {
+      if (isApiConfigured) fetchAppConfig(apiBaseUrl).then(use);
+    };
+    refresh();
+    const timer = setInterval(refresh, 30 * 60_000);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
+    });
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+      subscription.remove();
+    };
+  }, [apiBaseUrl, isApiConfigured]);
+  const premiumPlans = useMemo(() => premiumPlansOf(appConfig), [appConfig]);
+  const announcements = useMemo(() => announcementsFor(appConfig, selectedCity), [appConfig, selectedCity]);
+
   useEffect(() => {
     setColorScheme(preferences.mode === "Sombre" ? "dark" : "light");
   }, [preferences.mode, setColorScheme]);
@@ -562,7 +596,10 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
     refreshData,
     toggleFavorite,
     searchResults,
-  }), [apiBaseUrl, clinics, errors, favoriteKeys, favorites, initSubscription, isApiConfigured, isManualCitySelection, isPremium, loading, locationMessage, medicines, pharmacies, preferences, premiumLoading, referenceLocation, refreshData, refreshPremiumStatus, refreshingLocation, requestLocation, searchQuery, searchResults, selectedCity, selectCityManually, subscriptionEnd, toggleFavorite, updateApiBaseUrl, updatePreference, userLocation]);
+    appConfig,
+    premiumPlans,
+    announcements,
+  }), [announcements, apiBaseUrl, appConfig, premiumPlans, clinics, errors, favoriteKeys, favorites, initSubscription, isApiConfigured, isManualCitySelection, isPremium, loading, locationMessage, medicines, pharmacies, preferences, premiumLoading, referenceLocation, refreshData, refreshPremiumStatus, refreshingLocation, requestLocation, searchQuery, searchResults, selectedCity, selectCityManually, subscriptionEnd, toggleFavorite, updateApiBaseUrl, updatePreference, userLocation]);
 
   return <PharmaGardeContext.Provider value={value}>{children}</PharmaGardeContext.Provider>;
 }

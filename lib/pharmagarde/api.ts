@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Coordinates, HealthPlace, Medicine } from "./types";
 import { normalizeCityName } from "./city-utils";
-import { normalizeInsurerIds } from "./insurances";
+import { INSURER_ID_PATTERN } from "./insurances";
 import { parseWeeklyHours } from "./opening-hours";
 
 const DEFAULT_TIMEOUT_MS = 12000;
@@ -112,8 +112,13 @@ function normalizePlace(raw: Record<string, unknown>, type: "pharmacy" | "clinic
     dutyStart: getString(raw, ["dutyStart"]),
     dutyEnd: getString(raw, ["dutyEnd"]),
     serviceHours: parseWeeklyHours(raw.serviceHours) ?? undefined,
-    insurances: normalizeInsurerIds(raw.insurances),
+    insurances: parseInsurerIds(raw.insurances),
   };
+}
+
+/** Identifiants publiés par le serveur (déjà filtrés) : un assureur ajouté depuis la console est gardé. */
+function parseInsurerIds(value: unknown) {
+  return Array.isArray(value) ? [...new Set(value.filter((item): item is string => typeof item === "string" && INSURER_ID_PATTERN.test(item)))] : [];
 }
 
 function normalizeMedicine(raw: Record<string, unknown>, index: number): Medicine | null {

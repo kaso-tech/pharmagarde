@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FlatList, StyleSheet } from "react-native";
 
-import { AppChrome, EmptyState, PlaceCard } from "@/components/pharmagarde/app-ui";
+import { AnnouncementBanners, AppChrome, EmptyState, PlaceCard } from "@/components/pharmagarde/app-ui";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { HealthPlace } from "@/lib/pharmagarde/types";
 
@@ -31,6 +31,7 @@ export default function HomeScreen() {
             />
           );
         }}
+        ListHeaderComponent={<AnnouncementBanners />}
         ListEmptyComponent={<EmptyState title={emptyTitle} message={emptyMessage} actionLabel={errors.pharmacies ? "Réessayer" : undefined} onAction={errors.pharmacies ? refreshData : undefined} />}
         contentContainerStyle={styles.listContent}
       />

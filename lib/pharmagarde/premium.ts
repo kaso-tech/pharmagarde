@@ -1,14 +1,9 @@
 import { apiCall } from "../_core/api";
 import { getAuthorizationHeader, hasSessionToken } from "../_core/auth";
 
-export type PremiumPlanId = "week" | "month" | "quarter" | "semester";
+import type { PremiumPlan, PremiumPlanId } from "./premium-plans";
 
-export type PremiumPlan = {
-  id: PremiumPlanId;
-  label: string;
-  amount: number;
-  durationDays: number;
-};
+export { PREMIUM_PLANS, type PremiumPlan, type PremiumPlanId } from "./premium-plans";
 
 export type PremiumStatus = {
   isPremium: boolean;
@@ -24,13 +19,6 @@ export type PaymentInitResponse = {
 };
 
 export const PREMIUM_RESULT_LIMIT = 3;
-
-export const PREMIUM_PLANS: PremiumPlan[] = [
-  { id: "week", label: "1 semaine", amount: 200, durationDays: 7 },
-  { id: "month", label: "1 mois", amount: 400, durationDays: 30 },
-  { id: "quarter", label: "3 mois", amount: 1000, durationDays: 90 },
-  { id: "semester", label: "6 mois", amount: 2000, durationDays: 180 },
-];
 
 /**
  * Lit la réponse de la route tRPC premium.status. Appelée en mode groupé (`batch=1`) avec superjson,
