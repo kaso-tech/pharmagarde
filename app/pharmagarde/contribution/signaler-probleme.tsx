@@ -1,35 +1,53 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AppChrome } from "@/components/pharmagarde/app-ui";
+import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
+import { trpc } from "@/lib/trpc";
 
 const BRAND_GREEN = "#008000";
 
-const CATEGORIES = ["Information incorrecte", "Pharmacie fermée", "Position carte", "Prix médicament", "Autre"];
+const CATEGORIES = ["Information incorrecte", "Pharmacie fermée", "Position carte", "Prix médicament", "Autre"] as const;
 
 type ProblemForm = {
   subject: string;
-  category: string;
+  category: (typeof CATEGORIES)[number];
   message: string;
 };
 
 const INITIAL_FORM: ProblemForm = { subject: "", category: CATEGORIES[0], message: "" };
 
+function param(value: string | string[] | undefined) {
+  return (Array.isArray(value) ? value[0] : value) || undefined;
+}
+
 export default function ReportProblemScreen() {
+  // Ouvert depuis une fiche, le signalement est rattaché à l'établissement concerné.
+  const params = useLocalSearchParams<{ placeId?: string; placeName?: string; placeKind?: string; city?: string }>();
+  const placeId = param(params.placeId);
+  const placeName = param(params.placeName);
+  const placeKind = param(params.placeKind) === "healthcare" ? "healthcare" : placeId ? "pharmacy" : undefined;
+  const { preferences } = usePharmaGarde();
   const [form, setForm] = useState<ProblemForm>(INITIAL_FORM);
   const [submitted, setSubmitted] = useState(false);
+  const report = trpc.contributions.reportProblem.useMutation({
+    onSuccess: () => {
+      setSubmitted(true);
+      setForm(INITIAL_FORM);
+    },
+  });
   const isValid = useMemo(() => form.subject.trim().length >= 3 && form.message.trim().length >= 8, [form.message, form.subject]);
 
-  const updateField = (field: keyof ProblemForm, value: string) => {
+  const updateField = <K extends keyof ProblemForm>(field: K, value: ProblemForm[K]) => {
     setSubmitted(false);
     setForm((current) => ({ ...current, [field]: value }));
   };
 
   const submit = () => {
-    if (!isValid) return;
-    setSubmitted(true);
-    setForm(INITIAL_FORM);
+    if (!isValid || report.isPending) return;
+    report.mutate({ category: form.category, subject: form.subject.trim(), message: form.message.trim(), placeId, placeName, placeKind, city: param(params.city) ?? preferences.city });
   };
 
   return (
@@ -37,7 +55,7 @@ export default function ReportProblemScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
         <ScrollView style={styles.page} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>Signaler un problème</Text>
-          <Text style={styles.description}>Décrivez l’anomalie observée. Le formulaire est prêt pour une future synchronisation avec l’équipe PharmaGarde.</Text>
+          <Text style={styles.description}>{placeName ? `Signalement concernant ${placeName}. ` : ""}Décrivez l’anomalie observée : l’équipe PharmaGarde la vérifiera et corrigera l’annuaire.</Text>
 
           <View style={styles.card}>
             <Field label="Sujet" value={form.subject} onChangeText={(value) => updateField("subject", value)} placeholder="Ex. Horaires incorrects" icon="report-problem" />
@@ -61,13 +79,14 @@ export default function ReportProblemScreen() {
             {submitted ? (
               <View style={styles.successBox}>
                 <MaterialIcons name="check-circle" size={20} color={BRAND_GREEN} />
-                <Text style={styles.successText}>Signalement enregistré localement. Merci pour votre contribution.</Text>
+                <Text style={styles.successText}>Merci ! Votre signalement a été envoyé à l’équipe PharmaGarde.</Text>
               </View>
             ) : null}
+            {report.error ? <Text style={styles.errorText}>{report.error.message || "Envoi impossible. Vérifiez votre connexion et réessayez."}</Text> : null}
 
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: !isValid }} style={({ pressed }) => [styles.button, !isValid && styles.disabled, pressed && isValid && styles.pressed]} onPress={submit}>
               <MaterialIcons name="outgoing-mail" size={19} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Envoyer le signalement</Text>
+              <Text style={styles.buttonText}>{report.isPending ? "Envoi…" : "Envoyer le signalement"}</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -89,6 +108,7 @@ function Field({ label, icon, ...props }: { label: string; icon: keyof typeof Ma
 }
 
 const styles = StyleSheet.create({
+  errorText: { color: "#B42318", fontSize: 13, lineHeight: 19, fontWeight: "700" },
   flex: { flex: 1 },
   page: { flex: 1, backgroundColor: "#F6FBF8" },
   content: { padding: 16, paddingBottom: 28 },

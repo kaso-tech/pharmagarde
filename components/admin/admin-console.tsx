@@ -1,5 +1,6 @@
 import { AccountPage } from "./console/pages/account";
 import { AuditPage } from "./console/pages/audit";
+import { ContributionsPage } from "./console/pages/contributions";
 import { DashboardPage } from "./console/pages/dashboard";
 import { DirectoryPage } from "./console/pages/directory";
 import { DutyPage } from "./console/pages/duty";
@@ -12,6 +13,7 @@ import type { AdminSection } from "./console/shared";
 const PAGES: Record<AdminSection, () => React.JSX.Element> = {
   dashboard: DashboardPage,
   directory: DirectoryPage,
+  contributions: ContributionsPage,
   duty: DutyPage,
   hours: HoursPage,
   users: UsersPage,

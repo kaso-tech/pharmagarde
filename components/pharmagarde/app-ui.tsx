@@ -1,4 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { PropsWithChildren, RefObject, useState } from "react";
 import { Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
@@ -196,6 +197,18 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
               <Text style={[styles.secondaryButtonText, { color: canNavigate ? palette.text : palette.muted }]}>Itinéraire</Text>
             </Pressable>
           </View>
+          <Pressable
+            accessibilityRole="link"
+            hitSlop={8}
+            style={({ pressed }) => [styles.reportLink, pressed ? styles.pressedScale : undefined]}
+            onPress={(event) => {
+              event.stopPropagation();
+              router.push({ pathname: "/pharmagarde/contribution/signaler-probleme", params: { placeId: place.id, placeName: place.name, placeKind: place.type === "pharmacy" ? "pharmacy" : "healthcare", city: place.city ?? "" } });
+            }}
+          >
+            <MaterialIcons name="flag" size={15} color={palette.muted} />
+            <Text style={[styles.reportLinkText, { color: palette.muted }]}>Signaler une erreur sur cette fiche</Text>
+          </Pressable>
         </View>
       ) : null}
     </Pressable>
@@ -310,6 +323,8 @@ export function MenuRow({ icon, title, description, onPress }: { icon: keyof typ
 }
 
 const styles = StyleSheet.create({
+  reportLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 4 },
+  reportLinkText: { fontSize: 12, lineHeight: 17, fontWeight: "700", textDecorationLine: "underline" },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28 },
   emptyIcon: { width: 62, height: 62, borderRadius: 20, alignItems: "center", justifyContent: "center", marginBottom: 16 },
   emptyTitle: { fontSize: 19, lineHeight: 25, fontWeight: "900", textAlign: "center" },

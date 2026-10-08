@@ -16,7 +16,7 @@ type Identity = { name: string; detail: string };
 /** Sous cette largeur, le menu latéral fixe n'affiche que les icônes (le libellé apparaît au survol). */
 const COMPACT_SIDEBAR_BELOW = 1200;
 
-function NavItem({ label, icon, active, onPress, compact }: { label: string; icon: keyof typeof MaterialIcons.glyphMap; active: boolean; onPress: () => void; compact?: boolean }) {
+function NavItem({ label, icon, active, onPress, compact, badge }: { label: string; icon: keyof typeof MaterialIcons.glyphMap; active: boolean; onPress: () => void; compact?: boolean; badge?: number }) {
   const theme = useAdminTheme();
   return (
     <Pressable
@@ -30,6 +30,7 @@ function NavItem({ label, icon, active, onPress, compact }: { label: string; ico
       {active ? <View style={[styles.navIndicator, { backgroundColor: theme.brand }]} /> : null}
       <MaterialIcons name={icon} size={20} color={active ? theme.brandText : theme.textMuted} />
       {compact ? null : <Text numberOfLines={1} style={[styles.navLabel, { color: active ? theme.brandText : theme.textSecondary }, active && styles.navLabelActive]}>{label}</Text>}
+      {badge ? <View style={[compact ? styles.navBadgeCompact : styles.navBadge, { backgroundColor: theme.danger }]}><Text style={styles.navBadgeText}>{badge > 99 ? "99+" : badge}</Text></View> : null}
     </Pressable>
   );
 }
@@ -40,6 +41,8 @@ function Sidebar({ section, identity, onNavigate, onClose, compact = false }: { 
   const router = useRouter();
   const { logout } = useAuth({ autoFetch: false });
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const counts = trpc.admin.contributions.counts.useQuery(undefined, { retry: false, refetchInterval: 120_000 });
+  const pendingContributions = (counts.data?.newPlaces ?? 0) + (counts.data?.newProblems ?? 0);
   const [logoutPending, setLogoutPending] = useState(false);
   const go = (href: string, target: AdminSection) => {
     onNavigate?.();
@@ -76,7 +79,7 @@ function Sidebar({ section, identity, onNavigate, onClose, compact = false }: { 
         {NAV_GROUPS.map((group) => (
           <View key={group.label} style={styles.navGroup}>
             {compact ? <View style={[styles.navGroupDivider, { backgroundColor: theme.border }]} /> : <Text style={[styles.navGroupLabel, { color: theme.textMuted }]}>{group.label}</Text>}
-            {group.items.map((item) => <NavItem key={item.section} compact={compact} label={item.label} icon={item.icon} active={item.section === section} onPress={() => go(item.href, item.section)} />)}
+            {group.items.map((item) => <NavItem key={item.section} compact={compact} label={item.label} icon={item.icon} badge={item.section === "contributions" ? pendingContributions : undefined} active={item.section === section} onPress={() => go(item.href, item.section)} />)}
           </View>
         ))}
       </ScrollView>
@@ -261,6 +264,9 @@ const styles = StyleSheet.create({
   navIndicator: { position: "absolute", left: 0, top: 8, bottom: 8, width: 3, borderRadius: 2 },
   navLabel: { fontSize: font.md, fontWeight: "500", flex: 1 },
   navLabelActive: { fontWeight: "600" },
+  navBadge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" },
+  navBadgeCompact: { position: "absolute", top: 4, right: 8, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
+  navBadgeText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
   sidebarFooter: { borderTopWidth: 1, padding: 12, gap: 4 },
   userCard: { flexDirection: "row", alignItems: "center", gap: 10, padding: 8, borderRadius: radius.md },
   userName: { fontSize: font.sm, fontWeight: "600" },

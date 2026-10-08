@@ -39,19 +39,19 @@ export const OFFERED_PLAN_ID = "offered";
  * refusé jusqu'à la fin de la fenêtre (une session volée ne suffit pas à deviner le mot de passe).
  */
 export function createAttemptLimiter({ max, windowMs }: { max: number; windowMs: number }) {
-  const failures = new Map<number, { count: number; resetAt: number }>();
+  const failures = new Map<number | string, { count: number; resetAt: number }>();
   return {
-    isBlocked(key: number, now = Date.now()) {
+    isBlocked(key: number | string, now = Date.now()) {
       const entry = failures.get(key);
       if (entry && entry.resetAt <= now) failures.delete(key);
       return (failures.get(key)?.count ?? 0) >= max;
     },
-    recordFailure(key: number, now = Date.now()) {
+    recordFailure(key: number | string, now = Date.now()) {
       const entry = failures.get(key);
       if (!entry || entry.resetAt <= now) failures.set(key, { count: 1, resetAt: now + windowMs });
       else entry.count += 1;
     },
-    reset(key: number) {
+    reset(key: number | string) {
       failures.delete(key);
     },
   };

@@ -21,6 +21,8 @@ export function DashboardPage() {
   const directory = trpc.admin.directory.list.useQuery({ page: 1, limit: 1 }, { retry: 1 });
   const payments = trpc.admin.premium.transactions.useQuery({ page: 1, limit: 6 }, { retry: 1 });
   const activity = trpc.admin.audit.list.useQuery({ page: 1, limit: 7 }, { retry: 1 });
+  const contributionCounts = trpc.admin.contributions.counts.useQuery(undefined, { retry: 1 });
+  const toReview = (contributionCounts.data?.newPlaces ?? 0) + (contributionCounts.data?.newProblems ?? 0);
   const go = (href: string) => router.replace(href as never);
   const data = summary.data;
   const cities = [...(directory.data?.cities ?? [])].filter((city) => city.count > 0).sort((a, b) => b.count - a.count);
@@ -32,6 +34,11 @@ export function DashboardPage() {
       <DataState loading={summary.isLoading} error={summary.error} onRetry={() => summary.refetch()}>
         {data ? (
           <>
+            {toReview > 0 ? (
+              <Alert tone="info" icon="inbox" title={`${toReview} contribution${toReview > 1 ? "s" : ""} à traiter`}>
+                {`${contributionCounts.data?.newPlaces ?? 0} établissement(s) proposé(s) et ${contributionCounts.data?.newProblems ?? 0} signalement(s) d’erreur envoyés depuis l’application. Ouvrez « Contributions » pour les examiner.`}
+              </Alert>
+            ) : null}
             {data.pendingTransactions > 0 ? (
               <Alert tone="warning" title={`${data.pendingTransactions} paiement${data.pendingTransactions > 1 ? "s" : ""} en attente de confirmation`}>
                 Ligdi Cash n’a pas encore confirmé ces paiements. Ils apparaissent dans la page Premium.

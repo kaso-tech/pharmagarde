@@ -81,6 +81,7 @@ class SessionService {
     const user = await db.getUserByOpenId(session.openId);
     if (!user) throw ForbiddenError("User not found");
     if (!isSessionStillValid(session.issuedAtMs, user.sessionsValidAfter)) throw ForbiddenError("Session revoked");
+    if (user.suspendedAt) throw ForbiddenError("Account suspended");
     return user;
   }
 }
