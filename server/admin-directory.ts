@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { DirectoryEntry } from "../drizzle/schema";
-import { INSURER_IDS, normalizeInsurerIds } from "../lib/pharmagarde/insurances";
+import { INSURER_ID_PATTERN, isInsurerId, normalizeInsurerIds } from "../lib/pharmagarde/insurances";
 import { WEEK_DAYS, parseWeeklyHours, validateWeeklyHours, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { SUPPORTED_CITIES, getCacheState, type CachedHealthPlace } from "./pharmagarde-cache";
 import { DUTY_GROUPS, isInBurkinaFaso, loadPharmacyDirectory, normalizeBurkinaPhone, slugify } from "./pharmacy-directory";
@@ -55,7 +55,7 @@ export const directoryUpsertSchema = z
     /** Horaires propres ; null ou absent = horaires de la ville. */
     openingHours: weeklyHoursSchema.nullable().optional(),
     /** Assurances acceptées ; vide = aucune assurance renseignée. */
-    insurances: z.array(z.enum(INSURER_IDS)).max(INSURER_IDS.length).optional(),
+    insurances: z.array(z.string().regex(INSURER_ID_PATTERN).refine(isInsurerId, "Assurance inconnue")).max(100).optional(),
   })
   .superRefine((value, ctx) => {
     const hasLatitude = value.latitude !== null && value.latitude !== undefined;
@@ -140,7 +140,7 @@ export function normalizeDirectoryUpsert(input: DirectoryUpsertInput, knownCitie
     dutyGroup: input.kind === "pharmacy" ? input.dutyGroup ?? null : null,
     establishmentType: input.kind === "healthcare" ? input.establishmentType ?? "Centre de santé" : "Pharmacie",
     openingHours: input.openingHours ? JSON.stringify(input.openingHours) : null,
-    insurances: input.insurances?.length ? JSON.stringify(normalizeInsurerIds(input.insurances)) : null,
+    insurances: input.insurances?.length ? JSON.stringify(normalizeInsurerIds(input.insurances, { includeInactive: true })) : null,
   };
 }
 
@@ -224,7 +224,7 @@ export function mergeAdminDirectoryItems(baseItems: AdminDirectoryItem[], overri
       dutyGroup: kind === "pharmacy" ? override.dutyGroup ?? null : null,
       establishmentType: override.establishmentType ?? current?.establishmentType ?? (kind === "pharmacy" ? "Pharmacie" : "Centre de santé"),
       openingHours: parseWeeklyHours(override.openingHours),
-      insurances: normalizeInsurerIds(override.insurances),
+      insurances: normalizeInsurerIds(override.insurances, { includeInactive: true }),
       source: "admin",
       managed: true,
       updatedAt: toIso(override.updatedAt),

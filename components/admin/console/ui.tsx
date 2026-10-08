@@ -286,6 +286,16 @@ export function Select({ label, value, options, onChange, style, placeholder }: 
   );
 }
 
+/** Liste déroulante de formulaire, avec son libellé au-dessus (comme Field). */
+export function SelectField({ label, style, ...props }: { label: string; value: string; options: readonly Option[]; onChange: (value: string) => void; style?: StyleProp<ViewStyle>; placeholder?: string }) {
+  return (
+    <View style={[styles.field, style]}>
+      <FieldLabel>{label}</FieldLabel>
+      <Select label={label} {...props} />
+    </View>
+  );
+}
+
 export function Segmented({ value, onChange, options, style }: { value: string; onChange: (value: string) => void; options: readonly Option[]; style?: StyleProp<ViewStyle> }) {
   const theme = useAdminTheme();
   return (

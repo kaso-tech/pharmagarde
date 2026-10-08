@@ -1,7 +1,8 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { PropsWithChildren, RefObject, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { PropsWithChildren, RefObject, useEffect, useState } from "react";
 import { Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GlobalAppShell } from "@/components/pharmagarde/app-shell";
@@ -87,6 +88,51 @@ export function StatusNotice({ message, tone = "info" }: { message?: string; ton
     <View style={[styles.notice, { backgroundColor: tone === "error" ? "rgba(225, 29, 72, 0.1)" : tone === "success" ? palette.softGreen : palette.card, borderColor: accent }]}> 
       <MaterialIcons name={tone === "error" ? "error-outline" : tone === "success" ? "verified" : "info-outline"} size={18} color={accent} />
       <Text style={[styles.noticeText, { color: tone === "error" ? palette.danger : palette.text }]}>{message}</Text>
+    </View>
+  );
+}
+
+const DISMISSED_ANNOUNCEMENTS_KEY = "pharmagarde:announcements:dismissed";
+
+/** Annonces publiées depuis la console pour la ville sélectionnée ; chacune peut être masquée. */
+export function AnnouncementBanners() {
+  const palette = usePremiumPalette();
+  const { announcements } = usePharmaGarde();
+  const [dismissed, setDismissed] = useState<number[]>([]);
+  useEffect(() => {
+    AsyncStorage.getItem(DISMISSED_ANNOUNCEMENTS_KEY)
+      .then((value) => {
+        const parsed: unknown = value ? JSON.parse(value) : [];
+        if (Array.isArray(parsed)) setDismissed(parsed.filter((id): id is number => typeof id === "number"));
+      })
+      .catch(() => undefined);
+  }, []);
+  const visible = announcements.filter((announcement) => !dismissed.includes(announcement.id));
+  if (!visible.length) return null;
+  const dismiss = (id: number) => {
+    haptic.light();
+    // Seules les annonces encore publiées sont gardées dans la liste des annonces masquées.
+    const next = [...dismissed.filter((value) => announcements.some((announcement) => announcement.id === value)), id];
+    setDismissed(next);
+    AsyncStorage.setItem(DISMISSED_ANNOUNCEMENTS_KEY, JSON.stringify(next)).catch(() => undefined);
+  };
+  return (
+    <View>
+      {visible.map((announcement) => {
+        const accent = announcement.tone === "danger" ? palette.danger : announcement.tone === "warning" ? palette.warning : palette.clinic;
+        return (
+          <View key={announcement.id} accessibilityRole="alert" style={[styles.notice, { backgroundColor: palette.card, borderColor: accent }]}>
+            <MaterialIcons name={announcement.tone === "danger" ? "report" : announcement.tone === "warning" ? "warning-amber" : "campaign"} size={18} color={accent} />
+            <View style={styles.announcementBody}>
+              <Text style={[styles.noticeText, { color: palette.text }]}>{announcement.title}</Text>
+              <Text style={[styles.announcementText, { color: palette.muted }]}>{announcement.body}</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Masquer l’annonce" hitSlop={10} onPress={() => dismiss(announcement.id)}>
+              <MaterialIcons name="close" size={18} color={palette.muted} />
+            </Pressable>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -333,6 +379,8 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: "#FFFFFF", fontWeight: "900", fontSize: 15, lineHeight: 19 },
   notice: { marginHorizontal: 16, marginTop: 12, borderRadius: 18, padding: 12, borderWidth: 1, flexDirection: "row", alignItems: "flex-start", gap: 9 },
   noticeText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: "700" },
+  announcementBody: { flex: 1, gap: 2 },
+  announcementText: { fontSize: 13, lineHeight: 19 },
   searchBox: { margin: 16, height: 52, borderRadius: 26, borderWidth: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 16, gap: 10, shadowColor: "#092A13", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   searchInput: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: "700", paddingVertical: 0 },
   card: { marginHorizontal: 16, marginTop: 12, borderRadius: 24, padding: 15, borderWidth: 1, shadowColor: "#092A13", shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 4 },

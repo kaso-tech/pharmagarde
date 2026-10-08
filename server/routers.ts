@@ -5,7 +5,7 @@ import { contributionsRouter } from "./contributions";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { getPremiumStatus, getRecentTransactions, PREMIUM_PLANS, requirePremium } from "./premium";
+import { activePremiumPlans, getPremiumStatus, getRecentTransactions, requirePremium } from "./premium";
 
 export const appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -23,7 +23,7 @@ export const appRouter = router({
     }),
   }),
   premium: router({
-    plans: publicProcedure.query(() => Object.values(PREMIUM_PLANS)),
+    plans: publicProcedure.query(() => activePremiumPlans()),
     status: protectedProcedure.query(async ({ ctx }) => getPremiumStatus(ctx.user.openId)),
     transactions: protectedProcedure.query(async ({ ctx }) => getRecentTransactions(ctx.user.openId)),
     assertAccess: protectedProcedure.query(async ({ ctx }) => {

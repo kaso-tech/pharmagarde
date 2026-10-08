@@ -3,18 +3,49 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 
 import { transactions, users, type InsertTransaction, type User } from "../drizzle/schema";
+import { currentContentConfig, getContentConfig } from "./content-config";
 import { getDb } from "./db";
 import { getPublicPaymentUrls } from "./_core/security";
 import { sdk } from "./_core/sdk";
 
 export type PremiumPlanId = "week" | "month" | "quarter" | "semester";
 
-export const PREMIUM_PLANS: Record<PremiumPlanId, { id: PremiumPlanId; label: string; amount: number; durationDays: number }> = {
+export type PremiumPlan = { id: PremiumPlanId; label: string; amount: number; durationDays: number };
+
+/** Formules de référence ; libellé, prix, durée et visibilité se modifient depuis la console. */
+export const PREMIUM_PLANS: Record<PremiumPlanId, PremiumPlan> = {
   week: { id: "week", label: "1 semaine", amount: 200, durationDays: 7 },
   month: { id: "month", label: "1 mois", amount: 400, durationDays: 30 },
   quarter: { id: "quarter", label: "3 mois", amount: 1000, durationDays: 90 },
   semester: { id: "semester", label: "6 mois", amount: 2000, durationDays: 180 },
 };
+
+export const PREMIUM_PLAN_IDS = Object.keys(PREMIUM_PLANS) as PremiumPlanId[];
+
+/** Formules en vigueur (valeurs de la console, sinon de référence), masquées comprises. */
+export function premiumPlansWithStatus(rows = currentContentConfig().planRows) {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return PREMIUM_PLAN_IDS.map((id) => {
+    const row = byId.get(id);
+    return row
+      ? { id, label: row.label, amount: row.amount, durationDays: row.durationDays, active: row.active, custom: true }
+      : { ...PREMIUM_PLANS[id], active: true, custom: false };
+  });
+}
+
+/** Formule en vigueur, proposée ou non. */
+export function premiumPlan(planId: PremiumPlanId): PremiumPlan & { active: boolean } {
+  const { id, label, amount, durationDays, active } = premiumPlansWithStatus().find((plan) => plan.id === planId) ?? { ...PREMIUM_PLANS[planId], active: true };
+  return { id, label, amount, durationDays, active };
+}
+
+/** Formules proposées dans l'application. */
+export async function activePremiumPlans(): Promise<PremiumPlan[]> {
+  const config = await getContentConfig();
+  return premiumPlansWithStatus(config.planRows)
+    .filter((plan) => plan.active)
+    .map(({ id, label, amount, durationDays }) => ({ id, label, amount, durationDays }));
+}
 
 const paymentInitSchema = z.object({
   planId: z.enum(["week", "month", "quarter", "semester"]),
@@ -74,7 +105,7 @@ export function extendSubscriptionEnd(currentEnd: Date | string | null | undefin
 }
 
 export function calculateSubscriptionEnd(currentEnd: Date | string | null | undefined, planId: PremiumPlanId, now = new Date()) {
-  return extendSubscriptionEnd(currentEnd, PREMIUM_PLANS[planId].durationDays, now);
+  return extendSubscriptionEnd(currentEnd, premiumPlan(planId).durationDays, now);
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -360,7 +391,9 @@ export async function initPremiumPayment(req: Request, res: Response) {
     }
 
     const { planId } = paymentInitSchema.parse(req.body ?? {});
-    const plan = PREMIUM_PLANS[planId];
+    await getContentConfig();
+    const { active, ...plan } = premiumPlan(planId);
+    if (!active) return res.status(400).json({ error: "Cette formule n’est plus proposée. Choisissez une autre durée." });
     const reference = `pg-${user.id}-${planId}-${Date.now()}`;
     const returnUrl = `${publicUrls.appUrl}/pharmagarde/abonnement?paymentReference=${encodeURIComponent(reference)}`;
     const callbackUrl = `${publicUrls.apiUrl}/payment/callback`;

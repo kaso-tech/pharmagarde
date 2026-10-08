@@ -1,12 +1,12 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { LocationPicker } from "@/components/pharmagarde/location-picker";
 import { WeeklyHoursEditor, cloneHours } from "@/components/pharmagarde/weekly-hours-editor";
 import { getKnownCityCoordinates } from "@/lib/pharmagarde/city-utils";
-import { INSURERS, formatInsurers, isInsurerId, normalizeInsurerIds, type InsurerId } from "@/lib/pharmagarde/insurances";
+import { formatInsurers, getInsurers, isInsurerId, normalizeInsurerIds, setInsurers, type InsurerId } from "@/lib/pharmagarde/insurances";
 import { DEFAULT_WEEKLY_HOURS, formatWeeklyHours, validateWeeklyHours, type WeeklyHours } from "@/lib/pharmagarde/opening-hours";
 import { haptic } from "@/lib/pharmagarde/premium-ui";
 import { trpc } from "@/lib/trpc";
@@ -108,8 +108,21 @@ function Row({ children }: { children: React.ReactNode }) {
   return <View style={desktop ? styles.fieldRow : styles.fieldColumn}>{children}</View>;
 }
 
+/**
+ * Assureurs en vigueur (gérés dans la page Assurances), désactivés compris : la liste de la console
+ * est chargée dans le registre partagé pour que les libellés affichés soient à jour.
+ */
+export function useConsoleInsurers() {
+  const query = trpc.admin.insurers.list.useQuery(undefined, { staleTime: 5 * 60_000, retry: 1 });
+  useEffect(() => {
+    if (query.data) setInsurers(query.data);
+  }, [query.data]);
+  return query.data ?? getInsurers({ includeInactive: true });
+}
+
 export function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange }: { form: DirectoryForm; cityNames: readonly string[]; cityHoursFor: (city: string) => WeeklyHours; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void }) {
   const [otherCity, setOtherCity] = useState(false);
+  const insurers = useConsoleInsurers().filter((insurer) => insurer.active || form.insurances.includes(insurer.id));
   const showOtherCity = otherCity || (!!form.city && !cityNames.includes(form.city));
   const cityOptions = [...cityNames.map((name) => ({ value: name, label: name })), { value: OTHER_CITY, label: "Autre ville…" }];
   const cityHours = cityHoursFor(form.city);
@@ -171,9 +184,9 @@ export function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange }:
         <View style={styles.field}>
           <FieldLabel>Assurances acceptées</FieldLabel>
           <View style={styles.chips}>
-            {INSURERS.map((insurer) => {
+            {insurers.map((insurer) => {
               const selected = form.insurances.includes(insurer.id);
-              return <Chip key={insurer.id} label={insurer.label} selected={selected} onPress={() => onChange("insurances", selected ? form.insurances.filter((id) => id !== insurer.id) : [...form.insurances, insurer.id])} />;
+              return <Chip key={insurer.id} label={insurer.active ? insurer.label : `${insurer.label} (désactivé)`} selected={selected} onPress={() => onChange("insurances", selected ? form.insurances.filter((id) => id !== insurer.id) : [...form.insurances, insurer.id])} />;
             })}
           </View>
           <Hint>{form.insurances.length ? `${form.insurances.length} sélectionnée${form.insurances.length > 1 ? "s" : ""} : ${formatInsurers(form.insurances)}` : "Aucune assurance renseignée."}</Hint>
@@ -229,6 +242,7 @@ export function DirectoryPage() {
   const utils = trpc.useUtils();
   const theme = useAdminTheme();
   const { desktop, large } = useAdminLayout();
+  const insurerOptions = useConsoleInsurers();
   const [kind, setKind] = useState<"all" | DirectoryKind>("all");
   // `?q=` : recherche pré-remplie, par exemple depuis un signalement.
   const { q } = useLocalSearchParams<{ q?: string }>();
@@ -283,7 +297,7 @@ export function DirectoryPage() {
   };
   const openEdit = (item: DirectoryItem) => {
     upsert.reset();
-    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS, insurances: normalizeInsurerIds(item.insurances) });
+    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS, insurances: normalizeInsurerIds(item.insurances, { includeInactive: true }) });
     setShowForm(true);
   };
   const submit = () => upsert.mutate(toUpsertInput(form));
@@ -355,7 +369,7 @@ export function DirectoryPage() {
           <Segmented value={kind} onChange={(value) => setKind(value as "all" | DirectoryKind)} options={KIND_OPTIONS} />
           <Select label="Ville" style={desktop ? styles.filter : undefined} value={city} options={[{ value: "", label: "Toutes les villes" }, ...cities.filter((entry) => entry.count > 0).map((entry) => ({ value: entry.name, label: `${entry.name} (${entry.count})` }))]} onChange={setCity} />
           {kind !== "healthcare" ? <Select label="Groupe de garde" style={desktop ? styles.filter : undefined} value={dutyGroup} options={DUTY_GROUP_FILTERS} onChange={(value) => setDutyGroup(value as DutyGroupFilter)} /> : null}
-          <Select label="Assurance" style={desktop ? styles.filter : undefined} value={insurance} options={[{ value: "", label: "Toutes les assurances" }, ...INSURERS.map((insurer) => ({ value: insurer.id, label: insurer.label }))]} onChange={setInsurance} />
+          <Select label="Assurance" style={desktop ? styles.filter : undefined} value={insurance} options={[{ value: "", label: "Toutes les assurances" }, ...insurerOptions.map((insurer) => ({ value: insurer.id, label: insurer.label }))]} onChange={setInsurance} />
           <Segmented value={status} onChange={(value) => setStatus(value as "active" | "archived")} options={[{ value: "active", label: "Publiées" }, { value: "archived", label: "Archivées" }]} />
         </Toolbar>
         <DataState loading={directory.isLoading} error={directory.error} onRetry={() => directory.refetch()} empty={!rows.length} emptyTitle="Aucun établissement" emptyMessage="Aucun établissement ne correspond à ces filtres.">

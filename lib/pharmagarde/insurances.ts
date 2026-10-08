@@ -1,7 +1,8 @@
 /**
- * Assurances santé que les établissements peuvent accepter (tiers payant). Liste de référence
- * partagée par le serveur, la console d'administration et l'application : les établissements
- * enregistrent les identifiants, l'affichage utilise les libellés.
+ * Assurances santé que les établissements peuvent accepter (tiers payant). La liste de référence
+ * ci-dessous est complétée, renommée ou désactivée depuis la console : le serveur publie la liste
+ * en vigueur (`/app-config`) et chaque environnement (serveur, console, application) la charge avec
+ * `setInsurers`. Les établissements enregistrent les identifiants, l'affichage utilise les libellés.
  */
 export const INSURERS = [
   { id: "ascoma", label: "Ascoma" },
@@ -23,20 +24,53 @@ export const INSURERS = [
   { id: "yelen", label: "Yelen" },
 ] as const;
 
-export type InsurerId = (typeof INSURERS)[number]["id"];
+export type InsurerId = string;
 
-export const INSURER_IDS = INSURERS.map((insurer) => insurer.id) as [InsurerId, ...InsurerId[]];
+export type Insurer = { id: InsurerId; label: string; active: boolean };
 
+/** Identifiant d'assureur : minuscules, chiffres et tirets (ex. « gras-savoye »). */
+export const INSURER_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
+
+const DEFAULT_REGISTRY: Insurer[] = INSURERS.map((insurer) => ({ ...insurer, active: true }));
+let registry: Insurer[] = DEFAULT_REGISTRY;
+
+/** Remplace la liste en vigueur (ordre conservé). Sans argument, revient à la liste de référence. */
+export function setInsurers(list?: readonly Insurer[] | null) {
+  registry = list?.length ? list.map((insurer) => ({ id: insurer.id, label: insurer.label, active: insurer.active !== false })) : DEFAULT_REGISTRY;
+}
+
+/** Assureurs en vigueur ; les désactivés ne sont renvoyés qu'avec `includeInactive`. */
+export function getInsurers(options: { includeInactive?: boolean } = {}): Insurer[] {
+  return options.includeInactive ? registry : registry.filter((insurer) => insurer.active);
+}
+
+/** Identifiant d'un assureur connu, actif ou désactivé. */
 export function isInsurerId(value: unknown): value is InsurerId {
-  return typeof value === "string" && (INSURER_IDS as readonly string[]).includes(value);
+  return typeof value === "string" && registry.some((insurer) => insurer.id === value);
 }
 
 export function insurerLabel(id: string) {
-  return INSURERS.find((insurer) => insurer.id === id)?.label ?? id;
+  return registry.find((insurer) => insurer.id === id)?.label ?? id;
 }
 
-/** Identifiants valides, sans doublon, dans l'ordre de la liste de référence (JSON ou tableau). */
-export function normalizeInsurerIds(value: unknown): InsurerId[] {
+/** « Gras Savoye » → « gras-savoye » */
+export function insurerIdFromLabel(label: string) {
+  return label
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\+/g, "-plus")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+    .replace(/-+$/g, "");
+}
+
+/**
+ * Identifiants valides, sans doublon, dans l'ordre de la liste en vigueur (JSON ou tableau). Les
+ * assureurs désactivés sont retirés, sauf avec `includeInactive` (enregistrement, console).
+ */
+export function normalizeInsurerIds(value: unknown, options: { includeInactive?: boolean } = {}): InsurerId[] {
   let raw = value;
   if (typeof value === "string") {
     try {
@@ -46,8 +80,10 @@ export function normalizeInsurerIds(value: unknown): InsurerId[] {
     }
   }
   if (!Array.isArray(raw)) return [];
-  const selected = new Set(raw.filter(isInsurerId));
-  return INSURER_IDS.filter((id) => selected.has(id));
+  const selected = new Set(raw.filter((item): item is string => typeof item === "string"));
+  return getInsurers(options)
+    .map((insurer) => insurer.id)
+    .filter((id) => selected.has(id));
 }
 
 /** « Sunu, UAB, Yelen » */

@@ -1,4 +1,4 @@
-import { double, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, datetime, double, index, int, uniqueIndex, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -206,3 +206,86 @@ export const dutyExceptions = mysqlTable(
 
 export type DutyRotationRow = typeof dutyRotations.$inferSelect;
 export type DutyExceptionRow = typeof dutyExceptions.$inferSelect;
+
+/**
+ * Modification d'un produit du catalogue des médicaments (server/data/medicines.json) ou produit
+ * ajouté depuis la console. `data` contient les champs modifiés (JSON partiel d'un Medicine).
+ */
+export const medicineOverrides = mysqlTable("medicine_overrides", {
+  id: varchar("id", { length: 160 }).primaryKey(),
+  data: text("data").notNull(),
+  hidden: boolean("hidden").default(false).notNull(),
+  /** Produit absent du catalogue versionné (ajouté depuis la console). */
+  added: boolean("added").default(false).notNull(),
+  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Intitulé corrigé d'une catégorie ou sous-catégorie du catalogue des médicaments. */
+export const medicineCategoryLabels = mysqlTable(
+  "medicine_category_labels",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    level: mysqlEnum("level", ["category", "subcategory"]).notNull(),
+    original: varchar("original", { length: 255 }).notNull(),
+    label: varchar("label", { length: 255 }).notNull(),
+    updatedBy: int("updatedBy"),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [uniqueIndex("medicine_category_labels_original_idx").on(table.level, table.original)],
+);
+
+/** Assureur ajouté, renommé ou désactivé depuis la console (complète la liste de référence). */
+export const insurers = mysqlTable("insurers", {
+  id: varchar("id", { length: 48 }).primaryKey(),
+  label: varchar("label", { length: 96 }).notNull(),
+  active: boolean("active").default(true).notNull(),
+  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Ville couverte ajoutée ou modifiée depuis la console (centre, alias, publication). */
+export const cities = mysqlTable("cities", {
+  name: varchar("name", { length: 96 }).primaryKey(),
+  latitude: double("latitude").notNull(),
+  longitude: double("longitude").notNull(),
+  /** Autres noms reconnus (JSON de chaînes). */
+  aliases: text("aliases"),
+  published: boolean("published").default(true).notNull(),
+  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Bandeau d'information affiché dans l'application, pour toutes les villes ou une seule. */
+export const announcements = mysqlTable("announcements", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Ville ciblée ; null pour toutes les villes. */
+  city: varchar("city", { length: 96 }),
+  title: varchar("title", { length: 120 }).notNull(),
+  body: varchar("body", { length: 600 }).notNull(),
+  tone: mysqlEnum("tone", ["info", "warning", "danger"]).default("info").notNull(),
+  startsAt: datetime("startsAt", { mode: "date" }).notNull(),
+  endsAt: datetime("endsAt", { mode: "date" }),
+  active: boolean("active").default(true).notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Libellé, prix, durée et visibilité d'une formule Premium (remplace la valeur par défaut). */
+export const premiumPlans = mysqlTable("premium_plans", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  label: varchar("label", { length: 64 }).notNull(),
+  amount: int("amount").notNull(),
+  durationDays: int("durationDays").notNull(),
+  active: boolean("active").default(true).notNull(),
+  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MedicineOverrideRow = typeof medicineOverrides.$inferSelect;
+export type MedicineCategoryLabelRow = typeof medicineCategoryLabels.$inferSelect;
+export type InsurerRow = typeof insurers.$inferSelect;
+export type CityRow = typeof cities.$inferSelect;
+export type AnnouncementRow = typeof announcements.$inferSelect;
+export type PremiumPlanRow = typeof premiumPlans.$inferSelect;

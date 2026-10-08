@@ -3,9 +3,9 @@ import path from "node:path";
 
 import { sql } from "drizzle-orm";
 
-import { cityHours, directoryEntries, dutyExceptions, dutyRotations } from "../drizzle/schema";
+import { announcements, cities, cityHours, directoryEntries, dutyExceptions, dutyRotations, insurers, medicineCategoryLabels, medicineOverrides, premiumPlans } from "../drizzle/schema";
 import { getDb } from "./db";
-import { getMedicinesCatalog } from "./medicines-data";
+import { getMedicinesCatalog, getPublishedMedicines } from "./medicines-data";
 import { getCacheState, type CacheKind } from "./pharmagarde-cache";
 import { loadPharmacyDirectory } from "./pharmacy-directory";
 
@@ -54,7 +54,7 @@ export async function readSystemStatus() {
   let medicines: { count: number; updatedAt: string | null } | null = null;
   try {
     const catalog = getMedicinesCatalog();
-    medicines = { count: catalog.medicines.length, updatedAt: catalog.updatedAt || null };
+    medicines = { count: getPublishedMedicines().length, updatedAt: catalog.updatedAt || null };
   } catch {
     medicines = null;
   }
@@ -91,6 +91,29 @@ export async function readSystemStatus() {
 export async function readConsoleBackup() {
   const db = await getDb();
   if (!db) throw new Error("DATABASE_UNAVAILABLE");
-  const [entries, hours, rotations, exceptions] = await Promise.all([db.select().from(directoryEntries), db.select().from(cityHours), db.select().from(dutyRotations), db.select().from(dutyExceptions)]);
-  return { exportedAt: new Date().toISOString(), directoryEntries: entries, cityHours: hours, dutyRotations: rotations, dutyExceptions: exceptions };
+  const [entries, hours, rotations, exceptions, medicineEdits, categoryLabels, insurerRows, cityRows, announcementRows, planRows] = await Promise.all([
+    db.select().from(directoryEntries),
+    db.select().from(cityHours),
+    db.select().from(dutyRotations),
+    db.select().from(dutyExceptions),
+    db.select().from(medicineOverrides),
+    db.select().from(medicineCategoryLabels),
+    db.select().from(insurers),
+    db.select().from(cities),
+    db.select().from(announcements),
+    db.select().from(premiumPlans),
+  ]);
+  return {
+    exportedAt: new Date().toISOString(),
+    directoryEntries: entries,
+    cityHours: hours,
+    dutyRotations: rotations,
+    dutyExceptions: exceptions,
+    medicineOverrides: medicineEdits,
+    medicineCategoryLabels: categoryLabels,
+    insurers: insurerRows,
+    cities: cityRows,
+    announcements: announcementRows,
+    premiumPlans: planRows,
+  };
 }

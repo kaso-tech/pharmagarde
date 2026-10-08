@@ -7,7 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AppChrome } from "@/components/pharmagarde/app-ui";
 import { useAuth } from "@/hooks/use-auth";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
-import { PREMIUM_PLANS, type PremiumPlanId } from "@/lib/pharmagarde/premium";
+import { type PremiumPlanId } from "@/lib/pharmagarde/premium";
 
 const BRAND_GREEN = "#008000";
 const DARK_GREEN = "#102016";
@@ -33,7 +33,7 @@ function formatSubscriptionEnd(value: string | null) {
 export default function SubscriptionScreen() {
   const router = useRouter();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { initSubscription, isPremium, premiumLoading, refreshPremiumStatus, subscriptionEnd } = usePharmaGarde();
+  const { initSubscription, isPremium, premiumLoading, premiumPlans, refreshPremiumStatus, subscriptionEnd } = usePharmaGarde();
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlanId | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const formattedEnd = formatSubscriptionEnd(subscriptionEnd);
@@ -92,7 +92,7 @@ export default function SubscriptionScreen() {
         <View style={styles.plansSection}>
           <Text style={styles.sectionTitle}>Choisissez une durée</Text>
           <Text style={styles.sectionDescription}>Les paiements sont initialisés via Ligdi Cash. L’abonnement est activé automatiquement après confirmation du webhook de paiement.</Text>
-          {PREMIUM_PLANS.map((plan) => {
+          {premiumPlans.map((plan) => {
             const loading = selectedPlan === plan.id;
             return (
               <View key={plan.id} style={styles.planCard}>

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { IconName } from "./ui";
 import type { Tone } from "./theme";
 
-export type AdminSection = "dashboard" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "audit" | "system" | "account";
+export type AdminSection = "dashboard" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "medicines" | "insurers" | "cities" | "announcements" | "plans" | "audit" | "system" | "account";
 
 export const PAGE_SIZE = 50;
 
@@ -19,10 +19,20 @@ export const NAV_GROUPS: readonly { label: string; items: readonly { section: Ad
     ],
   },
   {
+    label: "Contenus",
+    items: [
+      { section: "medicines", href: "/admin/medicaments", label: "Médicaments", icon: "medication" },
+      { section: "insurers", href: "/admin/assurances", label: "Assurances", icon: "health-and-safety" },
+      { section: "cities", href: "/admin/villes", label: "Villes", icon: "location-city" },
+      { section: "announcements", href: "/admin/annonces", label: "Annonces", icon: "campaign" },
+    ],
+  },
+  {
     label: "Comptes",
     items: [
       { section: "users", href: "/admin/utilisateurs", label: "Utilisateurs", icon: "group" },
       { section: "premium", href: "/admin/abonnements", label: "Premium", icon: "workspace-premium" },
+      { section: "plans", href: "/admin/formules", label: "Formules et prix", icon: "sell" },
     ],
   },
   { label: "Système", items: [{ section: "audit", href: "/admin/journal", label: "Journal d’audit", icon: "history" }, { section: "system", href: "/admin/systeme", label: "Système", icon: "dns" }] },
@@ -36,6 +46,11 @@ export const SECTION_TITLES: Record<AdminSection, string> = {
   hours: "Horaires",
   users: "Utilisateurs",
   premium: "Premium",
+  medicines: "Médicaments",
+  insurers: "Assurances",
+  cities: "Villes",
+  announcements: "Annonces",
+  plans: "Formules et prix",
   audit: "Journal d’audit",
   system: "Système",
   account: "Mon compte",
@@ -49,6 +64,11 @@ export const SECTION_SUBTITLES: Record<AdminSection, string> = {
   hours: "Horaires de service par ville, fixés par l’ONPBF. Une pharmacie de garde est ouverte 24 h/24.",
   users: "Comptes inscrits, vérification du téléphone et abonnement.",
   premium: "Paiements Ligdi Cash, Premium offerts et abonnements associés.",
+  medicines: "Catalogue des médicaments et produits essentiels consulté par les abonnés : prix, unités, catégories, produits masqués.",
+  insurers: "Assurances santé que les établissements peuvent accepter (tiers payant).",
+  cities: "Villes proposées dans l’application : centre utilisé pour la carte et la recherche, publication.",
+  announcements: "Bandeaux d’information affichés en haut de l’accueil de l’application, pour toutes les villes ou une seule.",
+  plans: "Durées, prix et formules Premium proposés dans l’application.",
   audit: "Actions réalisées dans la console d’administration.",
   system: "État du serveur, de la base de données, des services et des données publiées.",
   account: "Vos informations de connexion et votre mot de passe.",
@@ -105,6 +125,32 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "duty.exception_removed": "Exception de garde supprimée",
   "directory.imported": "Import Excel de l’annuaire",
   "data.refreshed": "Données mises à jour",
+  "admin.medicines.viewed": "Consultation des médicaments",
+  "admin.insurers.viewed": "Consultation des assurances",
+  "admin.cities.viewed": "Consultation des villes",
+  "admin.announcements.viewed": "Consultation des annonces",
+  "admin.plans.viewed": "Consultation des formules",
+  "medicines.updated": "Produit modifié",
+  "medicines.added": "Produit ajouté",
+  "medicines.hidden": "Produit masqué",
+  "medicines.shown": "Produit republié",
+  "medicines.reset": "Produit rétabli",
+  "medicines.deleted": "Produit supprimé",
+  "medicines.category_renamed": "Catégorie renommée",
+  "medicines.imported": "Import Excel des médicaments",
+  "insurers.added": "Assureur ajouté",
+  "insurers.updated": "Assureur modifié",
+  "insurers.reset": "Assureur rétabli",
+  "insurers.deleted": "Assureur supprimé",
+  "cities.added": "Ville ajoutée",
+  "cities.updated": "Ville modifiée",
+  "cities.reset": "Ville rétablie",
+  "cities.deleted": "Ville retirée",
+  "announcements.created": "Annonce créée",
+  "announcements.updated": "Annonce modifiée",
+  "announcements.deleted": "Annonce supprimée",
+  "plans.updated": "Formule modifiée",
+  "plans.reset": "Formule rétablie",
 };
 
 export const AUDIT_TARGETS: Record<string, string> = {
@@ -115,6 +161,11 @@ export const AUDIT_TARGETS: Record<string, string> = {
   user: "Utilisateur",
   contribution: "Contribution",
   transaction: "Transaction",
+  medicine: "Médicament",
+  medicine_category: "Catégorie",
+  insurer: "Assureur",
+  announcement: "Annonce",
+  plan: "Formule",
 };
 
 export function auditActionLabel(action: string) {
@@ -122,7 +173,7 @@ export function auditActionLabel(action: string) {
 }
 
 export function auditTone(action: string): Tone {
-  if (action.includes("archived") || action.includes("revoked") || action.includes("suspended") || action.includes("deleted") || action.includes("rejected")) return "danger";
+  if (action.includes("archived") || action.includes("revoked") || action.includes("suspended") || action.includes("deleted") || action.includes("rejected") || action.includes("hidden")) return "danger";
   if (action.includes("viewed")) return "neutral";
   if (action.includes("premium")) return "info";
   return "brand";
@@ -135,6 +186,11 @@ export function auditIcon(action: string): IconName {
   if (action.includes("password")) return "lock";
   if (action.includes("premium")) return "workspace-premium";
   if (action.includes("hours")) return "schedule";
+  if (action.includes("hidden")) return "visibility-off";
+  if (action.includes("imported")) return "upload-file";
+  if (action.startsWith("medicines")) return "medication";
+  if (action.startsWith("announcements")) return "campaign";
+  if (action.startsWith("plans")) return "sell";
   return "edit";
 }
 

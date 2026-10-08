@@ -5,6 +5,8 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerAccountRoutes } from "../account";
 import { registerAdminImportRoutes } from "../admin-import";
+import { registerAppConfigRoute } from "../app-config";
+import { reloadContentConfig } from "../content-config";
 import { registerPhoneAuthRoutes } from "../phone-auth";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -50,6 +52,7 @@ async function startServer() {
 
   // Register public REST routes immediately so /pharmacies and /healthcare cannot be masked by API middleware.
   registerPharmaGardeCacheRoutes(app);
+  registerAppConfigRoute(app);
 
   // CORS limité aux origines autorisées (CORS_ALLOWED_ORIGINS) ; voir server/_core/security.ts.
   app.use(corsMiddleware);
@@ -57,6 +60,8 @@ async function startServer() {
   app.use(express.json({ limit: "100kb" }));
   app.use(express.urlencoded({ limit: "100kb", extended: true }));
 
+  // Villes, assurances et catalogue modifiés depuis la console, avant la première collecte de données.
+  await reloadContentConfig();
   await initializePharmaGardeCache();
   registerStorageProxy(app);
   registerOAuthRoutes(app);

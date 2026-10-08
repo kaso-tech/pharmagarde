@@ -5,8 +5,10 @@ import { z } from "zod";
 
 import { auditLogs, cityHours, contributions, directoryEntries, dutyExceptions, dutyRotations, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
+import { safeMetadata, writeAudit } from "./audit-log";
+import { contentRouters } from "./admin-content";
 import { listCityHours, reloadCityHours } from "./city-hours";
-import { INSURER_IDS } from "../lib/pharmagarde/insurances";
+import { INSURER_ID_PATTERN } from "../lib/pharmagarde/insurances";
 import { reloadDirectoryOverrides } from "./directory-overrides";
 import { DUTY_ROTATIONS, dutyCityKey, dutyWeekAt, isPharmacyOnDuty, weekDateKey } from "./duty-roster";
 import { dutyTurnListSchema, getDutyConfig, reloadDutyConfig } from "./duty-config";
@@ -22,6 +24,8 @@ import { deleteUserAccount } from "./db";
 import { readConsoleBackup, readSystemStatus } from "./system-status";
 import { updateCachedDataset } from "./pharmagarde-cache";
 
+export { writeAudit };
+
 const pageSchema = z.object({
   page: z.number().int().min(1).max(10_000).default(1),
   limit: z.number().int().min(1).max(100).default(50),
@@ -33,7 +37,7 @@ const directoryListSchema = pageSchema.extend({
   status: z.enum(["active", "archived"]).default("active"),
   city: z.string().trim().max(96).optional(),
   dutyGroup: z.enum(["all", "none", "1", "2", "3", "4"]).default("all"),
-  insurance: z.enum(INSURER_IDS).optional(),
+  insurance: z.string().regex(INSURER_ID_PATTERN).optional(),
 });
 
 const dutyOverviewSchema = z.object({
@@ -97,7 +101,7 @@ function startOfMonth(now = new Date()) {
 }
 
 const activitySchema = z.object({
-  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account", "contributions", "system"]),
+  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account", "contributions", "system", "medicines", "insurers", "cities", "announcements", "plans"]),
 });
 
 function failIfNoDb<T>(db: T | null): T {
@@ -111,9 +115,6 @@ function serializeDate(value: Date | string | null | undefined) {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
-function safeMetadata(value: Record<string, string | number | boolean | null | undefined>) {
-  return JSON.stringify(Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)));
-}
 
 function parseMetadata(value: string | null) {
   if (!value) return null;
@@ -123,19 +124,6 @@ function parseMetadata(value: string | null) {
   } catch {
     return null;
   }
-}
-
-export async function writeAudit(
-  db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
-  input: { actorUserId: number; action: string; targetType: string; targetId?: string | null; metadata?: Record<string, string | number | boolean | null | undefined> },
-) {
-  await db.insert(auditLogs).values({
-    actorUserId: input.actorUserId,
-    action: input.action,
-    targetType: input.targetType,
-    targetId: input.targetId ?? null,
-    metadata: input.metadata ? safeMetadata(input.metadata) : null,
-  });
 }
 
 const passwordAttempts = createAttemptLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
@@ -242,6 +230,7 @@ function forbidSelf(actorId: number, userId: number, message: string) {
 }
 
 export const adminRouter = router({
+  ...contentRouters,
   access: adminProcedure.query(({ ctx }) => ({
     id: ctx.user.id,
     role: "admin" as const,
