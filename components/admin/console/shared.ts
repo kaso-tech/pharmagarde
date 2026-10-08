@@ -3,12 +3,18 @@ import { useEffect, useState } from "react";
 import type { IconName } from "./ui";
 import type { Tone } from "./theme";
 
-export type AdminSection = "dashboard" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "medicines" | "insurers" | "cities" | "announcements" | "plans" | "audit" | "system" | "account";
+export type AdminSection = "dashboard" | "stats" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "medicines" | "insurers" | "cities" | "announcements" | "plans" | "audit" | "system" | "account";
 
 export const PAGE_SIZE = 50;
 
 export const NAV_GROUPS: readonly { label: string; items: readonly { section: AdminSection; href: string; label: string; icon: IconName }[] }[] = [
-  { label: "Pilotage", items: [{ section: "dashboard", href: "/admin", label: "Tableau de bord", icon: "space-dashboard" }] },
+  {
+    label: "Pilotage",
+    items: [
+      { section: "dashboard", href: "/admin", label: "Tableau de bord", icon: "space-dashboard" },
+      { section: "stats", href: "/admin/statistiques", label: "Statistiques", icon: "insights" },
+    ],
+  },
   {
     label: "Annuaire",
     items: [
@@ -40,6 +46,7 @@ export const NAV_GROUPS: readonly { label: string; items: readonly { section: Ad
 
 export const SECTION_TITLES: Record<AdminSection, string> = {
   dashboard: "Tableau de bord",
+  stats: "Statistiques d’usage",
   directory: "Annuaire",
   contributions: "Contributions",
   duty: "Gardes",
@@ -58,6 +65,7 @@ export const SECTION_TITLES: Record<AdminSection, string> = {
 
 export const SECTION_SUBTITLES: Record<AdminSection, string> = {
   dashboard: "Vue d’ensemble des comptes, des paiements et de l’annuaire.",
+  stats: "Utilisation de l’application : ouvertures, recherches, fiches consultées, appels et itinéraires, par jour et par ville.",
   directory: "Pharmacies et structures de santé publiées dans l’application.",
   contributions: "Établissements proposés et erreurs signalées depuis l’application, à vérifier avant publication.",
   duty: "Groupe de garde de chaque ville. La garde change chaque samedi à 8 h.",
@@ -126,6 +134,10 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "directory.imported": "Import Excel de l’annuaire",
   "data.refreshed": "Données mises à jour",
   "admin.medicines.viewed": "Consultation des médicaments",
+  "admin.stats.viewed": "Consultation des statistiques",
+  "account.console_login": "Connexion à la console (code SMS)",
+  "account.console_session_revoked": "Accès à la console fermé",
+  "account.console_sessions_revoked": "Autres accès à la console fermés",
   "admin.insurers.viewed": "Consultation des assurances",
   "admin.cities.viewed": "Consultation des villes",
   "admin.announcements.viewed": "Consultation des annonces",

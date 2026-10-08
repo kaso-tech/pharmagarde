@@ -8,7 +8,7 @@ import { ENV } from "./_core/env";
 import { sendSms } from "./_core/sms";
 import { getDb } from "./db";
 
-export type VerificationPurpose = "register" | "password_reset";
+export type VerificationPurpose = "register" | "password_reset" | "admin_login";
 
 export const CODE_TTL_MS = 10 * 60 * 1000;
 export const MAX_CODE_ATTEMPTS = 5;
@@ -77,6 +77,7 @@ function generateCode() {
 
 function smsText(purpose: VerificationPurpose, code: string) {
   const minutes = Math.round(CODE_TTL_MS / 60_000);
+  if (purpose === "admin_login") return `${APP_NAME} : votre code de connexion à la console d'administration est ${code}. Il expire dans ${minutes} minutes. Ne le communiquez à personne.`;
   return purpose === "register"
     ? `${APP_NAME} : votre code de vérification est ${code}. Il expire dans ${minutes} minutes. Ne le communiquez à personne.`
     : `${APP_NAME} : votre code de réinitialisation du mot de passe est ${code}. Il expire dans ${minutes} minutes. Si vous n'avez rien demandé, ignorez ce message.`;

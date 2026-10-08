@@ -1,4 +1,4 @@
-import { boolean, datetime, double, index, int, uniqueIndex, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, datetime, double, index, int, mysqlEnum, mysqlTable, primaryKey, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -100,7 +100,7 @@ export const verificationCodes = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     phone: varchar("phone", { length: 32 }).notNull(),
-    purpose: mysqlEnum("purpose", ["register", "password_reset"]).notNull(),
+    purpose: mysqlEnum("purpose", ["register", "password_reset", "admin_login"]).notNull(),
     codeHash: varchar("codeHash", { length: 128 }).notNull(),
     attempts: int("attempts").default(0).notNull(),
     expiresAt: timestamp("expiresAt").notNull(),
@@ -289,3 +289,51 @@ export type InsurerRow = typeof insurers.$inferSelect;
 export type CityRow = typeof cities.$inferSelect;
 export type AnnouncementRow = typeof announcements.$inferSelect;
 export type PremiumPlanRow = typeof premiumPlans.$inferSelect;
+
+/**
+ * Rôle détaillé d'un compte « admin » dans la console. Sans ligne, le compte est super-admin
+ * (comptes créés avant les rôles). Table séparée : la lecture des comptes ne dépend pas de cette
+ * migration.
+ */
+export const adminRoles = mysqlTable("admin_roles", {
+  userId: int("userId").primaryKey(),
+  role: mysqlEnum("role", ["super_admin", "editor", "support", "viewer"]).notNull(),
+  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/**
+ * Accès à la console d'un appareil, ouvert après le code SMS (double facteur). Lié au jeton de
+ * session par son empreinte SHA-256 : le jeton lui-même n'est jamais enregistré.
+ */
+export const adminSessions = mysqlTable(
+  "admin_sessions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    tokenHash: varchar("tokenHash", { length: 64 }).notNull(),
+    userAgent: varchar("userAgent", { length: 255 }),
+    ip: varchar("ip", { length: 64 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    revokedAt: timestamp("revokedAt"),
+  },
+  (table) => [uniqueIndex("admin_sessions_token_idx").on(table.tokenHash), index("admin_sessions_user_idx").on(table.userId)],
+);
+
+/** Compteurs d'usage anonymes de l'application, agrégés par jour, ville et événement. */
+export const usageDaily = mysqlTable(
+  "usage_daily",
+  {
+    day: varchar("day", { length: 10 }).notNull(),
+    city: varchar("city", { length: 96 }).notNull(),
+    event: varchar("event", { length: 32 }).notNull(),
+    count: int("count").default(0).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.city, table.event] })],
+);
+
+export type AdminRoleRow = typeof adminRoles.$inferSelect;
+export type AdminSessionRow = typeof adminSessions.$inferSelect;
+export type UsageDailyRow = typeof usageDaily.$inferSelect;

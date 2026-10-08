@@ -6,7 +6,7 @@ import { announcements, cities, directoryEntries, insurers, medicineCategoryLabe
 import { INSURER_ID_PATTERN, insurerIdFromLabel } from "../lib/pharmagarde/insurances";
 import type { MedicineProductType } from "../lib/pharmagarde/types";
 import { cityMatchKey, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems } from "./admin-directory";
-import { writeAudit } from "./audit-log";
+import { diffChanges, writeAudit } from "./audit-log";
 import { getContentConfig, reloadContentConfig } from "./content-config";
 import { getDb } from "./db";
 import { getDutyConfig } from "./duty-config";
@@ -14,7 +14,8 @@ import { dutyCityKey } from "./duty-roster";
 import { MEDICINE_PRODUCT_TYPES, getAdminMedicines, getEffectiveMedicines, medicineEditBetween, relabelMedicine, type AdminMedicine, type MedicineEdit } from "./medicines-data";
 import { slugify } from "./pharmacy-directory";
 import { PREMIUM_PLAN_IDS, premiumPlansWithStatus } from "./premium";
-import { adminProcedure, router } from "./_core/trpc";
+import { areaProcedure, consoleProcedure } from "./admin-auth";
+import { router } from "./_core/trpc";
 
 type Database = NonNullable<Awaited<ReturnType<typeof getDb>>>;
 
@@ -155,7 +156,7 @@ function newMedicineId(name: string, dosage?: string | null) {
 }
 
 const medicinesRouter = router({
-  list: adminProcedure.input(medicineListSchema).query(async ({ input }) => {
+  list: areaProcedure("medicines").input(medicineListSchema).query(async ({ input }) => {
     await getContentConfig();
     const all = getAdminMedicines();
     const filtered = filterMedicines(all, input);
@@ -178,12 +179,12 @@ const medicinesRouter = router({
     };
   }),
 
-  export: adminProcedure.input(medicineListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+  export: areaProcedure("medicines").input(medicineListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
     await getContentConfig();
     return filterMedicines(getAdminMedicines(), { ...input, page: 1, limit: 1 });
   }),
 
-  save: adminProcedure.input(medicineSaveSchema).mutation(async ({ ctx, input }) => {
+  save: areaProcedure("medicines").input(medicineSaveSchema).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     await reloadContentConfig();
     const edit = toEdit(input);
@@ -198,7 +199,9 @@ const medicinesRouter = router({
       }
       const data = current.source === "added" ? medicineEditBetween(null, edit) : medicineEditBetween(current.base, edit);
       await writeMedicineOverride(db, input.id, { data, hidden: current.hidden, added: current.source === "added" }, ctx.user.id);
-      await writeAudit(db, { actorUserId: ctx.user.id, action: "medicines.updated", targetType: "medicine", targetId: input.id, metadata: { name: input.name, fields: Object.keys(data).join(", ") || "aucun" } });
+      const fields = ["name", "productType", "category", "subcategory", "ageCategory", "pharmaceuticalType", "dosage", "priceApprox", "priceMax", "priceUnit", "priceOfficial"] as const;
+      const shown = (medicine: MedicineEdit) => Object.fromEntries(fields.map((field) => [field, medicine[field] ?? null]));
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "medicines.updated", targetType: "medicine", targetId: input.id, metadata: { name: input.name }, changes: diffChanges(shown(relabelMedicine(current.medicine)), shown(toEdit(input))) });
       await reloadContentConfig();
       return { id: input.id };
     }
@@ -209,7 +212,7 @@ const medicinesRouter = router({
     return { id };
   }),
 
-  setHidden: adminProcedure.input(medicineIdSchema.extend({ hidden: z.boolean() })).mutation(async ({ ctx, input }) => {
+  setHidden: areaProcedure("medicines").input(medicineIdSchema.extend({ hidden: z.boolean() })).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     await reloadContentConfig();
     const current = findEffective(input.id);
@@ -221,7 +224,7 @@ const medicinesRouter = router({
   }),
 
   /** Produit du catalogue : retour à la version d'origine. Produit ajouté : suppression. */
-  reset: adminProcedure.input(medicineIdSchema).mutation(async ({ ctx, input }) => {
+  reset: areaProcedure("medicines").input(medicineIdSchema).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     await reloadContentConfig();
     const current = findEffective(input.id);
@@ -231,12 +234,12 @@ const medicinesRouter = router({
     return { id: input.id, deleted: current.source === "added" };
   }),
 
-  categories: adminProcedure.query(async () => {
+  categories: areaProcedure("medicines").query(async () => {
     await getContentConfig();
     return listMedicineCategories();
   }),
 
-  renameCategory: adminProcedure
+  renameCategory: areaProcedure("medicines")
     .input(z.object({ level: z.enum(["category", "subcategory"]), original: z.string().trim().min(1).max(255), label: z.string().trim().min(2).max(255) }))
     .mutation(async ({ ctx, input }) => {
       const db = await requireDb();
@@ -259,7 +262,8 @@ const medicinesRouter = router({
 // ——— Assurances ———
 
 const insurersRouter = router({
-  list: adminProcedure.query(async () => {
+  // Liste de référence lue par d'autres pages (fiches, filtres) : ouverte à tous les rôles.
+  list: consoleProcedure.query(async () => {
     const db = await requireDb();
     const config = await getContentConfig();
     const merged = await readMergedDirectory(db);
@@ -271,7 +275,7 @@ const insurersRouter = router({
     return config.insurers.map((insurer) => ({ ...insurer, establishments: counts.get(insurer.id) ?? 0 }));
   }),
 
-  save: adminProcedure
+  save: areaProcedure("insurers")
     .input(z.object({ id: z.string().regex(INSURER_ID_PATTERN).optional(), label: z.string().trim().min(2).max(96), active: z.boolean().default(true) }))
     .mutation(async ({ ctx, input }) => {
       const db = await requireDb();
@@ -290,13 +294,14 @@ const insurersRouter = router({
         .insert(insurers)
         .values({ id, label: input.label, active: input.active, updatedBy: ctx.user.id })
         .onDuplicateKeyUpdate({ set: { label: input.label, active: input.active, updatedBy: ctx.user.id } });
-      await writeAudit(db, { actorUserId: ctx.user.id, action: input.id ? "insurers.updated" : "insurers.added", targetType: "insurer", targetId: id, metadata: { label: input.label, active: input.active } });
+      const previous = config.insurers.find((insurer) => insurer.id === id);
+      await writeAudit(db, { actorUserId: ctx.user.id, action: input.id ? "insurers.updated" : "insurers.added", targetType: "insurer", targetId: id, metadata: { label: input.label }, changes: diffChanges(previous ? { nom: previous.label, actif: previous.active } : null, { nom: input.label, actif: input.active }) });
       await reloadContentConfig();
       return { id };
     }),
 
   /** Assureur de référence : nom et état d'origine. Assureur ajouté : suppression s'il n'est plus utilisé. */
-  reset: adminProcedure.input(z.object({ id: z.string().regex(INSURER_ID_PATTERN) })).mutation(async ({ ctx, input }) => {
+  reset: areaProcedure("insurers").input(z.object({ id: z.string().regex(INSURER_ID_PATTERN) })).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     const config = await getContentConfig();
     const insurer = config.insurers.find((item) => item.id === input.id);
@@ -320,7 +325,8 @@ const coordinates = {
 };
 
 const citiesRouter = router({
-  list: adminProcedure.query(async () => {
+  // Liste de référence lue par d'autres pages (annonces, fiches) : ouverte à tous les rôles.
+  list: consoleProcedure.query(async () => {
     const db = await requireDb();
     const [config, duty] = await Promise.all([getContentConfig(), getDutyConfig()]);
     const merged = await readMergedDirectory(db);
@@ -344,7 +350,7 @@ const citiesRouter = router({
     };
   }),
 
-  save: adminProcedure
+  save: areaProcedure("cities")
     .input(z.object({ name: z.string().trim().min(2).max(96), ...coordinates, aliases: z.array(z.string().trim().min(2).max(60)).max(12).default([]), published: z.boolean().default(true), create: z.boolean().default(false) }))
     .mutation(async ({ ctx, input }) => {
       const db = await requireDb();
@@ -362,13 +368,14 @@ const citiesRouter = router({
         .insert(cities)
         .values({ name, ...row })
         .onDuplicateKeyUpdate({ set: row });
-      await writeAudit(db, { actorUserId: ctx.user.id, action: input.create ? "cities.added" : "cities.updated", targetType: "city", targetId: name, metadata: { published: input.published, latitude: input.latitude, longitude: input.longitude } });
+      const describe = (city: { latitude: number; longitude: number; aliases: string[]; published: boolean }) => ({ centre: `${city.latitude}, ${city.longitude}`, alias: city.aliases.join(", ") || null, publiée: city.published });
+      await writeAudit(db, { actorUserId: ctx.user.id, action: input.create ? "cities.added" : "cities.updated", targetType: "city", targetId: name, changes: diffChanges(existing ? describe({ ...existing, aliases: existing.aliases.filter((alias) => alias !== existing.name.toLowerCase()) }) : null, describe({ ...input, aliases })) });
       await reloadContentConfig();
       return { name };
     }),
 
   /** Ville de référence : centre et publication d'origine. Ville ajoutée : retirée de la liste. */
-  reset: adminProcedure.input(z.object({ name: z.string().trim().min(2).max(96) })).mutation(async ({ ctx, input }) => {
+  reset: areaProcedure("cities").input(z.object({ name: z.string().trim().min(2).max(96) })).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     const config = await getContentConfig();
     const city = config.cities.find((item) => item.name === input.name);
@@ -408,7 +415,7 @@ function announcementStatus(row: { active: boolean; startsAt: Date | string; end
 }
 
 const announcementsRouter = router({
-  list: adminProcedure.query(async () => {
+  list: areaProcedure("announcements").query(async () => {
     const config = await getContentConfig();
     const order = { live: 0, scheduled: 1, disabled: 2, ended: 3 } as const;
     return config.announcements
@@ -427,25 +434,27 @@ const announcementsRouter = router({
       .sort((left, right) => order[left.status] - order[right.status] || right.startsAt.localeCompare(left.startsAt));
   }),
 
-  save: adminProcedure.input(announcementSchema).mutation(async ({ ctx, input }) => {
+  save: areaProcedure("announcements").input(announcementSchema).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     const config = await getContentConfig();
     if (input.city && !config.cities.some((city) => city.name === input.city)) throw new TRPCError({ code: "BAD_REQUEST", message: "Ville inconnue." });
     const values = { city: input.city, title: input.title, body: input.body, tone: input.tone, startsAt: input.startsAt, endsAt: input.endsAt ?? null, active: input.active };
     let id = input.id;
+    const previous = id ? config.announcements.find((row) => row.id === id) : undefined;
     if (id) {
-      if (!config.announcements.some((row) => row.id === id)) throw new TRPCError({ code: "NOT_FOUND", message: "Annonce introuvable." });
+      if (!previous) throw new TRPCError({ code: "NOT_FOUND", message: "Annonce introuvable." });
       await db.update(announcements).set(values).where(eq(announcements.id, id));
     } else {
       const [result] = await db.insert(announcements).values({ ...values, createdBy: ctx.user.id });
       id = Number((result as { insertId?: number }).insertId ?? 0) || undefined;
     }
-    await writeAudit(db, { actorUserId: ctx.user.id, action: input.id ? "announcements.updated" : "announcements.created", targetType: "announcement", targetId: id ? String(id) : null, metadata: { title: input.title, city: input.city ?? "toutes", active: input.active } });
+    const describe = (row: typeof values) => ({ ville: row.city ?? "toutes", titre: row.title, texte: row.body, type: row.tone, début: row.startsAt, fin: row.endsAt, active: row.active });
+    await writeAudit(db, { actorUserId: ctx.user.id, action: input.id ? "announcements.updated" : "announcements.created", targetType: "announcement", targetId: id ? String(id) : null, metadata: { title: input.title }, changes: diffChanges(previous ? describe({ ...previous, startsAt: new Date(previous.startsAt), endsAt: previous.endsAt ? new Date(previous.endsAt) : null }) : null, describe(values)) });
     await reloadContentConfig();
     return { id: id ?? null };
   }),
 
-  remove: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+  remove: areaProcedure("announcements").input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     const config = await getContentConfig();
     const row = config.announcements.find((item) => item.id === input.id);
@@ -462,7 +471,7 @@ const announcementsRouter = router({
 const planIdSchema = z.enum(PREMIUM_PLAN_IDS as [(typeof PREMIUM_PLAN_IDS)[number], ...(typeof PREMIUM_PLAN_IDS)[number][]]);
 
 const plansRouter = router({
-  list: adminProcedure.query(async () => {
+  list: areaProcedure("plans").query(async () => {
     const db = await requireDb();
     const config = await getContentConfig();
     const sales = await db
@@ -474,7 +483,7 @@ const plansRouter = router({
     return premiumPlansWithStatus(config.planRows).map((plan) => ({ ...plan, sales: byPlan.get(plan.id)?.count ?? 0, revenue: byPlan.get(plan.id)?.revenue ?? 0 }));
   }),
 
-  save: adminProcedure
+  save: areaProcedure("plans")
     .input(z.object({ id: planIdSchema, label: z.string().trim().min(2).max(64), amount: z.number().int().min(100).max(1_000_000), durationDays: z.number().int().min(1).max(730), active: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       const db = await requireDb();
@@ -486,12 +495,14 @@ const plansRouter = router({
         .insert(premiumPlans)
         .values({ id: input.id, ...row })
         .onDuplicateKeyUpdate({ set: row });
-      await writeAudit(db, { actorUserId: ctx.user.id, action: "plans.updated", targetType: "plan", targetId: input.id, metadata: { label: input.label, amount: input.amount, durationDays: input.durationDays, active: input.active } });
+      const previous = premiumPlansWithStatus(config.planRows).find((plan) => plan.id === input.id);
+      const describe = (plan: { label: string; amount: number; durationDays: number; active: boolean }) => ({ libellé: plan.label, prix: plan.amount, durée: plan.durationDays, proposée: plan.active });
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "plans.updated", targetType: "plan", targetId: input.id, metadata: { label: input.label }, changes: diffChanges(previous ? describe(previous) : null, describe(input)) });
       await reloadContentConfig();
       return { id: input.id };
     }),
 
-  reset: adminProcedure.input(z.object({ id: planIdSchema })).mutation(async ({ ctx, input }) => {
+  reset: areaProcedure("plans").input(z.object({ id: planIdSchema })).mutation(async ({ ctx, input }) => {
     const db = await requireDb();
     await db.delete(premiumPlans).where(eq(premiumPlans.id, input.id));
     await writeAudit(db, { actorUserId: ctx.user.id, action: "plans.reset", targetType: "plan", targetId: input.id });

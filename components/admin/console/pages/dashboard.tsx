@@ -8,6 +8,7 @@ import { AdminPage } from "../shell";
 import { PLAN_LABELS, TRANSACTION_STATUS, auditActionLabel, auditIcon, auditTone, displayIdentity, formatCount, formatDutyDay, formatRelative, formatXof } from "../shared";
 import { font, radius, toneColors, useAdminTheme } from "../theme";
 import { Alert, Badge, Button, Card, DataState, Grid, KpiCard } from "../ui";
+import { useCanRead } from "../access";
 
 function percent(part: number, total: number) {
   return total ? `${Math.round((part / total) * 100)} %` : "0 %";
@@ -16,11 +17,16 @@ function percent(part: number, total: number) {
 export function DashboardPage() {
   const theme = useAdminTheme();
   const router = useRouter();
+  // Chaque bloc n'est chargé que si le rôle donne accès à la page correspondante.
+  const canDuty = useCanRead("duty");
+  const canDirectory = useCanRead("directory");
+  const canPremium = useCanRead("premium");
+  const canAudit = useCanRead("audit");
   const summary = trpc.admin.dashboard.useQuery(undefined, { retry: 1 });
-  const duty = trpc.admin.duty.overview.useQuery({ weeks: 1 }, { retry: 1 });
-  const directory = trpc.admin.directory.list.useQuery({ page: 1, limit: 1 }, { retry: 1 });
-  const payments = trpc.admin.premium.transactions.useQuery({ page: 1, limit: 6 }, { retry: 1 });
-  const activity = trpc.admin.audit.list.useQuery({ page: 1, limit: 7 }, { retry: 1 });
+  const duty = trpc.admin.duty.overview.useQuery({ weeks: 1 }, { retry: 1, enabled: canDuty });
+  const directory = trpc.admin.directory.list.useQuery({ page: 1, limit: 1 }, { retry: 1, enabled: canDirectory });
+  const payments = trpc.admin.premium.transactions.useQuery({ page: 1, limit: 6 }, { retry: 1, enabled: canPremium });
+  const activity = trpc.admin.audit.list.useQuery({ page: 1, limit: 7 }, { retry: 1, enabled: canAudit });
   const contributionCounts = trpc.admin.contributions.counts.useQuery(undefined, { retry: 1 });
   const toReview = (contributionCounts.data?.newPlaces ?? 0) + (contributionCounts.data?.newProblems ?? 0);
   const go = (href: string) => router.replace(href as never);
@@ -30,7 +36,7 @@ export function DashboardPage() {
   const maxCity = topCities[0]?.count ?? 1;
 
   return (
-    <AdminPage section="dashboard" actions={<Button label="Actualiser" icon="refresh" onPress={() => { void summary.refetch(); void duty.refetch(); void payments.refetch(); void activity.refetch(); void directory.refetch(); }} />}>
+    <AdminPage section="dashboard" actions={<Button label="Actualiser" icon="refresh" onPress={() => { void summary.refetch(); if (canDuty) void duty.refetch(); if (canPremium) void payments.refetch(); if (canAudit) void activity.refetch(); if (canDirectory) void directory.refetch(); }} />}>
       <DataState loading={summary.isLoading} error={summary.error} onRetry={() => summary.refetch()}>
         {data ? (
           <>
@@ -55,6 +61,7 @@ export function DashboardPage() {
       </DataState>
 
       <Grid columns={2}>
+        {canDuty ? (
         <Card title="Gardes de la semaine" description="Groupe de garde en cours dans chaque ville programmée." actions={<Button label="Voir les gardes" size="sm" onPress={() => go("/admin/gardes")} />} padded={false}>
           <DataState loading={duty.isLoading} error={duty.error} onRetry={() => duty.refetch()} empty={!duty.data?.cities.length} emptyTitle="Aucune ville programmée">
             {(duty.data?.cities ?? []).map((city, index, list) => {
@@ -72,7 +79,9 @@ export function DashboardPage() {
             })}
           </DataState>
         </Card>
+        ) : null}
 
+        {canDirectory ? (
         <Card title="Annuaire par ville" description="Établissements publiés dans l’application." actions={<Button label="Voir l’annuaire" size="sm" onPress={() => go("/admin/annuaire")} />}>
           <DataState loading={directory.isLoading} error={directory.error} onRetry={() => directory.refetch()} empty={!topCities.length}>
             <View style={styles.bars}>
@@ -88,9 +97,11 @@ export function DashboardPage() {
             </View>
           </DataState>
         </Card>
+        ) : null}
       </Grid>
 
       <Grid columns={2}>
+        {canPremium ? (
         <Card title="Derniers paiements" actions={<Button label="Tout voir" size="sm" onPress={() => go("/admin/abonnements")} />} padded={false}>
           <DataState loading={payments.isLoading} error={payments.error} onRetry={() => payments.refetch()} empty={!payments.data?.items.length} emptyTitle="Aucun paiement">
             {(payments.data?.items ?? []).map((payment, index, list) => {
@@ -108,7 +119,9 @@ export function DashboardPage() {
             })}
           </DataState>
         </Card>
+        ) : null}
 
+        {canAudit ? (
         <Card title="Activité récente" actions={<Button label="Journal" size="sm" onPress={() => go("/admin/journal")} />} padded={false}>
           <DataState loading={activity.isLoading} error={activity.error} onRetry={() => activity.refetch()} empty={!activity.data?.items.length} emptyTitle="Aucune action enregistrée">
             {(activity.data?.items ?? []).map((event, index, list) => {
@@ -126,6 +139,7 @@ export function DashboardPage() {
             })}
           </DataState>
         </Card>
+        ) : null}
       </Grid>
     </AdminPage>
   );
