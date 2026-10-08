@@ -40,12 +40,12 @@ export type DutyWeek = {
 export const DUTY_HANDOVER_HOUR_UTC = 8;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function groupTurns(count: number): DutyTurn[] {
+export function groupTurns(count: number): DutyTurn[] {
   return Array.from({ length: count }, (_, index) => ({ label: `Groupe ${index + 1}`, dutyGroup: index + 1 }));
 }
 
 /** Rotation par groupes, à partir du groupe de garde de la semaine du samedi 3 au samedi 10 octobre 2026, 8 h. */
-function groupRotation(city: string, groupCount: number, groupOnDutyOct3: number): DutyRotation {
+export function groupRotation(city: string, groupCount: number, groupOnDutyOct3: number): DutyRotation {
   return { city, reference: { start: "2026-10-03", turnIndex: groupOnDutyOct3 - 1 }, turns: groupTurns(groupCount) };
 }
 
@@ -63,8 +63,24 @@ export const DUTY_ROTATIONS: readonly DutyRotation[] = [
   groupRotation("Ouahigouya", 2, 1),
 ];
 
-function cityKey(value: string | null | undefined) {
+export function dutyCityKey(value: string | null | undefined) {
   return slugify(value ?? "").replace(/-/g, "");
+}
+const cityKey = dutyCityKey;
+
+/**
+ * Exceptions ponctuelles saisies dans la console, par ville et par semaine : pharmacies ajoutées à la
+ * garde (remplaçante) ou retirées (fermeture). Clé : voir `exceptionKey`.
+ */
+export type DutyExceptions = ReadonlyMap<string, { add: ReadonlySet<string>; remove: ReadonlySet<string> }>;
+
+/** Date (AAAA-MM-JJ) du samedi qui ouvre une semaine de garde. */
+export function weekDateKey(start: Date) {
+  return start.toISOString().slice(0, 10);
+}
+
+export function exceptionKey(city: string, weekStart: Date | string) {
+  return `${cityKey(city)}|${typeof weekStart === "string" ? weekStart : weekDateKey(weekStart)}`;
 }
 
 export function findDutyRotation(city: string | null | undefined, rotations: readonly DutyRotation[] = DUTY_ROTATIONS) {
@@ -87,15 +103,18 @@ export function dutyWeekAt(rotation: DutyRotation, at: Date = new Date(), offset
   return { city: rotation.city, turn: rotation.turns[turnIndex]!, turnIndex, start: new Date(start), end: new Date(start + WEEK_MS) };
 }
 
-export function isPharmacyOnDuty(pharmacy: { id: string; dutyGroup?: number | null }, week: DutyWeek) {
+export function isPharmacyOnDuty(pharmacy: { id: string; dutyGroup?: number | null }, week: DutyWeek, exceptions?: DutyExceptions) {
+  const exception = exceptions?.get(exceptionKey(week.city, week.start));
+  if (exception?.remove.has(pharmacy.id)) return false;
+  if (exception?.add.has(pharmacy.id)) return true;
   if (week.turn.pharmacyIds) return week.turn.pharmacyIds.includes(pharmacy.id);
   return week.turn.dutyGroup !== undefined && pharmacy.dutyGroup === week.turn.dutyGroup;
 }
 
 /** Statut de garde d'une pharmacie à un instant donné ; null si sa ville n'a pas de programmation. */
-export function dutyStatusAt(pharmacy: { id: string; city?: string | null; dutyGroup?: number | null }, at: Date = new Date(), rotations: readonly DutyRotation[] = DUTY_ROTATIONS) {
+export function dutyStatusAt(pharmacy: { id: string; city?: string | null; dutyGroup?: number | null }, at: Date = new Date(), rotations: readonly DutyRotation[] = DUTY_ROTATIONS, exceptions?: DutyExceptions) {
   const rotation = findDutyRotation(pharmacy.city, rotations);
   if (!rotation) return null;
   const week = dutyWeekAt(rotation, at);
-  return { onDuty: isPharmacyOnDuty(pharmacy, week), week };
+  return { onDuty: isPharmacyOnDuty(pharmacy, week, exceptions), week };
 }

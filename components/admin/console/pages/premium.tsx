@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { trpc } from "@/lib/trpc";
 
+import { ExportButton } from "../export-button";
+import { datedFileName, downloadFile, toCsv } from "../files";
 import { AdminPage } from "../shell";
 import { PAGE_SIZE, PLAN_LABELS, TRANSACTION_STATUS, displayIdentity, formatCount, formatDate, formatDay, formatXof, usePage } from "../shared";
 import { font, useAdminLayout, useAdminTheme } from "../theme";
@@ -86,13 +88,37 @@ export function PremiumPage() {
   const summary = trpc.admin.dashboard.useQuery(undefined, { retry: 1 });
   const transactions = trpc.admin.premium.transactions.useQuery({ status, page, limit: PAGE_SIZE }, { retry: 1, placeholderData: (previous) => previous });
   const rows = transactions.data?.items ?? [];
+  const pageUtils = trpc.useUtils();
   const [settle, setSettle] = useState<SettleTarget | null>(null);
   const settleTarget = (transaction: (typeof rows)[number]): SettleTarget => ({ id: transaction.id, amount: transaction.amount, planId: transaction.planId, status: transaction.status, provider: transaction.provider, reference: transaction.merchantReference, user: displayIdentity({ name: transaction.userName, phone: transaction.userPhone, email: transaction.userEmail, id: transaction.userId }) });
   const statusOf = (value: string) => TRANSACTION_STATUS[value] ?? { label: value, tone: "neutral" as const };
   const planBadge = (planId: string) => (planId === "offered" ? <Badge label="Offert" tone="info" icon="card-giftcard" /> : <CellText>{PLAN_LABELS[planId] ?? planId}</CellText>);
 
   return (
-    <AdminPage section="premium">
+    <AdminPage
+      section="premium"
+      actions={
+        <ExportButton
+          label="Export comptable (CSV)"
+          run={async () => {
+            const rows = await pageUtils.admin.premium.exportTransactions.fetch({ status });
+            downloadFile(
+              datedFileName("transactions"),
+              toCsv(rows, [
+                { label: "Date", value: (row) => row.createdAt },
+                { label: "Référence", value: (row) => row.merchantReference },
+                { label: "Prestataire", value: (row) => (row.provider === "admin" ? "Offert (console)" : row.provider) },
+                { label: "Formule", value: (row) => PLAN_LABELS[row.planId] ?? row.planId },
+                { label: "Montant", value: (row) => row.amount },
+                { label: "Devise", value: (row) => row.currency },
+                { label: "Statut", value: (row) => TRANSACTION_STATUS[row.status]?.label ?? row.status },
+                { label: "Utilisateur", value: (row) => row.userName ?? row.userPhone ?? `#${row.userId}` },
+              ]),
+            );
+          }}
+        />
+      }
+    >
       {summary.data ? (
         <Grid columns={4}>
           <KpiCard label="Abonnés actifs" value={formatCount(summary.data.premiumUsers)} icon="workspace-premium" tone="info" />

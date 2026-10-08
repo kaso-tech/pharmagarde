@@ -4,6 +4,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { trpc } from "@/lib/trpc";
 
+import { ExportButton } from "../export-button";
+import { datedFileName, downloadFile, toCsv } from "../files";
 import { AdminPage } from "../shell";
 import { AUDIT_TARGETS, PAGE_SIZE, auditActionLabel, auditIcon, auditTone, displayIdentity, formatDate, formatRelative, usePage } from "../shared";
 import { font, radius, toneColors, useAdminLayout, useAdminTheme } from "../theme";
@@ -20,6 +22,7 @@ export function AuditPage() {
   const theme = useAdminTheme();
   const { desktop } = useAdminLayout();
   const [showViews, setShowViews] = useState(false);
+  const utils = trpc.useUtils();
   const [page, setPage] = usePage(String(showViews));
   // Les consultations de pages restent journalisées, mais masquées par défaut pour laisser voir les vraies actions.
   const events = trpc.admin.audit.list.useQuery({ includeViews: showViews, page, limit: PAGE_SIZE }, { retry: 1, placeholderData: (previous) => previous });
@@ -31,7 +34,27 @@ export function AuditPage() {
   };
 
   return (
-    <AdminPage section="audit">
+    <AdminPage
+      section="audit"
+      actions={
+        <ExportButton
+          run={async () => {
+            const rows = await utils.admin.audit.export.fetch({ includeViews: showViews });
+            downloadFile(
+              datedFileName("journal"),
+              toCsv(rows, [
+                { label: "Date", value: (row) => row.createdAt },
+                { label: "Action", value: (row) => auditActionLabel(row.action) },
+                { label: "Code", value: (row) => row.action },
+                { label: "Cible", value: (row) => `${AUDIT_TARGETS[row.targetType] ?? row.targetType}${row.targetId ? ` ${row.targetId}` : ""}` },
+                { label: "Auteur", value: (row) => row.actorName ?? row.actorPhone },
+                { label: "Détails", value: (row) => row.metadata },
+              ]),
+            );
+          }}
+        />
+      }
+    >
       <Card padded={false}>
         <Toolbar>
           <Segmented value={showViews ? "all" : "actions"} onChange={(value) => setShowViews(value === "all")} options={[{ value: "actions", label: "Modifications" }, { value: "all", label: "Tout, consultations comprises" }]} />

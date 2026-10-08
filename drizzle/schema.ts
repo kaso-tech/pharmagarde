@@ -167,3 +167,42 @@ export const contributions = mysqlTable(
 
 export type Contribution = typeof contributions.$inferSelect;
 export type InsertContribution = typeof contributions.$inferInsert;
+
+/**
+ * Programmation des gardes d'une ville saisie dans la console. Remplace la programmation par défaut
+ * de server/duty-roster.ts pour cette ville ; « off » la désactive.
+ */
+export const dutyRotations = mysqlTable("duty_rotations", {
+  city: varchar("city", { length: 96 }).primaryKey(),
+  mode: mysqlEnum("mode", ["groups", "lists", "off"]).notNull(),
+  /** Nombre de groupes (mode « groups »). */
+  groupCount: int("groupCount"),
+  /** Samedi de début d'une semaine connue (AAAA-MM-JJ). */
+  referenceStart: varchar("referenceStart", { length: 10 }).notNull(),
+  /** Tour de garde de cette semaine, à partir de 0. */
+  referenceTurnIndex: int("referenceTurnIndex").notNull(),
+  /** Listes de pharmacies par tour (mode « lists », JSON [{ label, pharmacyIds }]). */
+  turns: text("turns"),
+  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Exception ponctuelle à la garde d'une semaine : pharmacie ajoutée ou retirée (fermeture, échange). */
+export const dutyExceptions = mysqlTable(
+  "duty_exceptions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    city: varchar("city", { length: 96 }).notNull(),
+    /** Samedi de début de la semaine concernée (AAAA-MM-JJ). */
+    weekStart: varchar("weekStart", { length: 10 }).notNull(),
+    pharmacyId: varchar("pharmacyId", { length: 128 }).notNull(),
+    action: mysqlEnum("action", ["add", "remove"]).notNull(),
+    note: varchar("note", { length: 255 }),
+    createdBy: int("createdBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("duty_exceptions_week_idx").on(table.weekStart, table.city)],
+);
+
+export type DutyRotationRow = typeof dutyRotations.$inferSelect;
+export type DutyExceptionRow = typeof dutyExceptions.$inferSelect;

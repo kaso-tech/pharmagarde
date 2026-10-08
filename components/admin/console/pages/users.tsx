@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { trpc } from "@/lib/trpc";
 
+import { ExportButton } from "../export-button";
+import { datedFileName, downloadFile, toCsv } from "../files";
 import { AdminPage } from "../shell";
 import { PAGE_SIZE, PLAN_LABELS, TRANSACTION_STATUS, auditActionLabel, displayIdentity, formatDate, formatDay, formatXof, isActiveSubscription, useDebouncedValue, usePage } from "../shared";
 import { font, useAdminLayout, useAdminTheme } from "../theme";
@@ -251,11 +253,36 @@ export function UsersPage() {
   const rows = users.data?.items ?? [];
   const [giftTarget, setGiftTarget] = useState<GiftTarget | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const usersUtils = trpc.useUtils();
   const giftButton = (user: GiftTarget) => <Button size="sm" icon="card-giftcard" label={isActiveSubscription(user.subscriptionEnd) ? "Gérer Premium" : "Offrir Premium"} accessibilityLabel={`Offrir le Premium à ${displayIdentity(user)}`} onPress={() => setGiftTarget(user)} />;
   const premiumBadge = (user: GiftTarget) => (isActiveSubscription(user.subscriptionEnd) ? <Badge label={formatDay(user.subscriptionEnd)} tone="info" icon="workspace-premium" /> : <CellText muted>Non actif</CellText>);
 
   return (
-    <AdminPage section="users">
+    <AdminPage
+      section="users"
+      actions={
+        <ExportButton
+          run={async () => {
+            const rows = await usersUtils.admin.users.export.fetch({ search: debouncedSearch || undefined, premium, verified, role });
+            downloadFile(
+              datedFileName("utilisateurs"),
+              toCsv(rows, [
+                { label: "Identifiant", value: (user) => user.id },
+                { label: "Nom", value: (user) => user.name },
+                { label: "Téléphone", value: (user) => user.phone },
+                { label: "E-mail", value: (user) => user.email },
+                { label: "Rôle", value: (user) => (user.role === "admin" ? "Administrateur" : "Utilisateur") },
+                { label: "Téléphone vérifié le", value: (user) => user.phoneVerifiedAt },
+                { label: "Premium jusqu’au", value: (user) => user.subscriptionEnd },
+                { label: "Suspendu le", value: (user) => user.suspendedAt },
+                { label: "Inscription", value: (user) => user.createdAt },
+                { label: "Dernière connexion", value: (user) => user.lastSignedIn },
+              ]),
+            );
+          }}
+        />
+      }
+    >
       <Card padded={false}>
         <Toolbar>
           <SearchInput value={search} onChangeText={setSearch} placeholder="Rechercher par nom, téléphone ou e-mail" style={desktop ? styles.search : undefined} />

@@ -4,6 +4,7 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerAccountRoutes } from "../account";
+import { registerAdminImportRoutes } from "../admin-import";
 import { registerPhoneAuthRoutes } from "../phone-auth";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -60,6 +61,7 @@ async function startServer() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   registerAccountRoutes(app);
+  registerAdminImportRoutes(app);
   registerPhoneAuthRoutes(app);
   app.post("/payment/init", paymentInitRateLimit, initPremiumPayment);
   app.get("/pharmagarde/abonnement", handlePremiumPaymentReturn);

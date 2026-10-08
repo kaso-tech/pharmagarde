@@ -11,7 +11,9 @@ import { DEFAULT_WEEKLY_HOURS, formatWeeklyHours, validateWeeklyHours, type Week
 import { haptic } from "@/lib/pharmagarde/premium-ui";
 import { trpc } from "@/lib/trpc";
 
+import { datedFileName, downloadFile, isWeb, toCsv } from "../files";
 import { AdminPage } from "../shell";
+import { DirectoryImportDialog } from "./directory-import";
 import { PAGE_SIZE, numberOrNull, useDebouncedValue, usePage } from "../shared";
 import { font, radius, useAdminLayout, useAdminTheme } from "../theme";
 import { Alert, Badge, Button, Card, CellStack, CellText, Chip, ConfirmDialog, DataState, DataTable, Dialog, Field, FieldLabel, Hint, IconButton, Pagination, SearchInput, Segmented, Select, Toolbar, isHovered, type Column } from "../ui";
@@ -237,6 +239,8 @@ export function DirectoryPage() {
   const [insurance, setInsurance] = useState("");
   const [form, setForm] = useState<DirectoryForm>(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; kind: DirectoryKind; name: string } | null>(null);
   const debouncedSearch = useDebouncedValue(search.trim());
   const effectiveGroup = kind === "healthcare" ? "all" : dutyGroup;
@@ -283,6 +287,33 @@ export function DirectoryPage() {
     setShowForm(true);
   };
   const submit = () => upsert.mutate(toUpsertInput(form));
+  /** Exporte toutes les fiches correspondant aux filtres affichés (pas seulement la page). */
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const items = await utils.admin.directory.export.fetch({ kind, search: debouncedSearch || undefined, status, city: city || undefined, dutyGroup: effectiveGroup, insurance: isInsurerId(insurance) ? insurance : undefined });
+      downloadFile(
+        datedFileName("annuaire"),
+        toCsv(items, [
+          { label: "Identifiant", value: (item) => item.id },
+          { label: "Type", value: (item) => (item.kind === "pharmacy" ? "Pharmacie" : item.establishmentType ?? "Structure de santé") },
+          { label: "Ville", value: (item) => item.city },
+          { label: "Nom", value: (item) => item.name },
+          { label: "Téléphone", value: (item) => item.phone },
+          { label: "Groupe", value: (item) => item.dutyGroup },
+          { label: "Situation géographique", value: (item) => item.address },
+          { label: "Latitude", value: (item) => item.latitude },
+          { label: "Longitude", value: (item) => item.longitude },
+          { label: "Assurances", value: (item) => formatInsurers(item.insurances) },
+          { label: "Horaires propres", value: (item) => (item.customHours ? "oui" : "non") },
+          { label: "Statut", value: (item) => (item.status === "archived" ? "archivée" : "publiée") },
+          { label: "Source", value: (item) => item.source },
+        ]),
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const cities = directory.data?.cities ?? [];
   const rows = directory.data?.items ?? [];
@@ -307,7 +338,16 @@ export function DirectoryPage() {
     );
 
   return (
-    <AdminPage section="directory" actions={<Button label="Ajouter un établissement" icon="add" variant="primary" onPress={openNew} />}>
+    <AdminPage
+      section="directory"
+      actions={
+        <>
+          {isWeb ? <Button label="Importer (Excel)" icon="upload-file" onPress={() => setShowImport(true)} /> : null}
+          {isWeb ? <Button label="Exporter (CSV)" icon="download" loading={exporting} onPress={exportCsv} /> : null}
+          <Button label="Ajouter un établissement" icon="add" variant="primary" onPress={openNew} />
+        </>
+      }
+    >
       {restore.error ? <Alert tone="danger">{restore.error.message}</Alert> : null}
       <Card padded={false}>
         <Toolbar>
@@ -383,6 +423,7 @@ export function DirectoryPage() {
         <DirectoryFormFields key={form.id ?? "nouveau"} form={form} cityNames={cities.map((entry) => entry.name)} cityHoursFor={cityHoursFor} onChange={updateField} />
       </Dialog>
 
+      <DirectoryImportDialog visible={showImport} onClose={() => setShowImport(false)} />
       <ConfirmDialog
         visible={!!archiveTarget}
         title="Archiver l’établissement"

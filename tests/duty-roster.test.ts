@@ -118,3 +118,36 @@ describe("publication du statut de garde", () => {
     expect(resolvePlaceStatus(fromCache, new Date("2026-10-10T13:00:00Z"))).toMatchObject({ onDuty: false, isOpen: false });
   });
 });
+
+describe("programmation saisie dans la console", () => {
+  const row = (value: Partial<import("../drizzle/schema").DutyRotationRow>) => ({ city: "Ouagadougou", mode: "groups" as const, groupCount: 4, referenceStart: "2026-10-03", referenceTurnIndex: 3, turns: null, updatedBy: 1, updatedAt: new Date(), ...value });
+
+  it("remplace la programmation par défaut d'une ville, en ajoute une ou la désactive", async () => {
+    const { buildDutyConfig } = await import("../server/duty-config");
+    const config = buildDutyConfig(
+      [
+        row({ city: "Ouagadougou", groupCount: 3, referenceTurnIndex: 0 }),
+        row({ city: "Kaya", mode: "off" }),
+        row({ city: "Dori", mode: "lists", groupCount: null, referenceTurnIndex: 1, turns: JSON.stringify([{ label: "Liste A", pharmacyIds: ["ph-dori-a"] }, { label: "Liste B", pharmacyIds: ["ph-dori-b"] }]) }),
+      ],
+      [],
+    );
+    const at = new Date("2026-10-06T12:00:00Z");
+    expect(dutyWeekAt(findDutyRotation("Ouagadougou", config.rotations)!, at).turn.dutyGroup).toBe(1);
+    expect(findDutyRotation("Kaya", config.rotations)).toBeUndefined();
+    expect(dutyStatusAt({ id: "ph-dori-b", city: "Dori" }, at, config.rotations)?.onDuty).toBe(true);
+    expect(dutyStatusAt({ id: "ph-dori-a", city: "Dori" }, at, config.rotations)?.onDuty).toBe(false);
+    expect(findDutyRotation("Bobo-Dioulasso", config.rotations)).toBeDefined();
+  });
+
+  it("applique les exceptions de la semaine : pharmacie retirée ou remplaçante ajoutée", async () => {
+    const { buildDutyConfig } = await import("../server/duty-config");
+    const exception = (pharmacyId: string, action: "add" | "remove") => ({ id: 1, city: "Bobo-Dioulasso", weekStart: "2026-10-03", pharmacyId, action, note: null, createdBy: 1, createdAt: new Date() });
+    const config = buildDutyConfig([], [exception("ph-g4", "remove"), exception("ph-g2", "add")]);
+    const at = new Date("2026-10-06T12:00:00Z");
+    expect(dutyStatusAt({ id: "ph-g4", city: "Bobo-Dioulasso", dutyGroup: 4 }, at, config.rotations, config.exceptions)?.onDuty).toBe(false);
+    expect(dutyStatusAt({ id: "ph-g2", city: "Bobo-Dioulasso", dutyGroup: 2 }, at, config.rotations, config.exceptions)?.onDuty).toBe(true);
+    // La semaine suivante n'est pas concernée.
+    expect(dutyStatusAt({ id: "ph-g4", city: "Bobo-Dioulasso", dutyGroup: 4 }, new Date("2026-11-02T12:00:00Z"), config.rotations, config.exceptions)?.onDuty).toBe(true);
+  });
+});
