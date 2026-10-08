@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, gt, isNotNull, like, ne, notLike, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, isNotNull, isNull, like, lte, ne, notLike, or, sum, type SQL } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
@@ -52,7 +52,18 @@ const auditListSchema = pageSchema.extend({
 
 const userListSchema = pageSchema.extend({
   search: z.string().trim().max(120).optional(),
+  premium: z.enum(["all", "active", "inactive"]).default("all"),
+  verified: z.enum(["all", "verified", "unverified"]).default("all"),
+  role: z.enum(["all", "admin", "user"]).default("all"),
 });
+
+const transactionListSchema = pageSchema.extend({
+  status: z.enum(["all", "success", "pending", "failed", "cancelled"]).default("all"),
+});
+
+function startOfMonth(now = new Date()) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
 
 const activitySchema = z.object({
   area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account"]),
@@ -205,7 +216,8 @@ export const adminRouter = router({
 
   dashboard: adminProcedure.query(async () => {
     const db = failIfNoDb(await getDb());
-    const [allUsers, verifiedUsers, premiumUsers, allTransactions, pendingTransactions, baseItems, overrides] = await Promise.all([
+    const monthStart = startOfMonth();
+    const [allUsers, verifiedUsers, premiumUsers, allTransactions, pendingTransactions, baseItems, overrides, newUsers, revenue, revenueMonth] = await Promise.all([
       db.select({ value: count() }).from(users),
       db.select({ value: count() }).from(users).where(isNotNull(users.phoneVerifiedAt)),
       db.select({ value: count() }).from(users).where(gt(users.subscriptionEnd, new Date())),
@@ -213,6 +225,9 @@ export const adminRouter = router({
       db.select({ value: count() }).from(transactions).where(eq(transactions.status, "pending")),
       getBaseAdminDirectoryItems(),
       db.select().from(directoryEntries),
+      db.select({ value: count() }).from(users).where(gte(users.createdAt, monthStart)),
+      db.select({ value: sum(transactions.amount) }).from(transactions).where(eq(transactions.status, "success")),
+      db.select({ value: sum(transactions.amount) }).from(transactions).where(and(eq(transactions.status, "success"), gte(transactions.createdAt, monthStart))),
     ]);
 
     const directoryCount = mergeAdminDirectoryItems(baseItems, overrides).filter((item) => item.status === "active").length;
@@ -223,6 +238,9 @@ export const adminRouter = router({
       transactions: allTransactions[0]?.value ?? 0,
       pendingTransactions: pendingTransactions[0]?.value ?? 0,
       directoryEntries: directoryCount,
+      newUsersThisMonth: newUsers[0]?.value ?? 0,
+      revenueTotal: Number(revenue[0]?.value ?? 0),
+      revenueThisMonth: Number(revenueMonth[0]?.value ?? 0),
     };
   }),
 
@@ -413,7 +431,14 @@ export const adminRouter = router({
     list: adminProcedure.input(userListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const pattern = input.search ? `%${input.search.replace(/[\\%_]/g, "\\$&")}%` : null;
-      const where = pattern ? or(like(users.name, pattern), like(users.email, pattern), like(users.phone, pattern)) : undefined;
+      const now = new Date();
+      const conditions: (SQL | undefined)[] = [
+        pattern ? or(like(users.name, pattern), like(users.email, pattern), like(users.phone, pattern)) : undefined,
+        input.premium === "active" ? gt(users.subscriptionEnd, now) : input.premium === "inactive" ? or(isNull(users.subscriptionEnd), lte(users.subscriptionEnd, now)) : undefined,
+        input.verified === "verified" ? isNotNull(users.phoneVerifiedAt) : input.verified === "unverified" ? isNull(users.phoneVerifiedAt) : undefined,
+        input.role !== "all" ? eq(users.role, input.role) : undefined,
+      ];
+      const where = and(...conditions.filter((condition): condition is SQL => !!condition));
       const [rows, totals] = await Promise.all([
         db
           .select({
@@ -492,8 +517,9 @@ export const adminRouter = router({
   }),
 
   premium: router({
-    transactions: adminProcedure.input(pageSchema).query(async ({ input }) => {
+    transactions: adminProcedure.input(transactionListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
+      const where = input.status === "all" ? undefined : eq(transactions.status, input.status);
       const [rows, totals] = await Promise.all([
         db
           .select({
@@ -514,10 +540,11 @@ export const adminRouter = router({
           })
           .from(transactions)
           .leftJoin(users, eq(transactions.userId, users.id))
+          .where(where)
           .orderBy(desc(transactions.createdAt), desc(transactions.id))
           .limit(input.limit)
           .offset(offsetOf(input)),
-        db.select({ value: count() }).from(transactions),
+        db.select({ value: count() }).from(transactions).where(where),
       ]);
 
       return {

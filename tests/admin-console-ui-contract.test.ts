@@ -1,8 +1,15 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const ui = readFileSync("components/admin/admin-console.tsx", "utf8");
+// La console est répartie en plusieurs fichiers (structure, composants, pages) : on les lit tous.
+function readTree(dir: string): string {
+  return readdirSync(dir, { withFileTypes: true })
+    .map((entry) => (entry.isDirectory() ? readTree(path.join(dir, entry.name)) : /\.tsx?$/.test(entry.name) ? readFileSync(path.join(dir, entry.name), "utf8") : ""))
+    .join("\n");
+}
+const ui = readTree("components/admin");
 const router = readFileSync("server/admin.ts", "utf8");
 
 describe("console admin · contrat UI/API", () => {
