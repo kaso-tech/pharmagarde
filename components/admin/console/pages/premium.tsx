@@ -6,7 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { AdminPage } from "../shell";
 import { PAGE_SIZE, PLAN_LABELS, TRANSACTION_STATUS, displayIdentity, formatCount, formatDate, formatDay, formatXof, usePage } from "../shared";
 import { font, useAdminLayout, useAdminTheme } from "../theme";
-import { Badge, Card, CellStack, CellText, DataState, DataTable, Grid, KpiCard, Pagination, Segmented, Toolbar, type Column } from "../ui";
+import { Alert, Badge, Button, Card, CellStack, CellText, DataState, DataTable, Dialog, Field, Grid, Hint, KpiCard, Pagination, Segmented, Toolbar, type Column } from "../ui";
 
 type StatusFilter = "all" | "success" | "pending" | "failed" | "cancelled";
 
@@ -18,7 +18,65 @@ const COLUMNS: readonly Column[] = [
   { key: "date", label: "Date", flex: 1.3 },
   { key: "subscriptionEnd", label: "Fin d’abonnement", flex: 1.1 },
   { key: "reference", label: "Référence", flex: 1.6 },
+  { key: "actions", label: "", width: 104, align: "right" },
 ];
+
+type SettleTarget = { id: number; amount: number; planId: string; status: string; provider: string; user: string; reference: string };
+
+/** Règle une transaction non payée : nouvelle vérification auprès de Ligdi Cash ou décision manuelle motivée. */
+function SettleDialog({ target, onClose }: { target: SettleTarget | null; onClose: () => void }) {
+  const utils = trpc.useUtils();
+  const [note, setNote] = useState("");
+  const [result, setResult] = useState<string | null>(null);
+  const refresh = () => Promise.all([utils.admin.premium.transactions.invalidate(), utils.admin.dashboard.invalidate(), utils.admin.users.list.invalidate()]);
+  const close = () => {
+    setNote("");
+    setResult(null);
+    recheck.reset();
+    resolve.reset();
+    onClose();
+  };
+  const recheck = trpc.admin.premium.recheck.useMutation({
+    onSuccess: async (data) => {
+      await refresh();
+      setResult(data.status === "success" ? "Paiement confirmé par Ligdi Cash : l’abonnement a été prolongé." : data.status === "failed" ? "Ligdi Cash indique un paiement échoué." : "Ligdi Cash n’a toujours pas confirmé ce paiement.");
+    },
+  });
+  const resolve = trpc.admin.premium.resolve.useMutation({ onSuccess: async () => { await refresh(); close(); } });
+  const pending = recheck.isPending || resolve.isPending;
+  const error = recheck.error?.message ?? resolve.error?.message;
+  const noteOk = note.trim().length >= 3;
+  return (
+    <Dialog
+      visible={!!target}
+      title="Régler le paiement"
+      description={target ? `${target.user} · ${formatXof(target.amount)} · ${PLAN_LABELS[target.planId] ?? target.planId}` : undefined}
+      onClose={close}
+      width={600}
+      footer={
+        <>
+          <Button label="Marquer échoué" variant="ghost" disabled={!noteOk || pending} onPress={() => target && resolve.mutate({ id: target.id, status: "failed", note: note.trim() })} />
+          <Button label="Annuler la transaction" variant="ghost" disabled={!noteOk || pending} onPress={() => target && resolve.mutate({ id: target.id, status: "cancelled", note: note.trim() })} />
+          <Button label="Marquer payé" variant="primary" icon="check" disabled={!noteOk || pending} loading={resolve.isPending && resolve.variables?.status === "success"} onPress={() => target && resolve.mutate({ id: target.id, status: "success", note: note.trim() })} />
+        </>
+      }
+    >
+      {target ? (
+        <>
+          <Card title="1. Revérifier auprès de Ligdi Cash" description="À essayer d’abord : le paiement a pu aboutir sans que la confirmation nous parvienne.">
+            <Button label="Revérifier maintenant" icon="sync" loading={recheck.isPending} disabled={pending} onPress={() => recheck.mutate({ id: target.id })} />
+            {result ? <Alert tone="info">{result}</Alert> : null}
+          </Card>
+          <Card title="2. Ou décider à la main" description="« Marquer payé » prolonge l’abonnement de la durée de la formule.">
+            <Field label="Motif (obligatoire)" value={note} onChangeText={setNote} placeholder="Ex. reçu Orange Money n° 123 transmis par le client" multiline />
+            <Hint>Référence {target.reference}. Le motif est enregistré dans le journal d’audit.</Hint>
+          </Card>
+          {error ? <Alert tone="danger">{error}</Alert> : null}
+        </>
+      ) : null}
+    </Dialog>
+  );
+}
 
 export function PremiumPage() {
   const theme = useAdminTheme();
@@ -28,6 +86,8 @@ export function PremiumPage() {
   const summary = trpc.admin.dashboard.useQuery(undefined, { retry: 1 });
   const transactions = trpc.admin.premium.transactions.useQuery({ status, page, limit: PAGE_SIZE }, { retry: 1, placeholderData: (previous) => previous });
   const rows = transactions.data?.items ?? [];
+  const [settle, setSettle] = useState<SettleTarget | null>(null);
+  const settleTarget = (transaction: (typeof rows)[number]): SettleTarget => ({ id: transaction.id, amount: transaction.amount, planId: transaction.planId, status: transaction.status, provider: transaction.provider, reference: transaction.merchantReference, user: displayIdentity({ name: transaction.userName, phone: transaction.userPhone, email: transaction.userEmail, id: transaction.userId }) });
   const statusOf = (value: string) => TRANSACTION_STATUS[value] ?? { label: value, tone: "neutral" as const };
   const planBadge = (planId: string) => (planId === "offered" ? <Badge label="Offert" tone="info" icon="card-giftcard" /> : <CellText>{PLAN_LABELS[planId] ?? planId}</CellText>);
 
@@ -61,7 +121,7 @@ export function PremiumPage() {
               columns={COLUMNS}
               rows={rows}
               rowKey={(transaction) => String(transaction.id)}
-              minWidth={1000}
+              minWidth={1080}
               renderCell={(transaction, key) => {
                 switch (key) {
                   case "user":
@@ -78,6 +138,8 @@ export function PremiumPage() {
                     return <CellText muted>{formatDay(transaction.subscriptionEnd)}</CellText>;
                   case "reference":
                     return <CellText muted small mono>{transaction.merchantReference}</CellText>;
+                  case "actions":
+                    return transaction.status === "success" ? null : <Button size="sm" label="Régler" onPress={() => setSettle(settleTarget(transaction))} />;
                   default:
                     return null;
                 }
@@ -93,6 +155,7 @@ export function PremiumPage() {
                 <View style={styles.mobileRight}>
                   <Text style={[styles.mobileTitle, { color: theme.text }]}>{formatXof(transaction.amount)}</Text>
                   <Badge {...statusOf(transaction.status)} dot />
+                  {transaction.status === "success" ? null : <Button size="sm" label="Régler" onPress={() => setSettle(settleTarget(transaction))} />}
                 </View>
               </View>
             ))
@@ -102,6 +165,7 @@ export function PremiumPage() {
           </View>
         </DataState>
       </Card>
+      <SettleDialog target={settle} onClose={() => setSettle(null)} />
     </AdminPage>
   );
 }

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { IconName } from "./ui";
 import type { Tone } from "./theme";
 
-export type AdminSection = "dashboard" | "directory" | "duty" | "hours" | "users" | "premium" | "audit" | "account";
+export type AdminSection = "dashboard" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "audit" | "account";
 
 export const PAGE_SIZE = 50;
 
@@ -13,6 +13,7 @@ export const NAV_GROUPS: readonly { label: string; items: readonly { section: Ad
     label: "Annuaire",
     items: [
       { section: "directory", href: "/admin/annuaire", label: "Établissements", icon: "local-pharmacy" },
+      { section: "contributions", href: "/admin/contributions", label: "Contributions", icon: "inbox" },
       { section: "duty", href: "/admin/gardes", label: "Gardes", icon: "event-available" },
       { section: "hours", href: "/admin/horaires", label: "Horaires", icon: "schedule" },
     ],
@@ -30,6 +31,7 @@ export const NAV_GROUPS: readonly { label: string; items: readonly { section: Ad
 export const SECTION_TITLES: Record<AdminSection, string> = {
   dashboard: "Tableau de bord",
   directory: "Annuaire",
+  contributions: "Contributions",
   duty: "Gardes",
   hours: "Horaires",
   users: "Utilisateurs",
@@ -41,6 +43,7 @@ export const SECTION_TITLES: Record<AdminSection, string> = {
 export const SECTION_SUBTITLES: Record<AdminSection, string> = {
   dashboard: "Vue d’ensemble des comptes, des paiements et de l’annuaire.",
   directory: "Pharmacies et structures de santé publiées dans l’application.",
+  contributions: "Établissements proposés et erreurs signalées depuis l’application, à vérifier avant publication.",
   duty: "Groupe de garde de chaque ville. La garde change chaque samedi à 8 h.",
   hours: "Horaires de service par ville, fixés par l’ONPBF. Une pharmacie de garde est ouverte 24 h/24.",
   users: "Comptes inscrits, vérification du téléphone et abonnement.",
@@ -82,6 +85,17 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "account.password_changed": "Mot de passe modifié",
   "users.premium_granted": "Premium offert",
   "users.premium_revoked": "Premium retiré",
+  "admin.contributions.viewed": "Consultation des contributions",
+  "contribution.accepted": "Proposition publiée",
+  "contribution.rejected": "Contribution refusée",
+  "contribution.resolved": "Signalement résolu",
+  "users.suspended": "Compte suspendu",
+  "users.reactivated": "Compte réactivé",
+  "users.sessions_revoked": "Appareils déconnectés",
+  "users.role_changed": "Rôle modifié",
+  "users.deleted": "Compte supprimé",
+  "premium.rechecked": "Paiement revérifié",
+  "premium.resolved": "Paiement réglé à la main",
 };
 
 export const AUDIT_TARGETS: Record<string, string> = {
@@ -90,6 +104,8 @@ export const AUDIT_TARGETS: Record<string, string> = {
   admin_console: "Console",
   city: "Ville",
   user: "Utilisateur",
+  contribution: "Contribution",
+  transaction: "Transaction",
 };
 
 export function auditActionLabel(action: string) {
@@ -97,7 +113,7 @@ export function auditActionLabel(action: string) {
 }
 
 export function auditTone(action: string): Tone {
-  if (action.includes("archived") || action.includes("revoked")) return "danger";
+  if (action.includes("archived") || action.includes("revoked") || action.includes("suspended") || action.includes("deleted") || action.includes("rejected")) return "danger";
   if (action.includes("viewed")) return "neutral";
   if (action.includes("premium")) return "info";
   return "brand";

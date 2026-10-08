@@ -9,6 +9,7 @@ import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { getKnownCityCoordinates } from "@/lib/pharmagarde/city-utils";
 import { DEFAULT_WEEKLY_HOURS, validateWeeklyHours, type WeeklyHours } from "@/lib/pharmagarde/opening-hours";
 import { usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
+import { trpc } from "@/lib/trpc";
 import type { Coordinates } from "@/lib/pharmagarde/types";
 
 type EstablishmentType = "pharmacy" | "healthcare";
@@ -46,6 +47,12 @@ export default function NewEstablishmentScreen() {
   const { preferences, userLocation } = usePharmaGarde();
   const [form, setForm] = useState<EstablishmentForm>(INITIAL_FORM);
   const [submitted, setSubmitted] = useState(false);
+  const propose = trpc.contributions.proposePlace.useMutation({
+    onSuccess: () => {
+      setSubmitted(true);
+      setForm({ ...INITIAL_FORM, hours: cloneHours(DEFAULT_WEEKLY_HOURS) });
+    },
+  });
   const center = useMemo(() => userLocation ?? getKnownCityCoordinates(preferences.city), [preferences.city, userLocation]);
 
   const hoursError = form.withHours ? validateWeeklyHours(form.hours) : null;
@@ -58,9 +65,18 @@ export default function NewEstablishmentScreen() {
   };
 
   const submit = () => {
-    if (!isValid) return;
-    setSubmitted(true);
-    setForm({ ...INITIAL_FORM, hours: cloneHours(DEFAULT_WEEKLY_HOURS) });
+    if (!isValid || !form.location || propose.isPending) return;
+    propose.mutate({
+      placeKind: form.type,
+      name: form.name.trim(),
+      city: preferences.city,
+      address: form.district.trim(),
+      phone: form.phone.trim() || undefined,
+      latitude: form.location.latitude,
+      longitude: form.location.longitude,
+      openingHours: form.withHours ? form.hours : null,
+      notes: form.notes.trim() || undefined,
+    });
   };
 
   return (
@@ -68,7 +84,7 @@ export default function NewEstablishmentScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
         <ScrollView style={[styles.page, { backgroundColor: palette.background }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text accessibilityRole="header" style={[styles.title, { color: palette.text }]}>Nouvel établissement</Text>
-          <Text style={[styles.description, { color: palette.muted }]}>Proposez une pharmacie ou un centre de santé à vérifier pour {preferences.city}. Les données restent locales dans cette version et préparent une intégration serveur ultérieure.</Text>
+          <Text style={[styles.description, { color: palette.muted }]}>Proposez une pharmacie ou un centre de santé à vérifier pour {preferences.city}. Votre proposition est vérifiée par l’équipe PharmaGarde avant publication.</Text>
 
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <View style={styles.fieldGroup}>
@@ -124,9 +140,10 @@ export default function NewEstablishmentScreen() {
             {submitted ? (
               <View style={[styles.successBox, { backgroundColor: palette.softGreen, borderColor: palette.border }]}>
                 <MaterialIcons name="check-circle" size={20} color={palette.brand} />
-                <Text style={[styles.successText, { color: palette.text }]}>Proposition enregistrée localement. Elle pourra être envoyée lorsque la synchronisation sera activée.</Text>
+                <Text style={[styles.successText, { color: palette.text }]}>Merci ! Votre proposition a été envoyée. Elle sera publiée après vérification.</Text>
               </View>
             ) : null}
+            {propose.error ? <Text style={[styles.help, { color: palette.danger }]}>{propose.error.message || "Envoi impossible. Vérifiez votre connexion et réessayez."}</Text> : null}
 
             {!form.location ? <Text style={[styles.help, { color: palette.muted }]}>Placez l’établissement sur la carte pour pouvoir envoyer la proposition.</Text> : null}
 
@@ -138,7 +155,7 @@ export default function NewEstablishmentScreen() {
               onPress={submit}
             >
               <MaterialIcons name="send" size={19} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Soumettre la proposition</Text>
+              <Text style={styles.buttonText}>{propose.isPending ? "Envoi…" : "Soumettre la proposition"}</Text>
             </Pressable>
           </View>
         </ScrollView>

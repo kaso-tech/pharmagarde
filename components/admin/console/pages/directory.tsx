@@ -1,4 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -18,7 +19,7 @@ import { Alert, Badge, Button, Card, CellStack, CellText, Chip, ConfirmDialog, D
 type DirectoryKind = "pharmacy" | "healthcare";
 type DutyGroupFilter = "all" | "none" | "1" | "2" | "3" | "4";
 
-type DirectoryForm = {
+export type DirectoryForm = {
   id?: string;
   kind: DirectoryKind;
   name: string;
@@ -38,7 +39,7 @@ type DirectoryForm = {
 
 const OTHER_CITY = "__autre__";
 
-const EMPTY_FORM: DirectoryForm = {
+export const EMPTY_FORM: DirectoryForm = {
   kind: "pharmacy",
   name: "",
   city: "Ouagadougou",
@@ -105,7 +106,7 @@ function Row({ children }: { children: React.ReactNode }) {
   return <View style={desktop ? styles.fieldRow : styles.fieldColumn}>{children}</View>;
 }
 
-function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange }: { form: DirectoryForm; cityNames: readonly string[]; cityHoursFor: (city: string) => WeeklyHours; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void }) {
+export function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange }: { form: DirectoryForm; cityNames: readonly string[]; cityHoursFor: (city: string) => WeeklyHours; onChange: <K extends keyof DirectoryForm>(key: K, value: DirectoryForm[K]) => void }) {
   const [otherCity, setOtherCity] = useState(false);
   const showOtherCity = otherCity || (!!form.city && !cityNames.includes(form.city));
   const cityOptions = [...cityNames.map((name) => ({ value: name, label: name })), { value: OTHER_CITY, label: "Autre ville…" }];
@@ -192,12 +193,44 @@ function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange }: { form
   );
 }
 
+/** Valeurs envoyées à `directory.upsert` (et à l'acceptation d'une contribution). */
+export function toUpsertInput(form: DirectoryForm) {
+  return {
+    id: form.id,
+    kind: form.kind,
+    name: form.name,
+    city: form.city,
+    phone: form.phone || null,
+    address: form.address || null,
+    latitude: numberOrNull(form.latitude),
+    longitude: numberOrNull(form.longitude),
+    dutyGroup: form.kind === "pharmacy" && form.dutyGroup ? Number(form.dutyGroup) : null,
+    establishmentType: form.kind === "healthcare" ? form.establishmentType || null : null,
+    openingHours: form.hoursMode === "custom" ? form.openingHours : null,
+    insurances: form.insurances,
+  };
+}
+
+export function formState(form: DirectoryForm) {
+  const missingCoordinates = form.kind === "pharmacy" && (numberOrNull(form.latitude) === null || numberOrNull(form.longitude) === null);
+  const invalidHours = form.hoursMode === "custom" && !!validateWeeklyHours(form.openingHours);
+  return { missingCoordinates, cannotSave: !form.name.trim() || !form.city.trim() || missingCoordinates || invalidHours };
+}
+
+/** Horaires des villes, pour le formulaire (une ville sans horaires propres suit ceux par défaut). */
+export function useCityHoursLookup() {
+  const hours = trpc.admin.hours.cities.useQuery(undefined, { retry: 1 });
+  return (name: string) => hours.data?.find((entry) => entry.city.localeCompare(name, "fr", { sensitivity: "base" }) === 0)?.hours ?? DEFAULT_WEEKLY_HOURS;
+}
+
 export function DirectoryPage() {
   const utils = trpc.useUtils();
   const theme = useAdminTheme();
   const { desktop, large } = useAdminLayout();
   const [kind, setKind] = useState<"all" | DirectoryKind>("all");
-  const [search, setSearch] = useState("");
+  // `?q=` : recherche pré-remplie, par exemple depuis un signalement.
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const [search, setSearch] = useState(typeof q === "string" ? q : "");
   const [status, setStatus] = useState<"active" | "archived">("active");
   const [city, setCity] = useState("");
   const [dutyGroup, setDutyGroup] = useState<DutyGroupFilter>("all");
@@ -212,7 +245,7 @@ export function DirectoryPage() {
     { kind, search: debouncedSearch || undefined, status, city: city || undefined, dutyGroup: effectiveGroup, insurance: isInsurerId(insurance) ? insurance : undefined, page, limit: PAGE_SIZE },
     { retry: 1, placeholderData: (previous) => previous },
   );
-  const hours = trpc.admin.hours.cities.useQuery(undefined, { retry: 1 });
+  const cityHoursFor = useCityHoursLookup();
   const refresh = () => Promise.all([utils.admin.directory.list.invalidate(), utils.admin.dashboard.invalidate()]);
   const upsert = trpc.admin.directory.upsert.useMutation({
     onSuccess: async () => {
@@ -249,32 +282,14 @@ export function DirectoryPage() {
     setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS, insurances: normalizeInsurerIds(item.insurances) });
     setShowForm(true);
   };
-  const submit = () => {
-    upsert.mutate({
-      id: form.id,
-      kind: form.kind,
-      name: form.name,
-      city: form.city,
-      phone: form.phone || null,
-      address: form.address || null,
-      latitude: numberOrNull(form.latitude),
-      longitude: numberOrNull(form.longitude),
-      dutyGroup: form.kind === "pharmacy" && form.dutyGroup ? Number(form.dutyGroup) : null,
-      establishmentType: form.kind === "healthcare" ? form.establishmentType || null : null,
-      openingHours: form.hoursMode === "custom" ? form.openingHours : null,
-      insurances: form.insurances,
-    });
-  };
+  const submit = () => upsert.mutate(toUpsertInput(form));
 
-  const cityHoursFor = (name: string) => hours.data?.find((entry) => entry.city.localeCompare(name, "fr", { sensitivity: "base" }) === 0)?.hours ?? DEFAULT_WEEKLY_HOURS;
   const cities = directory.data?.cities ?? [];
   const rows = directory.data?.items ?? [];
   const total = directory.data?.total ?? 0;
   const archivedView = status === "archived";
   const groupLabel = (item: DirectoryItem) => (item.kind === "pharmacy" ? (item.dutyGroup ? `Groupe ${item.dutyGroup}` : "Sans groupe") : item.establishmentType ?? "Établissement");
-  const missingCoordinates = form.kind === "pharmacy" && (numberOrNull(form.latitude) === null || numberOrNull(form.longitude) === null);
-  const invalidHours = form.hoursMode === "custom" && !!validateWeeklyHours(form.openingHours);
-  const cannotSave = !form.name.trim() || !form.city.trim() || missingCoordinates || invalidHours;
+  const { missingCoordinates, cannotSave } = formState(form);
   const kindIcon = (item: DirectoryItem) => (
     <View style={[styles.kindIcon, { backgroundColor: item.kind === "pharmacy" ? theme.brandSoft : theme.infoSoft }]}>
       <MaterialIcons name={item.kind === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={16} color={item.kind === "pharmacy" ? theme.brandText : theme.info} />

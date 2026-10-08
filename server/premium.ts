@@ -503,6 +503,41 @@ export async function recordPaymentOutcome(
   });
 }
 
+export type PaymentResolution = "success" | "failed" | "cancelled";
+
+/**
+ * Console : interroge de nouveau Ligdi Cash pour une transaction en attente (webhook perdu, retour
+ * de paiement non reçu) et applique le résultat comme le ferait le webhook.
+ */
+export async function recheckTransaction(db: Database, transactionId: number) {
+  const [transaction] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
+  if (!transaction) throw new Error("TRANSACTION_NOT_FOUND");
+  if (transaction.status === "success") return { status: "success" as TransactionStatus, activated: false, providerStatus: null };
+  if (!transaction.providerTransactionId) throw new Error("NO_PROVIDER_TOKEN");
+  const verification = await verifyLigdiCashPayment({ invoiceToken: transaction.providerTransactionId, expectedAmount: transaction.amount });
+  const status: TransactionStatus = verification.confirmed ? "success" : verification.failed ? "failed" : "pending";
+  const activated = await recordPaymentOutcome(db, transaction, status, {
+    providerTransactionId: verification.providerTransactionId ?? transaction.providerTransactionId,
+    rawProviderPayload: JSON.stringify({ recheck: true, verification: JSON.parse(verification.rawPayload) }),
+  });
+  return { status, activated, providerStatus: verification.status ?? null };
+}
+
+/**
+ * Console : règle à la main une transaction non payée (preuve de paiement reçue hors ligne, ou
+ * paiement abandonné). « success » prolonge l'abonnement comme un paiement confirmé.
+ */
+export async function resolveTransactionManually(db: Database, transactionId: number, status: PaymentResolution, details: { adminId: number; note: string }) {
+  const [transaction] = await db.select().from(transactions).where(eq(transactions.id, transactionId)).limit(1);
+  if (!transaction) throw new Error("TRANSACTION_NOT_FOUND");
+  if (transaction.status === "success") throw new Error("ALREADY_PAID");
+  const activated = await recordPaymentOutcome(db, transaction, status, {
+    providerTransactionId: transaction.providerTransactionId ?? `manuel-${transaction.id}`,
+    rawProviderPayload: JSON.stringify({ manual: true, resolvedBy: details.adminId, note: details.note }),
+  });
+  return { previousStatus: transaction.status, activated };
+}
+
 export async function handleLigdiCashWebhook(req: Request, res: Response) {
   try {
     const db = await getDb();

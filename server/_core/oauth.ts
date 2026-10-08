@@ -136,6 +136,10 @@ export function registerOAuthRoutes(app: Express) {
           res.status(401).json({ error: "Téléphone/email ou mot de passe incorrect." });
           return;
         }
+        if (user.suspendedAt) {
+          res.status(403).json({ error: "Ce compte est suspendu. Contactez le support PharmaGarde." });
+          return;
+        }
 
         await upsertUser({ openId: user.openId, lastSignedIn: new Date() });
         const refreshedUser = (await getUserByOpenId(user.openId)) ?? user;

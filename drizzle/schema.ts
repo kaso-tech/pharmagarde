@@ -21,6 +21,8 @@ export const users = mysqlTable("users", {
   phoneVerifiedAt: timestamp("phoneVerifiedAt"),
   /** Les jetons de session émis avant cette date sont refusés (déconnexion de tous les appareils). */
   sessionsValidAfter: timestamp("sessionsValidAfter"),
+  /** Compte suspendu depuis la console : connexion et sessions refusées tant que la date est renseignée. */
+  suspendedAt: timestamp("suspendedAt"),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   /** Subscription end date. A user is premium only when this value is in the future. */
@@ -127,3 +129,41 @@ export const cityHours = mysqlTable("city_hours", {
 });
 
 export type CityHours = typeof cityHours.$inferSelect;
+
+/**
+ * Contributions envoyées depuis l'application : proposition d'un nouvel établissement ou
+ * signalement d'une erreur, à traiter dans la console (file de modération).
+ */
+export const contributions = mysqlTable(
+  "contributions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    kind: mysqlEnum("kind", ["new_place", "problem"]).notNull(),
+    status: mysqlEnum("status", ["new", "accepted", "rejected", "resolved"]).default("new").notNull(),
+    /** Auteur connecté, s'il y en a un (les contributions anonymes sont acceptées). */
+    userId: int("userId"),
+    city: varchar("city", { length: 96 }),
+    placeKind: mysqlEnum("placeKind", ["pharmacy", "healthcare"]),
+    /** Établissement concerné par un signalement, ou fiche créée à l'acceptation d'une proposition. */
+    placeId: varchar("placeId", { length: 128 }),
+    name: varchar("name", { length: 255 }),
+    phone: varchar("phone", { length: 40 }),
+    address: text("address"),
+    latitude: double("latitude"),
+    longitude: double("longitude"),
+    /** Horaires proposés (JSON, voir lib/pharmagarde/opening-hours.ts). */
+    openingHours: text("openingHours"),
+    category: varchar("category", { length: 96 }),
+    subject: varchar("subject", { length: 255 }),
+    message: text("message"),
+    adminNote: text("adminNote"),
+    handledBy: int("handledBy"),
+    handledAt: timestamp("handledAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [index("contributions_status_kind_idx").on(table.status, table.kind, table.createdAt)],
+);
+
+export type Contribution = typeof contributions.$inferSelect;
+export type InsertContribution = typeof contributions.$inferInsert;
