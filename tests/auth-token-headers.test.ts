@@ -89,3 +89,14 @@ describe("auth token headers", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("statut Premium lu depuis la route tRPC", () => {
+  it("lit la réponse groupée superjson renvoyée par le serveur", async () => {
+    const { parsePremiumStatusResponse } = await import("../lib/pharmagarde/premium");
+    const batched = [{ result: { data: { json: { isPremium: true, subscriptionEnd: "2026-12-01T00:00:00.000Z", serverTime: "2026-10-08T06:29:55.858Z" } } } }];
+    expect(parsePremiumStatusResponse(batched)).toEqual({ isPremium: true, subscriptionEnd: "2026-12-01T00:00:00.000Z", serverTime: "2026-10-08T06:29:55.858Z" });
+    expect(parsePremiumStatusResponse({ result: { data: { isPremium: true, subscriptionEnd: null } } })).toMatchObject({ isPremium: true });
+    expect(parsePremiumStatusResponse({ isPremium: false })).toMatchObject({ isPremium: false });
+    expect(parsePremiumStatusResponse(null)).toMatchObject({ isPremium: false, subscriptionEnd: null });
+  });
+});

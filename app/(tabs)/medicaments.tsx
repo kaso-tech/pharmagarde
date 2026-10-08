@@ -1,6 +1,6 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AppChrome, EmptyState, MedicalDisclaimer, MedicineCard, SearchField } from "@/components/pharmagarde/app-ui";
@@ -14,7 +14,11 @@ const BRAND_GREEN = "#008000";
 
 export default function MedicinesScreen() {
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { isPremium, medicines, premiumLoading } = usePharmaGarde();
+  const { isPremium, medicines, premiumLoading, refreshPremiumStatus } = usePharmaGarde();
+  // Sans abonnement actif, le statut est relu à l'ouverture de l'onglet (Premium obtenu entre-temps).
+  useFocusEffect(useCallback(() => {
+    if (!isPremium) void refreshPremiumStatus();
+  }, [isPremium, refreshPremiumStatus]));
   const [query, setQuery] = useState("");
   const [productType, setProductType] = useState<MedicineProductType | null>(null);
   const [category, setCategory] = useState<string | null>(null);
