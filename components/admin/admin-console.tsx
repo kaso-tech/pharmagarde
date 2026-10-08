@@ -37,8 +37,16 @@ type DirectoryForm = {
   insurances: InsurerId[];
 };
 
-/** Largeur à partir de laquelle la console passe en mise en page bureau : menu latéral fixe et tableaux. */
-const WIDE_BREAKPOINT = 1024;
+/**
+ * Largeur à partir de laquelle la console passe en mise en page bureau : menu latéral fixe et tableaux.
+ * 768 px couvre les tablettes, les fenêtres réduites et le mode « version pour ordinateur » des
+ * navigateurs mobiles (~980 px), qui affichaient sinon la mise en page mobile étirée.
+ */
+const WIDE_BREAKPOINT = 768;
+/** En dessous de cette largeur, le formulaire de fiche s'ouvre en fenêtre centrée plutôt qu'en panneau latéral. */
+const SIDE_PANEL_BREAKPOINT = 1600;
+/** Largeur minimale des tableaux : en deçà, ils défilent horizontalement au lieu d'écraser les colonnes. */
+const TABLE_MIN_WIDTH = 640;
 const PAGE_SIZE = 50;
 const OTHER_CITY = "__autre__";
 
@@ -435,8 +443,12 @@ function columnStyle(column: Column) {
 /** Tableau dense pour la mise en page bureau. */
 function DataTable<T>({ columns, rows, rowKey, renderCell, onRowPress, selectedKey }: { columns: readonly Column[]; rows: readonly T[]; rowKey: (row: T) => string; renderCell: (row: T, key: string) => ReactNode; onRowPress?: (row: T) => void; selectedKey?: string | null }) {
   const palette = usePremiumPalette();
+  // Le tableau prend toute la largeur disponible, sans descendre sous TABLE_MIN_WIDTH (défilement horizontal au-delà).
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const tableWidth = availableWidth ? Math.max(availableWidth, TABLE_MIN_WIDTH) : undefined;
   return (
-    <View style={[styles.table, { backgroundColor: palette.card, borderColor: palette.border }]}>
+    <ScrollView horizontal style={styles.tableScroll} showsHorizontalScrollIndicator onLayout={(event) => setAvailableWidth(Math.floor(event.nativeEvent.layout.width))}>
+    <View style={[styles.table, { width: tableWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
       <View style={[styles.tableHead, { backgroundColor: palette.cardMuted, borderBottomColor: palette.border }]}>
         {columns.map((column) => (
           <View key={column.key} style={[styles.cell, ...columnStyle(column)]}>
@@ -455,6 +467,7 @@ function DataTable<T>({ columns, rows, rowKey, renderCell, onRowPress, selectedK
         );
       })}
     </View>
+    </ScrollView>
   );
 }
 
@@ -751,6 +764,8 @@ function Directory() {
   const utils = trpc.useUtils();
   const palette = usePremiumPalette();
   const wide = useWideLayout();
+  const { width } = useWindowDimensions();
+  const inlinePanel = wide && width >= SIDE_PANEL_BREAKPOINT;
   const [kind, setKind] = useState<"all" | DirectoryKind>("all");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"active" | "archived">("active");
@@ -924,7 +939,7 @@ function Directory() {
           {pagination}
         </PageState>
       </AdminPage>
-      {wide && showForm ? (
+      {inlinePanel && showForm ? (
         <View style={[styles.sidePanel, { backgroundColor: palette.card, borderLeftColor: palette.border }]}>
           <View style={[styles.panelHeader, { borderBottomColor: palette.border }]}>
             <Text accessibilityRole="header" style={[styles.cardHeading, { color: palette.text }]}>{formTitle}</Text>
@@ -932,6 +947,19 @@ function Directory() {
           </View>
           <ScrollView contentContainerStyle={styles.panelContent}>{formFields}</ScrollView>
         </View>
+      ) : null}
+      {wide && !inlinePanel ? (
+        <Modal visible={showForm} transparent animationType="fade" onRequestClose={closeForm}>
+          <View style={[styles.modalRoot, { backgroundColor: palette.overlay }]}>
+            <View style={[styles.formDialog, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <View style={[styles.panelHeader, { borderBottomColor: palette.border }]}>
+                <Text accessibilityRole="header" style={[styles.cardHeading, { color: palette.text }]}>{formTitle}</Text>
+                <IconAction icon="close" label="Fermer le formulaire" color={palette.text} onPress={closeForm} />
+              </View>
+              <ScrollView contentContainerStyle={styles.panelContent} keyboardShouldPersistTaps="handled">{formFields}</ScrollView>
+            </View>
+          </View>
+        </Modal>
       ) : null}
       {!wide ? (
         <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeForm}>
@@ -1512,7 +1540,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, color: "#FFFFFF", fontSize: 18, lineHeight: 24, fontWeight: "900", textAlign: "center" },
   headerSecurity: { width: 44, alignItems: "center" },
   page: { flex: 1 },
-  pageContent: { padding: premiumSpacing.lg, paddingBottom: 38, gap: premiumSpacing.md },
+  pageContent: { padding: premiumSpacing.lg, paddingBottom: 38, gap: premiumSpacing.md, width: "100%", maxWidth: 720, alignSelf: "center" },
   pageContentWide: { paddingHorizontal: 32, paddingTop: 28, width: "100%", maxWidth: 1440, alignSelf: "center" },
   pageHeader: { gap: 4, marginBottom: 4 },
   pageTitle: { fontSize: 26, lineHeight: 32, fontWeight: "900" },
@@ -1582,6 +1610,7 @@ const styles = StyleSheet.create({
   dutyGrid: { gap: 14 },
   hoursCardWide: { flexBasis: 320, flexGrow: 1, maxWidth: 460 },
   hoursSummaryRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  formDialog: { width: "100%", maxWidth: 640, maxHeight: "92%", borderRadius: premiumRadius.lg, borderWidth: 1, overflow: "hidden" },
   hoursModal: { width: "100%", maxWidth: 560, maxHeight: "90%", borderRadius: premiumRadius.lg, borderWidth: 1, overflow: "hidden" },
   dutyGridWide: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" },
   dutyCard: { borderRadius: premiumRadius.md, borderWidth: 1, padding: 16, gap: 12 },
@@ -1626,7 +1655,8 @@ const styles = StyleSheet.create({
   giftButton: { flex: 0, paddingHorizontal: 10 },
   revokeBox: { borderWidth: 1, borderRadius: 11, padding: 12, gap: 6 },
   iconButton: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  table: { borderRadius: premiumRadius.md, borderWidth: 1, overflow: "hidden" },
+  tableScroll: { flexGrow: 0, width: "100%" },
+  table: { minWidth: TABLE_MIN_WIDTH, borderRadius: premiumRadius.md, borderWidth: 1, overflow: "hidden" },
   tableHead: { minHeight: 40, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", borderBottomWidth: 1 },
   th: { fontSize: 11, lineHeight: 15, fontWeight: "900", letterSpacing: 0.4, textTransform: "uppercase" },
   tr: { minHeight: 52, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", borderTopWidth: 1 },
