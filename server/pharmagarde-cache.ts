@@ -9,7 +9,8 @@ import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-overrides";
 import { formatWeeklyHours, isOpenAt, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { getCityHoursLookup } from "./city-hours";
-import { DUTY_ROTATIONS, dutyStatusAt, dutyWeekAt, findDutyRotation } from "./duty-roster";
+import { currentDutyConfig, getDutyConfig, type DutyConfig } from "./duty-config";
+import { dutyStatusAt, dutyWeekAt, findDutyRotation } from "./duty-roster";
 import type { Medicine } from "../lib/pharmagarde/types";
 import { getEssentialMedicines, MEDICINES_NOTICE } from "./medicines-data";
 import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
@@ -566,10 +567,10 @@ export type PublishedPlace = CachedHealthPlace & {
 };
 
 /** Ajoute le statut de garde aux pharmacies des villes qui ont une programmation. */
-export function withDutyStatus(items: readonly CachedHealthPlace[], at: Date = new Date()): PublishedPlace[] {
+export function withDutyStatus(items: readonly CachedHealthPlace[], at: Date = new Date(), duty: DutyConfig = currentDutyConfig()): PublishedPlace[] {
   return items.map((item) => {
     if (item.category !== "pharmacy") return item;
-    const status = dutyStatusAt(item, at);
+    const status = dutyStatusAt(item, at, duty.rotations, duty.exceptions);
     if (!status) return item;
     return status.onDuty ? { ...item, onDuty: true, dutyStart: status.week.start.toISOString(), dutyEnd: status.week.end.toISOString() } : { ...item, onDuty: false };
   });
@@ -579,8 +580,8 @@ export function withDutyStatus(items: readonly CachedHealthPlace[], at: Date = n
  * Statut de service de chaque établissement : « de garde » (pharmacie de garde, ouverte 24 h/24),
  * sinon ouvert ou fermé selon ses horaires propres ou, à défaut, ceux de sa ville.
  */
-export function withServiceStatus(items: readonly CachedHealthPlace[], at: Date, hoursFor: (city: string | undefined) => WeeklyHours): PublishedPlace[] {
-  return withDutyStatus(items, at).map((item) => {
+export function withServiceStatus(items: readonly CachedHealthPlace[], at: Date, hoursFor: (city: string | undefined) => WeeklyHours, duty: DutyConfig = currentDutyConfig()): PublishedPlace[] {
+  return withDutyStatus(items, at, duty).map((item) => {
     const hours = item.serviceHours ?? hoursFor(item.city);
     const onDuty = item.onDuty === true;
     const isOpen = onDuty || isOpenAt(hours, at);
@@ -604,8 +605,8 @@ export function sortInServiceFirst<T extends { onDuty?: boolean; isOpen?: boolea
   return [...items.filter(inService), ...items.filter((item) => !inService(item))];
 }
 
-function dutyMeta(cityFilter: RequestedCityFilter, at: Date) {
-  const rotations = cityFilter.rawCity ? [findDutyRotation(cityFilter.supportedCity?.name ?? cityFilter.rawCity)].filter((rotation) => !!rotation) : DUTY_ROTATIONS;
+function dutyMeta(cityFilter: RequestedCityFilter, at: Date, duty: DutyConfig = currentDutyConfig()) {
+  const rotations = cityFilter.rawCity ? [findDutyRotation(cityFilter.supportedCity?.name ?? cityFilter.rawCity, duty.rotations)].filter((rotation) => !!rotation) : duty.rotations;
   return rotations.map((rotation) => {
     const week = dutyWeekAt(rotation, at);
     return { city: week.city, label: week.turn.label, dutyGroup: week.turn.dutyGroup ?? null, start: week.start.toISOString(), end: week.end.toISOString() };
@@ -632,7 +633,8 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
   const published = await selectPublishedItems(kind, cityFilter);
   const now = new Date();
   const hoursFor = await getCityHoursLookup();
-  const byDistance: PublishedPlace[] = sortByDistanceFrom(withServiceStatus(published.items, now, hoursFor), getRequestedPosition(req));
+  const duty = await getDutyConfig();
+  const byDistance: PublishedPlace[] = sortByDistanceFrom(withServiceStatus(published.items, now, hoursFor, duty), getRequestedPosition(req));
   const allItems = kind === "pharmacies" && wantsOnDutyOnly(req) ? byDistance.filter((item) => item.onDuty === true) : sortInServiceFirst(byDistance);
   const isPremium = await getPremiumAccessFromRequest(req);
   const items = isPremium ? allItems : allItems.slice(0, PREMIUM_RESULT_LIMIT);
@@ -661,7 +663,7 @@ async function sendCachedDataset(req: Request, res: Response, kind: CacheKind, r
       updatedAt: state.updatedAt,
       expiresAt: state.expiresAt,
       stale: !isCacheFresh(kind),
-      ...(kind === "pharmacies" ? { duty: dutyMeta(cityFilter, now) } : {}),
+      ...(kind === "pharmacies" ? { duty: dutyMeta(cityFilter, now, duty) } : {}),
     },
   });
 }

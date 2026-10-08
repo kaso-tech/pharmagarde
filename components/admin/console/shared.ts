@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { IconName } from "./ui";
 import type { Tone } from "./theme";
 
-export type AdminSection = "dashboard" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "audit" | "account";
+export type AdminSection = "dashboard" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "audit" | "system" | "account";
 
 export const PAGE_SIZE = 50;
 
@@ -25,7 +25,7 @@ export const NAV_GROUPS: readonly { label: string; items: readonly { section: Ad
       { section: "premium", href: "/admin/abonnements", label: "Premium", icon: "workspace-premium" },
     ],
   },
-  { label: "Système", items: [{ section: "audit", href: "/admin/journal", label: "Journal d’audit", icon: "history" }] },
+  { label: "Système", items: [{ section: "audit", href: "/admin/journal", label: "Journal d’audit", icon: "history" }, { section: "system", href: "/admin/systeme", label: "Système", icon: "dns" }] },
 ];
 
 export const SECTION_TITLES: Record<AdminSection, string> = {
@@ -37,6 +37,7 @@ export const SECTION_TITLES: Record<AdminSection, string> = {
   users: "Utilisateurs",
   premium: "Premium",
   audit: "Journal d’audit",
+  system: "Système",
   account: "Mon compte",
 };
 
@@ -49,6 +50,7 @@ export const SECTION_SUBTITLES: Record<AdminSection, string> = {
   users: "Comptes inscrits, vérification du téléphone et abonnement.",
   premium: "Paiements Ligdi Cash, Premium offerts et abonnements associés.",
   audit: "Actions réalisées dans la console d’administration.",
+  system: "État du serveur, de la base de données, des services et des données publiées.",
   account: "Vos informations de connexion et votre mot de passe.",
 };
 
@@ -80,6 +82,7 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "admin.users.viewed": "Consultation des utilisateurs",
   "admin.premium.viewed": "Consultation des paiements",
   "admin.audit.viewed": "Consultation du journal",
+  "admin.system.viewed": "Consultation de l’état du système",
   "admin.account.viewed": "Consultation de mon compte",
   "account.updated": "Profil modifié",
   "account.password_changed": "Mot de passe modifié",
@@ -96,6 +99,12 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "users.deleted": "Compte supprimé",
   "premium.rechecked": "Paiement revérifié",
   "premium.resolved": "Paiement réglé à la main",
+  "duty.rotation_saved": "Programmation des gardes modifiée",
+  "duty.rotation_reset": "Programmation des gardes rétablie",
+  "duty.exception_added": "Exception de garde ajoutée",
+  "duty.exception_removed": "Exception de garde supprimée",
+  "directory.imported": "Import Excel de l’annuaire",
+  "data.refreshed": "Données mises à jour",
 };
 
 export const AUDIT_TARGETS: Record<string, string> = {

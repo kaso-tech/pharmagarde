@@ -3,12 +3,13 @@ import { and, count, desc, eq, gt, gte, isNotNull, isNull, like, lte, ne, notLik
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
-import { auditLogs, cityHours, contributions, directoryEntries, transactions, users } from "../drizzle/schema";
+import { auditLogs, cityHours, contributions, directoryEntries, dutyExceptions, dutyRotations, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
 import { listCityHours, reloadCityHours } from "./city-hours";
 import { INSURER_IDS } from "../lib/pharmagarde/insurances";
 import { reloadDirectoryOverrides } from "./directory-overrides";
-import { DUTY_ROTATIONS, dutyWeekAt, isPharmacyOnDuty } from "./duty-roster";
+import { DUTY_ROTATIONS, dutyCityKey, dutyWeekAt, isPharmacyOnDuty, weekDateKey } from "./duty-roster";
+import { dutyTurnListSchema, getDutyConfig, reloadDutyConfig } from "./duty-config";
 import { cityMatchKey, weeklyHoursSchema, directoryArchiveSchema, directoryRestoreSchema, directoryUpsertSchema, filterAdminDirectoryItems, getBaseAdminDirectoryItems, listDirectoryCities, mergeAdminDirectoryItems, normalizeDirectoryUpsert } from "./admin-directory";
 import { adminProcedure, router } from "./_core/trpc";
 import { COOKIE_NAME, SESSION_TTL_MS } from "../shared/const.js";
@@ -18,6 +19,8 @@ import { hashPassword, verifyPassword } from "./_core/local-auth";
 import { sdk } from "./_core/sdk";
 import { extendSubscriptionEnd, isSubscriptionActive, recheckTransaction, resolveTransactionManually } from "./premium";
 import { deleteUserAccount } from "./db";
+import { readConsoleBackup, readSystemStatus } from "./system-status";
+import { updateCachedDataset } from "./pharmagarde-cache";
 
 const pageSchema = z.object({
   page: z.number().int().min(1).max(10_000).default(1),
@@ -35,6 +38,25 @@ const directoryListSchema = pageSchema.extend({
 
 const dutyOverviewSchema = z.object({
   weeks: z.number().int().min(1).max(26).default(8),
+});
+
+const saturdaySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date au format AAAA-MM-JJ.")
+  .refine((value) => new Date(`${value}T00:00:00Z`).getUTCDay() === 6, "La semaine de garde commence un samedi.");
+
+const rotationSaveSchema = z.discriminatedUnion("mode", [
+  z.object({ city: z.string().trim().min(2).max(96), mode: z.literal("groups"), groupCount: z.number().int().min(2).max(12), referenceStart: saturdaySchema, referenceTurn: z.number().int().min(1).max(12) }),
+  z.object({ city: z.string().trim().min(2).max(96), mode: z.literal("lists"), turns: dutyTurnListSchema, referenceStart: saturdaySchema, referenceTurn: z.number().int().min(1).max(12) }),
+  z.object({ city: z.string().trim().min(2).max(96), mode: z.literal("off") }),
+]);
+
+const dutyExceptionSchema = z.object({
+  city: z.string().trim().min(2).max(96),
+  weekStart: saturdaySchema,
+  pharmacyId: z.string().trim().min(1).max(128),
+  action: z.enum(["add", "remove"]),
+  note: z.string().trim().max(255).optional(),
 });
 
 const cityHoursSchema = z.object({
@@ -75,7 +97,7 @@ function startOfMonth(now = new Date()) {
 }
 
 const activitySchema = z.object({
-  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account", "contributions"]),
+  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account", "contributions", "system"]),
 });
 
 function failIfNoDb<T>(db: T | null): T {
@@ -103,7 +125,7 @@ function parseMetadata(value: string | null) {
   }
 }
 
-async function writeAudit(
+export async function writeAudit(
   db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
   input: { actorUserId: number; action: string; targetType: string; targetId?: string | null; metadata?: Record<string, string | number | boolean | null | undefined> },
 ) {
@@ -128,7 +150,7 @@ function offsetOf(input: { page: number; limit: number }) {
   return (input.page - 1) * input.limit;
 }
 
-async function readMergedDirectory() {
+export async function readMergedDirectory() {
   const db = failIfNoDb(await getDb());
   const [baseItems, overrides] = await Promise.all([getBaseAdminDirectoryItems(), db.select().from(directoryEntries)]);
   return mergeAdminDirectoryItems(baseItems, overrides);
@@ -151,45 +173,68 @@ type Database = NonNullable<Awaited<ReturnType<typeof getDb>>>;
 
 /** Crée ou modifie une fiche de l'annuaire (surcharge administrée) et la publie immédiatement. */
 async function saveDirectoryEntry(db: Database, actorUserId: number, input: z.infer<typeof directoryUpsertSchema>, source: string) {
+  const [id] = await saveDirectoryEntries(db, actorUserId, [input], source);
+  return id!;
+}
+
+/** Enregistre plusieurs fiches dans une même transaction (import Excel), puis les publie. */
+export async function saveDirectoryEntries(db: Database, actorUserId: number, inputs: readonly z.infer<typeof directoryUpsertSchema>[], source: string) {
   const knownCities = listDirectoryCities(await readMergedDirectory()).map((city) => city.name);
-  const entry = normalizeDirectoryUpsert(input, knownCities);
+  const entries = inputs.map((input) => normalizeDirectoryUpsert(input, knownCities));
   await db.transaction(async (tx) => {
-    await tx
-      .insert(directoryEntries)
-      .values(entry)
-      .onDuplicateKeyUpdate({
-        set: {
-          kind: entry.kind,
-          status: "active",
-          city: entry.city,
-          name: entry.name,
-          phone: entry.phone,
-          address: entry.address,
-          latitude: entry.latitude,
-          longitude: entry.longitude,
-          dutyGroup: entry.dutyGroup,
-          establishmentType: entry.establishmentType,
-          openingHours: entry.openingHours,
-          insurances: entry.insurances,
-        },
-      });
-    await tx.insert(auditLogs).values({
-      actorUserId,
-      action: "directory.upserted",
-      targetType: entry.kind,
-      targetId: entry.id,
-      metadata: safeMetadata({ kind: entry.kind, city: entry.city, source }),
-    });
+    for (const entry of entries) {
+      await tx
+        .insert(directoryEntries)
+        .values(entry)
+        .onDuplicateKeyUpdate({
+          set: {
+            kind: entry.kind,
+            status: "active",
+            city: entry.city,
+            name: entry.name,
+            phone: entry.phone,
+            address: entry.address,
+            latitude: entry.latitude,
+            longitude: entry.longitude,
+            dutyGroup: entry.dutyGroup,
+            establishmentType: entry.establishmentType,
+            openingHours: entry.openingHours,
+            insurances: entry.insurances,
+          },
+        });
+      // Un import groupé n'écrit qu'une ligne de journal (voir l'appelant), pas une par fiche.
+      if (entries.length === 1) {
+        await tx.insert(auditLogs).values({
+          actorUserId,
+          action: "directory.upserted",
+          targetType: entry.kind,
+          targetId: entry.id,
+          metadata: safeMetadata({ kind: entry.kind, city: entry.city, source }),
+        });
+      }
+    }
   });
   // Publication immédiate dans /pharmacies et /healthcare.
   await reloadDirectoryOverrides();
-  return entry.id;
+  return entries.map((entry) => entry.id);
 }
 
 async function readContribution(db: Database, id: number) {
   const [row] = await db.select().from(contributions).where(eq(contributions.id, id)).limit(1);
   if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Contribution introuvable." });
   return row;
+}
+
+function userFilter(input: Omit<z.infer<typeof userListSchema>, "page" | "limit">) {
+  const pattern = input.search ? `%${input.search.replace(/[\\%_]/g, "\\$&")}%` : null;
+  const now = new Date();
+  const conditions: (SQL | undefined)[] = [
+    pattern ? or(like(users.name, pattern), like(users.email, pattern), like(users.phone, pattern)) : undefined,
+    input.premium === "active" ? gt(users.subscriptionEnd, now) : input.premium === "inactive" ? or(isNull(users.subscriptionEnd), lte(users.subscriptionEnd, now)) : undefined,
+    input.verified === "verified" ? isNotNull(users.phoneVerifiedAt) : input.verified === "unverified" ? isNull(users.phoneVerifiedAt) : undefined,
+    input.role !== "all" ? eq(users.role, input.role) : undefined,
+  ];
+  return and(...conditions.filter((condition): condition is SQL => !!condition));
 }
 
 function forbidSelf(actorId: number, userId: number, message: string) {
@@ -305,6 +350,12 @@ export const adminRouter = router({
   directory: router({
     list: adminProcedure.input(directoryListSchema).query(({ input }) => readAdminDirectory(input)),
 
+    /** Toutes les fiches correspondant aux filtres, pour l'export CSV. */
+    export: adminProcedure.input(directoryListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+      const items = filterAdminDirectoryItems(await readMergedDirectory(), input);
+      return items.map((item) => ({ id: item.id, kind: item.kind, status: item.status, city: item.city, name: item.name, phone: item.phone, address: item.address, latitude: item.latitude, longitude: item.longitude, dutyGroup: item.dutyGroup, establishmentType: item.establishmentType, insurances: item.insurances, customHours: !!item.openingHours, source: item.source }));
+    }),
+
     upsert: adminProcedure.input(directoryUpsertSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const id = await saveDirectoryEntry(db, ctx.user.id, input, "admin_console");
@@ -383,33 +434,106 @@ export const adminRouter = router({
   }),
 
   duty: router({
-    /** Semaine de garde en cours et suivantes, par ville, avec les pharmacies concernées. */
+    /** Programmation par ville : semaines à venir, pharmacies de garde, exceptions et réglages. */
     overview: adminProcedure.input(dutyOverviewSchema).query(async ({ input }) => {
-      const merged = await readMergedDirectory();
+      const [merged, config] = await Promise.all([readMergedDirectory(), getDutyConfig()]);
       const now = new Date();
-      return DUTY_ROTATIONS.map((rotation) => {
-        const pharmacies = merged.filter((item) => item.status === "active" && item.kind === "pharmacy" && cityMatchKey(item.city) === cityMatchKey(rotation.city));
+      const pharmaciesOf = (city: string) => merged.filter((item) => item.status === "active" && item.kind === "pharmacy" && cityMatchKey(item.city) === cityMatchKey(city));
+      const programmed = new Set(config.rotations.map((rotation) => dutyCityKey(rotation.city)));
+      const cities = config.rotations.map((rotation) => {
+        const pharmacies = pharmaciesOf(rotation.city);
+        const nameOf = new Map(pharmacies.map((pharmacy) => [pharmacy.id, pharmacy.name]));
         const weeks = Array.from({ length: input.weeks }, (_, offset) => {
           const week = dutyWeekAt(rotation, now, offset);
+          const exception = config.exceptions.get(`${dutyCityKey(rotation.city)}|${weekDateKey(week.start)}`);
           return {
             label: week.turn.label,
             dutyGroup: week.turn.dutyGroup ?? null,
             start: week.start.toISOString(),
             end: week.end.toISOString(),
-            pharmacyCount: pharmacies.filter((pharmacy) => isPharmacyOnDuty(pharmacy, week)).length,
+            weekStart: weekDateKey(week.start),
+            pharmacyCount: pharmacies.filter((pharmacy) => isPharmacyOnDuty(pharmacy, week, config.exceptions)).length,
+            exceptionCount: (exception?.add.size ?? 0) + (exception?.remove.size ?? 0),
           };
         });
         const current = dutyWeekAt(rotation, now);
+        const custom = config.custom.get(dutyCityKey(rotation.city));
+        const lists = rotation.turns.every((turn) => turn.pharmacyIds);
         return {
           city: rotation.city,
+          source: custom ? ("console" as const) : ("default" as const),
+          mode: lists ? ("lists" as const) : ("groups" as const),
+          groupCount: lists ? null : rotation.turns.length,
+          referenceStart: rotation.reference.start,
+          referenceTurn: rotation.reference.turnIndex + 1,
+          turns: rotation.turns.map((turn) => ({ label: turn.label, pharmacyIds: turn.pharmacyIds ? [...turn.pharmacyIds] : null })),
           weeks,
           pharmacyCount: pharmacies.length,
-          withoutGroup: pharmacies.filter((pharmacy) => pharmacy.dutyGroup === null).map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name })),
+          pharmacies: pharmacies.map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name, dutyGroup: pharmacy.dutyGroup, phone: pharmacy.phone })),
+          withoutGroup: lists ? [] : pharmacies.filter((pharmacy) => pharmacy.dutyGroup === null).map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name })),
           onDutyNow: pharmacies
-            .filter((pharmacy) => isPharmacyOnDuty(pharmacy, current))
+            .filter((pharmacy) => isPharmacyOnDuty(pharmacy, current, config.exceptions))
             .map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name, phone: pharmacy.phone, address: pharmacy.address })),
+          exceptions: config.exceptionRows
+            .filter((row) => dutyCityKey(row.city) === dutyCityKey(rotation.city) && row.weekStart >= weekDateKey(current.start))
+            .map((row) => ({ id: row.id, weekStart: row.weekStart, pharmacyId: row.pharmacyId, pharmacyName: nameOf.get(row.pharmacyId) ?? row.pharmacyId, action: row.action, note: row.note })),
         };
       });
+      // Villes de l'annuaire sans programmation (jamais programmées ou désactivées).
+      const unprogrammed = listDirectoryCities(merged)
+        .filter((city) => !programmed.has(dutyCityKey(city.name)) && pharmaciesOf(city.name).length > 0)
+        .map((city) => ({
+          city: city.name,
+          disabled: config.custom.get(dutyCityKey(city.name))?.mode === "off",
+          pharmacies: pharmaciesOf(city.name).map((pharmacy) => ({ id: pharmacy.id, name: pharmacy.name, dutyGroup: pharmacy.dutyGroup, phone: pharmacy.phone })),
+        }));
+      return { cities, unprogrammed, defaults: DUTY_ROTATIONS.map((rotation) => rotation.city) };
+    }),
+
+    /** Enregistre la programmation d'une ville (groupes, listes ou désactivée). */
+    saveRotation: adminProcedure.input(rotationSaveSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const values =
+        input.mode === "off"
+          ? { city: input.city, mode: "off" as const, groupCount: null, referenceStart: "2026-10-03", referenceTurnIndex: 0, turns: null, updatedBy: ctx.user.id }
+          : input.mode === "groups"
+            ? { city: input.city, mode: "groups" as const, groupCount: input.groupCount, referenceStart: input.referenceStart, referenceTurnIndex: input.referenceTurn - 1, turns: null, updatedBy: ctx.user.id }
+            : { city: input.city, mode: "lists" as const, groupCount: null, referenceStart: input.referenceStart, referenceTurnIndex: input.referenceTurn - 1, turns: JSON.stringify(input.turns), updatedBy: ctx.user.id };
+      const turnCount = input.mode === "groups" ? input.groupCount : input.mode === "lists" ? input.turns.length : 1;
+      if (input.mode !== "off" && input.referenceTurn > turnCount) throw new TRPCError({ code: "BAD_REQUEST", message: `Le tour de référence doit être compris entre 1 et ${turnCount}.` });
+      const { city: _city, ...set } = values;
+      await db.insert(dutyRotations).values(values).onDuplicateKeyUpdate({ set });
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.rotation_saved", targetType: "city", targetId: input.city, metadata: { mode: input.mode, turns: turnCount, referenceStart: input.mode === "off" ? undefined : input.referenceStart } });
+      await reloadDutyConfig();
+      return { city: input.city };
+    }),
+
+    /** Revient à la programmation par défaut de la ville (ou à aucune). */
+    resetRotation: adminProcedure.input(z.object({ city: z.string().trim().min(2).max(96) })).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      await db.delete(dutyRotations).where(eq(dutyRotations.city, input.city));
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.rotation_reset", targetType: "city", targetId: input.city });
+      await reloadDutyConfig();
+      return { city: input.city };
+    }),
+
+    /** Ajoute une exception à une semaine : pharmacie ajoutée à la garde ou retirée. */
+    addException: adminProcedure.input(dutyExceptionSchema).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      await db.insert(dutyExceptions).values({ city: input.city, weekStart: input.weekStart, pharmacyId: input.pharmacyId, action: input.action, note: input.note || null, createdBy: ctx.user.id });
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.exception_added", targetType: "city", targetId: input.city, metadata: { weekStart: input.weekStart, pharmacyId: input.pharmacyId, action: input.action, note: input.note || undefined } });
+      await reloadDutyConfig();
+      return { ok: true };
+    }),
+
+    removeException: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      const [row] = await db.select().from(dutyExceptions).where(eq(dutyExceptions.id, input.id)).limit(1);
+      if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Exception introuvable." });
+      await db.delete(dutyExceptions).where(eq(dutyExceptions.id, input.id));
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.exception_removed", targetType: "city", targetId: row.city, metadata: { weekStart: row.weekStart, pharmacyId: row.pharmacyId } });
+      await reloadDutyConfig();
+      return { ok: true };
     }),
   }),
 
@@ -522,17 +646,21 @@ export const adminRouter = router({
   }),
 
   users: router({
+    /** Comptes correspondant aux filtres (10 000 au plus), pour l'export CSV ; sans mot de passe ni jeton. */
+    export: adminProcedure.input(userListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+      const db = failIfNoDb(await getDb());
+      const rows = await db
+        .select({ id: users.id, name: users.name, email: users.email, phone: users.phone, role: users.role, phoneVerifiedAt: users.phoneVerifiedAt, subscriptionEnd: users.subscriptionEnd, suspendedAt: users.suspendedAt, createdAt: users.createdAt, lastSignedIn: users.lastSignedIn })
+        .from(users)
+        .where(userFilter(input))
+        .orderBy(desc(users.createdAt), desc(users.id))
+        .limit(10_000);
+      return rows.map((user) => ({ ...user, phoneVerifiedAt: serializeDate(user.phoneVerifiedAt), subscriptionEnd: serializeDate(user.subscriptionEnd), suspendedAt: serializeDate(user.suspendedAt), createdAt: serializeDate(user.createdAt), lastSignedIn: serializeDate(user.lastSignedIn) }));
+    }),
+
     list: adminProcedure.input(userListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
-      const pattern = input.search ? `%${input.search.replace(/[\\%_]/g, "\\$&")}%` : null;
-      const now = new Date();
-      const conditions: (SQL | undefined)[] = [
-        pattern ? or(like(users.name, pattern), like(users.email, pattern), like(users.phone, pattern)) : undefined,
-        input.premium === "active" ? gt(users.subscriptionEnd, now) : input.premium === "inactive" ? or(isNull(users.subscriptionEnd), lte(users.subscriptionEnd, now)) : undefined,
-        input.verified === "verified" ? isNotNull(users.phoneVerifiedAt) : input.verified === "unverified" ? isNull(users.phoneVerifiedAt) : undefined,
-        input.role !== "all" ? eq(users.role, input.role) : undefined,
-      ];
-      const where = and(...conditions.filter((condition): condition is SQL => !!condition));
+      const where = userFilter(input);
       const [rows, totals] = await Promise.all([
         db
           .select({
@@ -725,6 +853,19 @@ export const adminRouter = router({
       }
     }),
 
+    /** Transactions (10 000 au plus) pour l'export comptable CSV, sans réponse brute du prestataire. */
+    exportTransactions: adminProcedure.input(transactionListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+      const db = failIfNoDb(await getDb());
+      const rows = await db
+        .select({ id: transactions.id, createdAt: transactions.createdAt, merchantReference: transactions.merchantReference, provider: transactions.provider, planId: transactions.planId, amount: transactions.amount, currency: transactions.currency, status: transactions.status, userId: transactions.userId, userName: users.name, userPhone: users.phone })
+        .from(transactions)
+        .leftJoin(users, eq(transactions.userId, users.id))
+        .where(input.status === "all" ? undefined : eq(transactions.status, input.status))
+        .orderBy(desc(transactions.createdAt), desc(transactions.id))
+        .limit(10_000);
+      return rows.map((row) => ({ ...row, createdAt: serializeDate(row.createdAt) }));
+    }),
+
     transactions: adminProcedure.input(transactionListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const where = input.status === "all" ? undefined : eq(transactions.status, input.status);
@@ -769,7 +910,42 @@ export const adminRouter = router({
     }),
   }),
 
+  system: router({
+    /** État du serveur : base de données, migrations, données publiées, services configurés. */
+    status: adminProcedure.query(() => readSystemStatus()),
+
+    /** Met à jour tout de suite les pharmacies (annuaire) ou les structures de santé (OpenStreetMap). */
+    refreshData: adminProcedure.input(z.object({ kind: z.enum(["pharmacies", "healthcare"]) })).mutation(async ({ ctx, input }) => {
+      const result = await updateCachedDataset(input.kind, true);
+      const db = await getDb();
+      if (db) await writeAudit(db, { actorUserId: ctx.user.id, action: "data.refreshed", targetType: "admin_console", targetId: input.kind, metadata: { ok: result.ok } });
+      return result;
+    }),
+
+    /** Sauvegarde JSON des données saisies dans la console. */
+    backup: adminProcedure.query(async () => {
+      try {
+        return await readConsoleBackup();
+      } catch {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Base de données indisponible." });
+      }
+    }),
+  }),
+
   audit: router({
+    /** Journal (5 000 lignes au plus) pour l'export CSV. */
+    export: adminProcedure.input(auditListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+      const db = failIfNoDb(await getDb());
+      const rows = await db
+        .select({ id: auditLogs.id, createdAt: auditLogs.createdAt, action: auditLogs.action, targetType: auditLogs.targetType, targetId: auditLogs.targetId, metadata: auditLogs.metadata, actorName: users.name, actorPhone: users.phone })
+        .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.actorUserId, users.id))
+        .where(input.includeViews ? undefined : notLike(auditLogs.action, "%.viewed"))
+        .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
+        .limit(5_000);
+      return rows.map((row) => ({ ...row, createdAt: serializeDate(row.createdAt) }));
+    }),
+
     list: adminProcedure.input(auditListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const where = input.includeViews ? undefined : notLike(auditLogs.action, "%.viewed");

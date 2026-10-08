@@ -56,8 +56,8 @@ export function DashboardPage() {
 
       <Grid columns={2}>
         <Card title="Gardes de la semaine" description="Groupe de garde en cours dans chaque ville programmée." actions={<Button label="Voir les gardes" size="sm" onPress={() => go("/admin/gardes")} />} padded={false}>
-          <DataState loading={duty.isLoading} error={duty.error} onRetry={() => duty.refetch()} empty={!duty.data?.length} emptyTitle="Aucune ville programmée">
-            {(duty.data ?? []).map((city, index, list) => {
+          <DataState loading={duty.isLoading} error={duty.error} onRetry={() => duty.refetch()} empty={!duty.data?.cities.length} emptyTitle="Aucune ville programmée">
+            {(duty.data?.cities ?? []).map((city, index, list) => {
               const week = city.weeks[0];
               return (
                 <View key={city.city} style={[styles.row, index < list.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
