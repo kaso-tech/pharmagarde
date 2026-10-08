@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { PropsWithChildren, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { getAuthorizationHeader, subscribeSessionTokenChanges } from "@/lib/_core/auth";
 import { useThemeContext } from "@/lib/theme-provider";
@@ -223,6 +223,18 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
       setIsPremium(false);
       setSubscriptionEnd(null);
     });
+  }, [refreshPremiumStatus]);
+
+  // Un abonnement peut changer hors de l'application (paiement confirmé plus tard, Premium offert ou
+  // retiré depuis la console) : le statut est relu au retour dans l'application, au plus une fois par minute.
+  const lastPremiumCheckRef = useRef(0);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || Date.now() - lastPremiumCheckRef.current < 60_000) return;
+      lastPremiumCheckRef.current = Date.now();
+      refreshPremiumStatus();
+    });
+    return () => subscription.remove();
   }, [refreshPremiumStatus]);
 
   useEffect(() => {

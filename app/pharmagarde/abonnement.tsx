@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as WebBrowser from "expo-web-browser";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AppChrome } from "@/components/pharmagarde/app-ui";
@@ -37,6 +37,11 @@ export default function SubscriptionScreen() {
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlanId | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const formattedEnd = formatSubscriptionEnd(subscriptionEnd);
+
+  // Statut relu à chaque ouverture de l'écran (paiement confirmé ou Premium offert entre-temps).
+  useFocusEffect(useCallback(() => {
+    void refreshPremiumStatus();
+  }, [refreshPremiumStatus]));
 
   const handleSubscribe = async (planId: PremiumPlanId) => {
     if (!isAuthenticated) {
