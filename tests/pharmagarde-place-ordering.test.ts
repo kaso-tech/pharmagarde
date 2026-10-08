@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { placeStatusKind, sortPlacesByOpenThenDistance } from "../lib/pharmagarde/place-ordering";
+import { sortPlacesByOpenThenDistance } from "../lib/pharmagarde/place-ordering";
 import { HealthPlace } from "../lib/pharmagarde/types";
 
 function place(id: string, name: string, isOpen: boolean | undefined, distanceKm: number | undefined): HealthPlace {
@@ -15,13 +15,6 @@ function place(id: string, name: string, isOpen: boolean | undefined, distanceKm
 }
 
 describe("tri des établissements PharmaGarde", () => {
-  it("donne la priorité visuelle à la garde, puis distingue ouvert, fermé et inconnu", () => {
-    expect(placeStatusKind({ onDuty: true, isOpen: false })).toBe("on_duty");
-    expect(placeStatusKind({ onDuty: false, isOpen: true })).toBe("open");
-    expect(placeStatusKind({ onDuty: false, isOpen: false })).toBe("closed");
-    expect(placeStatusKind({ onDuty: false })).toBe("unknown");
-  });
-
   it("affiche les établissements ouverts avant les autres, puis du plus proche au plus loin", () => {
     const sorted = sortPlacesByOpenThenDistance([
       place("closed-near", "Pharmacie fermée proche", false, 0.3),

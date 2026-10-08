@@ -3,10 +3,10 @@ import * as WebBrowser from "expo-web-browser";
 import { useCallback, useMemo, useState } from "react";
 import { Animated, FlatList, Linking, PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
-import { AppChrome, localPlaceTypeLabel, PlaceStatusBadge } from "@/components/pharmagarde/app-ui";
+import { AppChrome, localPlaceTypeLabel } from "@/components/pharmagarde/app-ui";
 import { PharmaMap } from "@/components/pharmagarde/PharmaMap";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
-import { sortPlacesByOpenThenDistance } from "@/lib/pharmagarde/place-ordering";
+import { placeStatusLabel, sortPlacesByOpenThenDistance } from "@/lib/pharmagarde/place-ordering";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
 import { FavoriteItem, HealthPlace, favoriteKey } from "@/lib/pharmagarde/types";
 
@@ -80,15 +80,15 @@ function MapPlaceCard({ place, active, favorite, isExpanded, onSelect, onToggle,
           <MaterialIcons name={place.type === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={21} color="#FFFFFF" />
         </View>
         <View style={styles.placeTitleArea}>
-          <View style={styles.placeTitleRow}>
-            <Text style={[styles.placeTitle, { color: palette.text }]} numberOfLines={1}>{place.name}</Text>
-            <PlaceStatusBadge place={place} />
-          </View>
+          <Text style={[styles.placeTitle, { color: palette.text }]} numberOfLines={1}>{place.name}</Text>
           <Text style={[styles.placeSubtitle, { color: palette.muted }]} numberOfLines={1}>{place.address ?? place.city ?? "Adresse non renseignée"}</Text>
         </View>
         <View style={styles.placeHeaderMeta}>
           <View style={[styles.metaPill, { backgroundColor: palette.cardMuted }]}> 
             <Text style={[styles.metaText, { color: palette.text }]}>{place.distanceLabel ?? (place.distanceKm !== undefined ? `${place.distanceKm.toFixed(1)} km` : "Distance indisponible")}</Text>
+          </View>
+          <View style={[styles.metaPill, { backgroundColor: place.isOpen === false && place.onDuty !== true ? "rgba(225, 29, 72, 0.1)" : palette.softGreen }]}> 
+            <Text style={[styles.metaText, { color: place.isOpen === false && place.onDuty !== true ? palette.danger : palette.success }]}>{placeStatusLabel(place)}</Text>
           </View>
         </View>
       </View>
@@ -332,9 +332,8 @@ const styles = StyleSheet.create({
   placeHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   placeIcon: { width: 44, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   placeTitleArea: { flex: 1 },
-  placeTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   placeHeaderMeta: { alignItems: "flex-end", gap: 6, maxWidth: 132 },
-  placeTitle: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: "900" },
+  placeTitle: { fontSize: 15, lineHeight: 20, fontWeight: "900" },
   placeSubtitle: { fontSize: 12, lineHeight: 17, fontWeight: "700", marginTop: 2 },
   favoriteButton: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 12 },
