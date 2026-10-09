@@ -11,6 +11,7 @@ import { InsurersPage } from "./console/pages/insurers";
 import { MedicinesPage } from "./console/pages/medicines";
 import { PlansPage } from "./console/pages/plans";
 import { PremiumPage } from "./console/pages/premium";
+import { StatsPage } from "./console/pages/stats";
 import { SystemPage } from "./console/pages/system";
 import { UsersPage } from "./console/pages/users";
 import { AdminShell } from "./console/shell";
@@ -18,6 +19,7 @@ import type { AdminSection } from "./console/shared";
 
 const PAGES: Record<AdminSection, () => React.JSX.Element> = {
   dashboard: DashboardPage,
+  stats: StatsPage,
   directory: DirectoryPage,
   contributions: ContributionsPage,
   duty: DutyPage,

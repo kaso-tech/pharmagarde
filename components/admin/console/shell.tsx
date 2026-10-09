@@ -7,9 +7,10 @@ import { SignOutConfirmationModal } from "@/components/pharmagarde/sign-out-conf
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
 
+import { ConsoleAccessContext, ForbiddenSection, SecondFactorScreen, canReadSection, roleLabel, useCanWrite, useConsoleAccess, type ConsoleAccess } from "./access";
 import { NAV_GROUPS, SECTION_SUBTITLES, SECTION_TITLES, displayIdentity, type AdminSection } from "./shared";
 import { AdminLayoutContext, DESKTOP_BREAKPOINT, LARGE_BREAKPOINT, font, radius, useAdminLayout, useAdminTheme, useViewportWidth } from "./theme";
-import { Avatar, Button, PageHeader, isHovered } from "./ui";
+import { Alert, Avatar, Button, PageHeader, isHovered } from "./ui";
 
 type Identity = { name: string; detail: string };
 
@@ -41,7 +42,8 @@ function Sidebar({ section, identity, onNavigate, onClose, compact = false }: { 
   const router = useRouter();
   const { logout } = useAuth({ autoFetch: false });
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const counts = trpc.admin.contributions.counts.useQuery(undefined, { retry: false, refetchInterval: 120_000 });
+  const access = useConsoleAccess();
+  const counts = trpc.admin.contributions.counts.useQuery(undefined, { retry: false, refetchInterval: 120_000, enabled: canReadSection(access, "contributions") });
   const pendingContributions = (counts.data?.newPlaces ?? 0) + (counts.data?.newProblems ?? 0);
   const [logoutPending, setLogoutPending] = useState(false);
   const go = (href: string, target: AdminSection) => {
@@ -76,7 +78,9 @@ function Sidebar({ section, identity, onNavigate, onClose, compact = false }: { 
         ) : null}
       </View>
       <ScrollView style={styles.flex} contentContainerStyle={[styles.navScroll, compact && styles.navScrollCompact]} showsVerticalScrollIndicator={false}>
-        {NAV_GROUPS.map((group) => (
+        {NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => canReadSection(access, item.section)) }))
+          .filter((group) => group.items.length > 0)
+          .map((group) => (
           <View key={group.label} style={styles.navGroup}>
             {compact ? <View style={[styles.navGroupDivider, { backgroundColor: theme.border }]} /> : <Text style={[styles.navGroupLabel, { color: theme.textMuted }]}>{group.label}</Text>}
             {group.items.map((item) => <NavItem key={item.section} compact={compact} label={item.label} icon={item.icon} badge={item.section === "contributions" ? pendingContributions : undefined} active={item.section === section} onPress={() => go(item.href, item.section)} />)}
@@ -173,12 +177,16 @@ export function AdminShell({ section, children }: PropsWithChildren<{ section: A
   const access = trpc.admin.access.useQuery(undefined, { retry: false, refetchOnWindowFocus: true });
   const activity = trpc.admin.activity.useMutation();
   const router = useRouter();
+  const utils = trpc.useUtils();
+  const verified = !!access.data?.secondFactor.verified;
+  const consoleAccess: ConsoleAccess | null = access.data ? { role: access.data.adminRole, permissions: access.data.permissions } : null;
+  const allowed = !!consoleAccess && canReadSection(consoleAccess, section);
 
   useEffect(() => {
-    if (access.isSuccess) activity.mutate({ area: section });
+    if (verified && allowed) activity.mutate({ area: section });
     // Une seule trace par affichage de section ; les erreurs d’audit ne doivent pas masquer l’interface.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [access.isSuccess, section]);
+  }, [verified, allowed, section]);
 
   if (access.isLoading) {
     return (
@@ -201,12 +209,26 @@ export function AdminShell({ section, children }: PropsWithChildren<{ section: A
     );
   }
 
+  if (!verified) {
+    return (
+      <SecondFactorScreen
+        phone={access.data.secondFactor.phone}
+        onVerified={() => {
+          // Toutes les requêtes refusées avant le code sont relancées.
+          void utils.invalidate();
+        }}
+      />
+    );
+  }
+
   const identity: Identity = {
     name: displayIdentity({ name: access.data.name, phone: access.data.phone, email: access.data.email, id: access.data.id }),
-    detail: access.data.name ? access.data.phone ?? access.data.email ?? "Administrateur" : "Administrateur",
+    detail: roleLabel(access.data.adminRole),
   };
+  const content = allowed ? children : <ForbiddenSection role={access.data.adminRole} />;
 
   return (
+    <ConsoleAccessContext.Provider value={consoleAccess!}>
     <AdminLayoutContext.Provider value={layout}>
       {layout.desktop ? (
         <View style={[styles.desktopShell, { backgroundColor: theme.background }]}>
@@ -215,26 +237,34 @@ export function AdminShell({ section, children }: PropsWithChildren<{ section: A
           </View>
           <View style={styles.flex}>
             <Topbar section={section} identity={identity} />
-            {children}
+            {content}
           </View>
         </View>
       ) : (
         <View style={[styles.flex, { backgroundColor: theme.background }]}>
           <MobileHeader section={section} onMenu={() => setDrawerVisible(true)} />
-          {children}
+          {content}
           <MobileDrawer visible={drawerVisible} section={section} identity={identity} onClose={() => setDrawerVisible(false)} />
         </View>
       )}
     </AdminLayoutContext.Provider>
+    </ConsoleAccessContext.Provider>
   );
 }
 
 /** Contenu d'une page : en-tête (titre, description, actions) puis sections, dans une zone défilante. */
 export function AdminPage({ section, actions, children }: PropsWithChildren<{ section: AdminSection; actions?: ReactNode }>) {
   const { desktop } = useAdminLayout();
+  const canWrite = useCanWrite(section);
+  const { role } = useConsoleAccess();
   return (
     <ScrollView style={styles.flex} contentContainerStyle={[styles.page, desktop && styles.pageDesktop]} keyboardShouldPersistTaps="handled">
       <PageHeader title={SECTION_TITLES[section]} description={SECTION_SUBTITLES[section]} actions={actions} />
+      {canWrite ? null : (
+        <Alert tone="info" icon="visibility" title="Lecture seule">
+          {`Votre rôle (${roleLabel(role)}) permet de consulter cette page sans la modifier.`}
+        </Alert>
+      )}
       {children}
     </ScrollView>
   );

@@ -3,12 +3,15 @@ import { and, count, desc, eq, gt, gte, isNotNull, isNull, like, lte, ne, notLik
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
-import { auditLogs, cityHours, contributions, directoryEntries, dutyExceptions, dutyRotations, transactions, users } from "../drizzle/schema";
+import { adminRoles, adminSessions, auditLogs, cityHours, contributions, directoryEntries, dutyExceptions, dutyRotations, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
-import { safeMetadata, writeAudit } from "./audit-log";
+import { diffChanges, safeMetadata, writeAudit } from "./audit-log";
 import { contentRouters } from "./admin-content";
+import { areaProcedure, confirmConsoleCode, consoleProcedure, hashSessionToken, listConsoleSessions, maskPhone, readAdminRole, readAdminRoleMap, requestConsoleCode, requireAccess, resolveConsoleAccess, revokeConsoleSessions } from "./admin-auth";
+import { ADMIN_ROLES, adminPermissions, type AdminRole } from "../shared/admin-roles";
 import { listCityHours, reloadCityHours } from "./city-hours";
-import { INSURER_ID_PATTERN } from "../lib/pharmagarde/insurances";
+import { INSURER_ID_PATTERN, formatInsurers, normalizeInsurerIds } from "../lib/pharmagarde/insurances";
+import { formatWeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { reloadDirectoryOverrides } from "./directory-overrides";
 import { DUTY_ROTATIONS, dutyCityKey, dutyWeekAt, isPharmacyOnDuty, weekDateKey } from "./duty-roster";
 import { dutyTurnListSchema, getDutyConfig, reloadDutyConfig } from "./duty-config";
@@ -23,6 +26,7 @@ import { extendSubscriptionEnd, isSubscriptionActive, recheckTransaction, resolv
 import { deleteUserAccount } from "./db";
 import { readConsoleBackup, readSystemStatus } from "./system-status";
 import { updateCachedDataset } from "./pharmagarde-cache";
+import { readUsageStats } from "./usage";
 
 export { writeAudit };
 
@@ -75,7 +79,26 @@ const cityHoursResetSchema = z.object({
 const auditListSchema = pageSchema.extend({
   /** Les consultations de pages sont journalisées mais masquées par défaut. */
   includeViews: z.boolean().default(false),
+  /** Famille d'actions : préfixe avant le point (« directory », « users »…). */
+  category: z.string().regex(/^[a-z_]{2,40}$/).optional(),
+  actorUserId: z.number().int().positive().optional(),
+  /** Bornes de la période (dates AAAA-MM-JJ, incluses). */
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** Recherche dans l'identifiant de la cible (fiche, ville, utilisateur…). */
+  target: z.string().trim().max(120).optional(),
 });
+
+function auditFilter(input: Omit<z.infer<typeof auditListSchema>, "page" | "limit">) {
+  const conditions: SQL[] = [];
+  if (!input.includeViews) conditions.push(notLike(auditLogs.action, "%.viewed"));
+  if (input.category) conditions.push(like(auditLogs.action, `${input.category}.%`));
+  if (input.actorUserId) conditions.push(eq(auditLogs.actorUserId, input.actorUserId));
+  if (input.from) conditions.push(gte(auditLogs.createdAt, new Date(`${input.from}T00:00:00Z`)));
+  if (input.to) conditions.push(lte(auditLogs.createdAt, new Date(`${input.to}T23:59:59.999Z`)));
+  if (input.target) conditions.push(like(auditLogs.targetId, `%${input.target.replace(/[%_\\]/g, (char) => `\\${char}`)}%`));
+  return conditions.length ? and(...conditions) : undefined;
+}
 
 const userListSchema = pageSchema.extend({
   search: z.string().trim().max(120).optional(),
@@ -101,7 +124,7 @@ function startOfMonth(now = new Date()) {
 }
 
 const activitySchema = z.object({
-  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account", "contributions", "system", "medicines", "insurers", "cities", "announcements", "plans"]),
+  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account", "contributions", "system", "stats", "medicines", "insurers", "cities", "announcements", "plans"]),
 });
 
 function failIfNoDb<T>(db: T | null): T {
@@ -167,8 +190,21 @@ async function saveDirectoryEntry(db: Database, actorUserId: number, input: z.in
 
 /** Enregistre plusieurs fiches dans une même transaction (import Excel), puis les publie. */
 export async function saveDirectoryEntries(db: Database, actorUserId: number, inputs: readonly z.infer<typeof directoryUpsertSchema>[], source: string) {
-  const knownCities = listDirectoryCities(await readMergedDirectory()).map((city) => city.name);
+  const merged = await readMergedDirectory();
+  const knownCities = listDirectoryCities(merged).map((city) => city.name);
   const entries = inputs.map((input) => normalizeDirectoryUpsert(input, knownCities));
+  const describe = (item: { name: string; city: string; phone: string | null; address: string | null; latitude: number | null; longitude: number | null; dutyGroup: number | null; establishmentType: string | null; openingHours: unknown; insurances: unknown; status?: string }) => ({
+    nom: item.name,
+    ville: item.city,
+    téléphone: item.phone,
+    adresse: item.address,
+    position: item.latitude !== null && item.longitude !== null ? `${item.latitude}, ${item.longitude}` : null,
+    groupe: item.dutyGroup,
+    type: item.establishmentType,
+    horaires: item.openingHours ? formatWeeklyHours(typeof item.openingHours === "string" ? JSON.parse(item.openingHours) : item.openingHours) : "horaires de la ville",
+    assurances: formatInsurers(normalizeInsurerIds(item.insurances, { includeInactive: true })) || null,
+    état: item.status === "archived" ? "archivée" : "publiée",
+  });
   await db.transaction(async (tx) => {
     for (const entry of entries) {
       await tx
@@ -192,12 +228,13 @@ export async function saveDirectoryEntries(db: Database, actorUserId: number, in
         });
       // Un import groupé n'écrit qu'une ligne de journal (voir l'appelant), pas une par fiche.
       if (entries.length === 1) {
+        const before = merged.find((item) => item.id === entry.id);
         await tx.insert(auditLogs).values({
           actorUserId,
           action: "directory.upserted",
           targetType: entry.kind,
           targetId: entry.id,
-          metadata: safeMetadata({ kind: entry.kind, city: entry.city, source }),
+          metadata: safeMetadata({ kind: entry.kind, city: entry.city, name: entry.name, source }, diffChanges(before ? describe(before) : null, describe({ ...entry, status: "active" }))),
         });
       }
     }
@@ -225,21 +262,62 @@ function userFilter(input: Omit<z.infer<typeof userListSchema>, "page" | "limit"
   return and(...conditions.filter((condition): condition is SQL => !!condition));
 }
 
+/** Les comptes de la console ne sont modifiables que par un super-admin. */
+function protectAdminAccount(actorRole: AdminRole, user: { role: string }) {
+  if (user.role === "admin" && actorRole !== "super_admin") throw new TRPCError({ code: "FORBIDDEN", message: "Seul un super-admin peut agir sur un compte de la console." });
+}
+
 function forbidSelf(actorId: number, userId: number, message: string) {
   if (actorId === userId) throw new TRPCError({ code: "BAD_REQUEST", message });
 }
 
+const dashboardProcedure = areaProcedure("dashboard");
+const directoryProcedure = areaProcedure("directory");
+const dutyProcedure = areaProcedure("duty");
+const hoursProcedure = areaProcedure("hours");
+const contributionsProcedure = areaProcedure("contributions");
+const usersProcedure = areaProcedure("users");
+const premiumProcedure = areaProcedure("premium");
+const systemProcedure = areaProcedure("system");
+const auditProcedure = areaProcedure("audit");
+
 export const adminRouter = router({
   ...contentRouters,
-  access: adminProcedure.query(({ ctx }) => ({
-    id: ctx.user.id,
-    role: "admin" as const,
-    name: ctx.user.name,
-    phone: ctx.user.phone,
-    email: ctx.user.email,
-  })),
+  /** Compte, rôle, droits par page et état du double facteur (accessible avant le code SMS). */
+  access: adminProcedure.query(async ({ ctx }) => {
+    const access = await resolveConsoleAccess(ctx.req, ctx.user);
+    return {
+      id: ctx.user.id,
+      role: "admin" as const,
+      adminRole: access.role,
+      permissions: adminPermissions(access.role),
+      name: ctx.user.name,
+      phone: ctx.user.phone,
+      email: ctx.user.email,
+      secondFactor: { mode: access.secondFactor.mode, verified: access.secondFactor.verified, phone: maskPhone(ctx.user.phone), expiresAt: access.secondFactor.expiresAt },
+    };
+  }),
 
-  activity: adminProcedure.input(activitySchema).mutation(async ({ ctx, input }) => {
+  /** Code SMS demandé à chaque nouvel appareil (et toutes les 12 h) pour ouvrir la console. */
+  secondFactor: router({
+    request: adminProcedure.mutation(async ({ ctx }) => {
+      try {
+        return await requestConsoleCode(ctx.user);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("[Console] Envoi du code impossible :", error instanceof Error ? error.message : error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Le code n’a pas pu être envoyé. Réessayez dans un instant." });
+      }
+    }),
+    verify: adminProcedure.input(z.object({ code: z.string().trim().regex(/^\d{6}$/, "Code à 6 chiffres.") })).mutation(async ({ ctx, input }) => {
+      const result = await confirmConsoleCode(ctx.req, ctx.user, input.code);
+      const db = await getDb();
+      if (db) await writeAudit(db, { actorUserId: ctx.user.id, action: "account.console_login", targetType: "user", targetId: String(ctx.user.id) });
+      return result;
+    }),
+  }),
+
+  activity: consoleProcedure.input(activitySchema).mutation(async ({ ctx, input }) => {
     const db = failIfNoDb(await getDb());
     await writeAudit(db, {
       actorUserId: ctx.user.id,
@@ -252,7 +330,7 @@ export const adminRouter = router({
 
   /** Compte de l'administrateur connecté. */
   account: router({
-    get: adminProcedure.query(async ({ ctx }) => {
+    get: consoleProcedure.query(async ({ ctx }) => {
       const user = await readUser(failIfNoDb(await getDb()), ctx.user.id);
       return {
         id: user.id,
@@ -260,6 +338,7 @@ export const adminRouter = router({
         email: user.email,
         phone: user.phone,
         role: user.role,
+        adminRole: ctx.adminRole,
         hasPassword: !!user.passwordHash,
         phoneVerifiedAt: serializeDate(user.phoneVerifiedAt),
         subscriptionEnd: serializeDate(user.subscriptionEnd),
@@ -268,7 +347,7 @@ export const adminRouter = router({
       };
     }),
 
-    update: adminProcedure.input(accountUpdateSchema).mutation(async ({ ctx, input }) => {
+    update: consoleProcedure.input(accountUpdateSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const email = input.email || null;
       if (email) {
@@ -285,7 +364,7 @@ export const adminRouter = router({
      * Change le mot de passe puis déconnecte toutes les autres sessions du compte. La session en cours
      * reçoit un nouveau jeton (cookie sur le web, renvoyé pour le stockage sur mobile).
      */
-    changePassword: adminProcedure.input(passwordChangeSchema).mutation(async ({ ctx, input }) => {
+    changePassword: consoleProcedure.input(passwordChangeSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, ctx.user.id);
       if (passwordAttempts.isBlocked(user.id)) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Trop de tentatives. Réessayez dans quelques minutes." });
@@ -301,12 +380,40 @@ export const adminRouter = router({
       await db.update(users).set({ passwordHash: hashPassword(input.newPassword), sessionsValidAfter: now }).where(eq(users.id, user.id));
       const token = await sdk.createSessionToken(user.openId, { name: user.phone ?? user.email ?? user.openId, expiresInMs: SESSION_TTL_MS });
       ctx.res.cookie(COOKIE_NAME, token, { ...getSessionCookieOptions(ctx.req), maxAge: SESSION_TTL_MS });
+      // L'accès à la console validé par SMS suit le nouveau jeton ; les autres appareils le perdent.
+      if (ctx.consoleSessionId) {
+        await db.update(adminSessions).set({ tokenHash: hashSessionToken(token), lastSeenAt: now }).where(eq(adminSessions.id, ctx.consoleSessionId));
+      }
+      await revokeConsoleSessions(db, user.id, { allExcept: ctx.consoleSessionId });
       await writeAudit(db, { actorUserId: user.id, action: "account.password_changed", targetType: "user", targetId: String(user.id) });
       return { token };
     }),
+
+    /** Appareils ayant ouvert la console avec le code SMS. */
+    sessions: consoleProcedure.query(async ({ ctx }) => {
+      const rows = await listConsoleSessions(failIfNoDb(await getDb()), ctx.user.id);
+      return rows.map((row) => ({ ...row, current: row.id === ctx.consoleSessionId }));
+    }),
+
+    revokeSession: consoleProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const db = failIfNoDb(await getDb());
+      await revokeConsoleSessions(db, ctx.user.id, { id: input.id });
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "account.console_session_revoked", targetType: "user", targetId: String(ctx.user.id), metadata: { session: input.id } });
+      return { id: input.id };
+    }),
+
+    revokeOtherSessions: consoleProcedure.mutation(async ({ ctx }) => {
+      const db = failIfNoDb(await getDb());
+      await revokeConsoleSessions(db, ctx.user.id, { allExcept: ctx.consoleSessionId });
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "account.console_sessions_revoked", targetType: "user", targetId: String(ctx.user.id) });
+      return { ok: true };
+    }),
   }),
 
-  dashboard: adminProcedure.query(async () => {
+  /** Statistiques d'usage anonymes de l'application. */
+  stats: areaProcedure("stats").input(z.object({ days: z.number().int().min(7).max(365).default(30) })).query(({ input }) => readUsageStats(input.days)),
+
+  dashboard: dashboardProcedure.query(async () => {
     const db = failIfNoDb(await getDb());
     const monthStart = startOfMonth();
     const [allUsers, verifiedUsers, premiumUsers, allTransactions, pendingTransactions, baseItems, overrides, newUsers, revenue, revenueMonth] = await Promise.all([
@@ -337,21 +444,21 @@ export const adminRouter = router({
   }),
 
   directory: router({
-    list: adminProcedure.input(directoryListSchema).query(({ input }) => readAdminDirectory(input)),
+    list: directoryProcedure.input(directoryListSchema).query(({ input }) => readAdminDirectory(input)),
 
     /** Toutes les fiches correspondant aux filtres, pour l'export CSV. */
-    export: adminProcedure.input(directoryListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+    export: directoryProcedure.input(directoryListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
       const items = filterAdminDirectoryItems(await readMergedDirectory(), input);
       return items.map((item) => ({ id: item.id, kind: item.kind, status: item.status, city: item.city, name: item.name, phone: item.phone, address: item.address, latitude: item.latitude, longitude: item.longitude, dutyGroup: item.dutyGroup, establishmentType: item.establishmentType, insurances: item.insurances, customHours: !!item.openingHours, source: item.source }));
     }),
 
-    upsert: adminProcedure.input(directoryUpsertSchema).mutation(async ({ ctx, input }) => {
+    upsert: directoryProcedure.input(directoryUpsertSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const id = await saveDirectoryEntry(db, ctx.user.id, input, "admin_console");
       return { id, status: "active" as const };
     }),
 
-    archive: adminProcedure
+    archive: directoryProcedure
       .input(directoryArchiveSchema)
       .mutation(async ({ ctx, input }) => {
         const db = failIfNoDb(await getDb());
@@ -400,7 +507,7 @@ export const adminRouter = router({
         return { id: input.id, status: "archived" as const };
       }),
 
-    restore: adminProcedure.input(directoryRestoreSchema).mutation(async ({ ctx, input }) => {
+    restore: directoryProcedure.input(directoryRestoreSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       await db.transaction(async (tx) => {
         const existing = await tx.select().from(directoryEntries).where(eq(directoryEntries.id, input.id)).limit(1);
@@ -424,7 +531,7 @@ export const adminRouter = router({
 
   duty: router({
     /** Programmation par ville : semaines à venir, pharmacies de garde, exceptions et réglages. */
-    overview: adminProcedure.input(dutyOverviewSchema).query(async ({ input }) => {
+    overview: dutyProcedure.input(dutyOverviewSchema).query(async ({ input }) => {
       const [merged, config] = await Promise.all([readMergedDirectory(), getDutyConfig()]);
       const now = new Date();
       const pharmaciesOf = (city: string) => merged.filter((item) => item.status === "active" && item.kind === "pharmacy" && cityMatchKey(item.city) === cityMatchKey(city));
@@ -480,7 +587,7 @@ export const adminRouter = router({
     }),
 
     /** Enregistre la programmation d'une ville (groupes, listes ou désactivée). */
-    saveRotation: adminProcedure.input(rotationSaveSchema).mutation(async ({ ctx, input }) => {
+    saveRotation: dutyProcedure.input(rotationSaveSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const values =
         input.mode === "off"
@@ -491,14 +598,21 @@ export const adminRouter = router({
       const turnCount = input.mode === "groups" ? input.groupCount : input.mode === "lists" ? input.turns.length : 1;
       if (input.mode !== "off" && input.referenceTurn > turnCount) throw new TRPCError({ code: "BAD_REQUEST", message: `Le tour de référence doit être compris entre 1 et ${turnCount}.` });
       const { city: _city, ...set } = values;
+      const previous = (await getDutyConfig()).rotations.find((rotation) => dutyCityKey(rotation.city) === dutyCityKey(input.city));
       await db.insert(dutyRotations).values(values).onDuplicateKeyUpdate({ set });
-      await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.rotation_saved", targetType: "city", targetId: input.city, metadata: { mode: input.mode, turns: turnCount, referenceStart: input.mode === "off" ? undefined : input.referenceStart } });
+      const summary = (rotation: { mode: string; turns: string[]; referenceStart?: string; referenceTurn?: string } | null) => (rotation ? { mode: rotation.mode, tours: rotation.turns.join(" → "), référence: rotation.referenceStart ? `${rotation.referenceStart} (${rotation.referenceTurn})` : null } : null);
+      const turnLabels = input.mode === "groups" ? Array.from({ length: input.groupCount }, (_, index) => `Groupe ${index + 1}`) : input.mode === "lists" ? input.turns.map((turn) => turn.label) : [];
+      const changes = diffChanges(
+        summary(previous ? { mode: previous.turns.every((turn) => turn.pharmacyIds) ? "listes" : "groupes", turns: previous.turns.map((turn) => turn.label), referenceStart: previous.reference.start, referenceTurn: previous.turns[previous.reference.turnIndex]?.label } : null),
+        summary(input.mode === "off" ? { mode: "pas de garde", turns: [] } : { mode: input.mode === "lists" ? "listes" : "groupes", turns: turnLabels, referenceStart: input.referenceStart, referenceTurn: turnLabels[input.referenceTurn - 1] })!,
+      );
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.rotation_saved", targetType: "city", targetId: input.city, metadata: { mode: input.mode, turns: turnCount, referenceStart: input.mode === "off" ? undefined : input.referenceStart }, changes });
       await reloadDutyConfig();
       return { city: input.city };
     }),
 
     /** Revient à la programmation par défaut de la ville (ou à aucune). */
-    resetRotation: adminProcedure.input(z.object({ city: z.string().trim().min(2).max(96) })).mutation(async ({ ctx, input }) => {
+    resetRotation: dutyProcedure.input(z.object({ city: z.string().trim().min(2).max(96) })).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       await db.delete(dutyRotations).where(eq(dutyRotations.city, input.city));
       await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.rotation_reset", targetType: "city", targetId: input.city });
@@ -507,7 +621,7 @@ export const adminRouter = router({
     }),
 
     /** Ajoute une exception à une semaine : pharmacie ajoutée à la garde ou retirée. */
-    addException: adminProcedure.input(dutyExceptionSchema).mutation(async ({ ctx, input }) => {
+    addException: dutyProcedure.input(dutyExceptionSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       await db.insert(dutyExceptions).values({ city: input.city, weekStart: input.weekStart, pharmacyId: input.pharmacyId, action: input.action, note: input.note || null, createdBy: ctx.user.id });
       await writeAudit(db, { actorUserId: ctx.user.id, action: "duty.exception_added", targetType: "city", targetId: input.city, metadata: { weekStart: input.weekStart, pharmacyId: input.pharmacyId, action: input.action, note: input.note || undefined } });
@@ -515,7 +629,7 @@ export const adminRouter = router({
       return { ok: true };
     }),
 
-    removeException: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    removeException: dutyProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const [row] = await db.select().from(dutyExceptions).where(eq(dutyExceptions.id, input.id)).limit(1);
       if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Exception introuvable." });
@@ -528,14 +642,16 @@ export const adminRouter = router({
 
   hours: router({
     /** Horaires de service par ville (ceux par défaut tant qu'une ville n'a pas les siens). */
-    cities: adminProcedure.query(async () => {
+    // Horaires de référence lus par les fiches de l'annuaire et des contributions : tous les rôles.
+    cities: consoleProcedure.query(async () => {
       const cities = listDirectoryCities(await readMergedDirectory()).map((city) => city.name);
       return listCityHours(cities);
     }),
 
-    setCity: adminProcedure.input(cityHoursSchema).mutation(async ({ ctx, input }) => {
+    setCity: hoursProcedure.input(cityHoursSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const openingHours = JSON.stringify(input.openingHours);
+      const [previous] = await listCityHours([input.city]);
       await db.transaction(async (tx) => {
         await tx.insert(cityHours).values({ city: input.city, openingHours }).onDuplicateKeyUpdate({ set: { openingHours } });
         await tx.insert(auditLogs).values({
@@ -543,14 +659,14 @@ export const adminRouter = router({
           action: "city_hours.updated",
           targetType: "city",
           targetId: input.city,
-          metadata: safeMetadata({ source: "admin_console" }),
+          metadata: safeMetadata({ source: "admin_console" }, diffChanges({ horaires: previous ? formatWeeklyHours(previous.hours) : null }, { horaires: formatWeeklyHours(input.openingHours) })),
         });
       });
       await reloadCityHours();
       return { city: input.city };
     }),
 
-    resetCity: adminProcedure.input(cityHoursResetSchema).mutation(async ({ ctx, input }) => {
+    resetCity: hoursProcedure.input(cityHoursResetSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       await db.transaction(async (tx) => {
         await tx.delete(cityHours).where(eq(cityHours.city, input.city));
@@ -569,7 +685,7 @@ export const adminRouter = router({
 
   contributions: router({
     /** Nombre de contributions à traiter, pour le menu et le tableau de bord. */
-    counts: adminProcedure.query(async () => {
+    counts: consoleProcedure.query(async () => {
       const db = failIfNoDb(await getDb());
       const [places, problems] = await Promise.all([
         db.select({ value: count() }).from(contributions).where(and(eq(contributions.kind, "new_place"), eq(contributions.status, "new"))),
@@ -578,7 +694,7 @@ export const adminRouter = router({
       return { newPlaces: places[0]?.value ?? 0, newProblems: problems[0]?.value ?? 0 };
     }),
 
-    list: adminProcedure.input(contributionListSchema).query(async ({ input }) => {
+    list: contributionsProcedure.input(contributionListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const where = and(eq(contributions.kind, input.kind), input.status === "all" ? undefined : eq(contributions.status, input.status));
       const [rows, totals] = await Promise.all([
@@ -613,10 +729,11 @@ export const adminRouter = router({
     }),
 
     /** Accepte une proposition : la fiche (éventuellement corrigée) est publiée dans l'annuaire. */
-    acceptPlace: adminProcedure.input(z.object({ id: z.number().int().positive(), entry: directoryUpsertSchema })).mutation(async ({ ctx, input }) => {
+    acceptPlace: contributionsProcedure.input(z.object({ id: z.number().int().positive(), entry: directoryUpsertSchema })).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const contribution = await readContribution(db, input.id);
       if (contribution.kind !== "new_place" || contribution.status !== "new") throw new TRPCError({ code: "BAD_REQUEST", message: "Cette proposition a déjà été traitée." });
+      requireAccess(ctx.adminRole, "directory");
       const placeId = await saveDirectoryEntry(db, ctx.user.id, input.entry, "contribution");
       await db.update(contributions).set({ status: "accepted", placeId, handledBy: ctx.user.id, handledAt: new Date() }).where(eq(contributions.id, contribution.id));
       await writeAudit(db, { actorUserId: ctx.user.id, action: "contribution.accepted", targetType: "contribution", targetId: String(contribution.id), metadata: { placeId } });
@@ -624,7 +741,7 @@ export const adminRouter = router({
     }),
 
     /** Refuse une proposition ou clôt un signalement, avec une note interne. */
-    close: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["rejected", "resolved"]), note: noteSchema })).mutation(async ({ ctx, input }) => {
+    close: contributionsProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["rejected", "resolved"]), note: noteSchema })).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const contribution = await readContribution(db, input.id);
       if (contribution.status !== "new") throw new TRPCError({ code: "BAD_REQUEST", message: "Cette contribution a déjà été traitée." });
@@ -636,7 +753,7 @@ export const adminRouter = router({
 
   users: router({
     /** Comptes correspondant aux filtres (10 000 au plus), pour l'export CSV ; sans mot de passe ni jeton. */
-    export: adminProcedure.input(userListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+    export: usersProcedure.input(userListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const rows = await db
         .select({ id: users.id, name: users.name, email: users.email, phone: users.phone, role: users.role, phoneVerifiedAt: users.phoneVerifiedAt, subscriptionEnd: users.subscriptionEnd, suspendedAt: users.suspendedAt, createdAt: users.createdAt, lastSignedIn: users.lastSignedIn })
@@ -647,10 +764,10 @@ export const adminRouter = router({
       return rows.map((user) => ({ ...user, phoneVerifiedAt: serializeDate(user.phoneVerifiedAt), subscriptionEnd: serializeDate(user.subscriptionEnd), suspendedAt: serializeDate(user.suspendedAt), createdAt: serializeDate(user.createdAt), lastSignedIn: serializeDate(user.lastSignedIn) }));
     }),
 
-    list: adminProcedure.input(userListSchema).query(async ({ input }) => {
+    list: usersProcedure.input(userListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const where = userFilter(input);
-      const [rows, totals] = await Promise.all([
+      const [rows, totals, roles] = await Promise.all([
         db
           .select({
             id: users.id,
@@ -670,11 +787,13 @@ export const adminRouter = router({
           .limit(input.limit)
           .offset(offsetOf(input)),
         db.select({ value: count() }).from(users).where(where),
+        readAdminRoleMap(db),
       ]);
 
       return {
         items: rows.map((user) => ({
           ...user,
+          adminRole: user.role === "admin" ? (roles.get(user.id) ?? "super_admin") : null,
           phoneVerifiedAt: serializeDate(user.phoneVerifiedAt),
           subscriptionEnd: serializeDate(user.subscriptionEnd),
           suspendedAt: serializeDate(user.suspendedAt),
@@ -689,10 +808,10 @@ export const adminRouter = router({
     }),
 
     /** Fiche d'un utilisateur : compte, abonnement, paiements, contributions et actions de la console. */
-    get: adminProcedure.input(userIdSchema).query(async ({ input }) => {
+    get: usersProcedure.input(userIdSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, input.userId);
-      const [payments, events, contributionCount] = await Promise.all([
+      const [payments, events, contributionCount, adminRole] = await Promise.all([
         db
           .select({ id: transactions.id, planId: transactions.planId, amount: transactions.amount, status: transactions.status, provider: transactions.provider, merchantReference: transactions.merchantReference, createdAt: transactions.createdAt })
           .from(transactions)
@@ -707,6 +826,7 @@ export const adminRouter = router({
           .orderBy(desc(auditLogs.createdAt))
           .limit(20),
         db.select({ value: count() }).from(contributions).where(eq(contributions.userId, user.id)),
+        readAdminRole(db, user),
       ]);
       return {
         id: user.id,
@@ -714,6 +834,7 @@ export const adminRouter = router({
         email: user.email,
         phone: user.phone,
         role: user.role,
+        adminRole,
         loginMethod: user.loginMethod,
         hasPassword: !!user.passwordHash,
         phoneVerifiedAt: serializeDate(user.phoneVerifiedAt),
@@ -730,10 +851,11 @@ export const adminRouter = router({
     }),
 
     /** Suspend un compte (connexion refusée, sessions fermées) ou le réactive. */
-    setSuspended: adminProcedure.input(userIdSchema.extend({ suspended: z.boolean(), reason: noteSchema })).mutation(async ({ ctx, input }) => {
+    setSuspended: usersProcedure.input(userIdSchema.extend({ suspended: z.boolean(), reason: noteSchema })).mutation(async ({ ctx, input }) => {
       forbidSelf(ctx.user.id, input.userId, "Vous ne pouvez pas suspendre votre propre compte.");
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, input.userId);
+      protectAdminAccount(ctx.adminRole, user);
       const now = new Date();
       await db.update(users).set(input.suspended ? { suspendedAt: now, sessionsValidAfter: now } : { suspendedAt: null }).where(eq(users.id, user.id));
       await writeAudit(db, { actorUserId: ctx.user.id, action: input.suspended ? "users.suspended" : "users.reactivated", targetType: "user", targetId: String(user.id), metadata: { reason: input.reason || undefined } });
@@ -741,37 +863,54 @@ export const adminRouter = router({
     }),
 
     /** Déconnecte tous les appareils de l'utilisateur. */
-    revokeSessions: adminProcedure.input(userIdSchema).mutation(async ({ ctx, input }) => {
+    revokeSessions: usersProcedure.input(userIdSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, input.userId);
+      protectAdminAccount(ctx.adminRole, user);
       await db.update(users).set({ sessionsValidAfter: new Date() }).where(eq(users.id, user.id));
       await writeAudit(db, { actorUserId: ctx.user.id, action: "users.sessions_revoked", targetType: "user", targetId: String(user.id) });
       return { userId: user.id };
     }),
 
     /** Donne ou retire le rôle administrateur. */
-    setRole: adminProcedure.input(userIdSchema.extend({ role: z.enum(["user", "admin"]) })).mutation(async ({ ctx, input }) => {
+    /**
+     * Rôle dans la console (réservé aux super-admins) : utilisateur, super-admin, éditeur
+     * d'annuaire, support ou lecture seule. Les sessions du compte sont fermées.
+     */
+    setRole: usersProcedure.input(userIdSchema.extend({ role: z.enum(["user", ...ADMIN_ROLES]) })).mutation(async ({ ctx, input }) => {
+      requireAccess(ctx.adminRole, "system");
       forbidSelf(ctx.user.id, input.userId, "Vous ne pouvez pas modifier votre propre rôle.");
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, input.userId);
       if (user.loginMethod === "deleted") throw new TRPCError({ code: "BAD_REQUEST", message: "Ce compte a été supprimé." });
-      await db.update(users).set({ role: input.role, sessionsValidAfter: new Date() }).where(eq(users.id, user.id));
-      await writeAudit(db, { actorUserId: ctx.user.id, action: "users.role_changed", targetType: "user", targetId: String(user.id), metadata: { from: user.role, to: input.role } });
+      const before = (await readAdminRole(db, user)) ?? "user";
+      if (before === "super_admin" && input.role !== "super_admin") {
+        const roles = await readAdminRoleMap(db);
+        const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+        const superAdmins = admins.filter((admin) => (roles.get(admin.id) ?? "super_admin") === "super_admin");
+        if (superAdmins.length <= 1) throw new TRPCError({ code: "BAD_REQUEST", message: "Il doit rester au moins un super-admin." });
+      }
+      await db.update(users).set({ role: input.role === "user" ? "user" : "admin", sessionsValidAfter: new Date() }).where(eq(users.id, user.id));
+      if (input.role === "user") await db.delete(adminRoles).where(eq(adminRoles.userId, user.id));
+      else await db.insert(adminRoles).values({ userId: user.id, role: input.role, updatedBy: ctx.user.id }).onDuplicateKeyUpdate({ set: { role: input.role, updatedBy: ctx.user.id } });
+      await revokeConsoleSessions(db, user.id, { allExcept: null });
+      await writeAudit(db, { actorUserId: ctx.user.id, action: "users.role_changed", targetType: "user", targetId: String(user.id), changes: { role: { before, after: input.role } } });
       return { userId: user.id, role: input.role };
     }),
 
     /** Supprime le compte comme le ferait l'utilisateur : coordonnées effacées, paiements anonymisés. */
-    remove: adminProcedure.input(userIdSchema.extend({ confirm: z.literal(true), reason: noteSchema })).mutation(async ({ ctx, input }) => {
+    remove: usersProcedure.input(userIdSchema.extend({ confirm: z.literal(true), reason: noteSchema })).mutation(async ({ ctx, input }) => {
       forbidSelf(ctx.user.id, input.userId, "Vous ne pouvez pas supprimer votre propre compte depuis la console.");
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, input.userId);
+      protectAdminAccount(ctx.adminRole, user);
       await deleteUserAccount(user.id);
       await writeAudit(db, { actorUserId: ctx.user.id, action: "users.deleted", targetType: "user", targetId: String(user.id), metadata: { reason: input.reason || undefined } });
       return { userId: user.id };
     }),
 
     /** Offre (ou prolonge) le Premium d'un utilisateur ; tracé comme une transaction gratuite. */
-    grantPremium: adminProcedure.input(premiumGrantSchema).mutation(async ({ ctx, input }) => {
+    grantPremium: usersProcedure.input(premiumGrantSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, input.userId);
       const subscriptionEnd = extendSubscriptionEnd(user.subscriptionEnd, input.durationDays);
@@ -795,7 +934,7 @@ export const adminRouter = router({
     }),
 
     /** Met fin immédiatement au Premium d'un utilisateur. */
-    revokePremium: adminProcedure.input(premiumRevokeSchema).mutation(async ({ ctx, input }) => {
+    revokePremium: usersProcedure.input(premiumRevokeSchema).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       const user = await readUser(db, input.userId);
       if (!isSubscriptionActive(user.subscriptionEnd)) throw new TRPCError({ code: "BAD_REQUEST", message: "Cet utilisateur n’a pas d’abonnement Premium actif." });
@@ -813,7 +952,7 @@ export const adminRouter = router({
 
   premium: router({
     /** Interroge de nouveau Ligdi Cash pour une transaction non confirmée. */
-    recheck: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    recheck: premiumProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       try {
         const result = await recheckTransaction(db, input.id);
@@ -828,7 +967,7 @@ export const adminRouter = router({
     }),
 
     /** Règle une transaction à la main (payée, échouée ou annulée), avec un motif obligatoire. */
-    resolve: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["success", "failed", "cancelled"]), note: z.string().trim().min(3, "Indiquez le motif.").max(500) })).mutation(async ({ ctx, input }) => {
+    resolve: premiumProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["success", "failed", "cancelled"]), note: z.string().trim().min(3, "Indiquez le motif.").max(500) })).mutation(async ({ ctx, input }) => {
       const db = failIfNoDb(await getDb());
       try {
         const result = await resolveTransactionManually(db, input.id, input.status, { adminId: ctx.user.id, note: input.note });
@@ -843,7 +982,7 @@ export const adminRouter = router({
     }),
 
     /** Transactions (10 000 au plus) pour l'export comptable CSV, sans réponse brute du prestataire. */
-    exportTransactions: adminProcedure.input(transactionListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+    exportTransactions: premiumProcedure.input(transactionListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const rows = await db
         .select({ id: transactions.id, createdAt: transactions.createdAt, merchantReference: transactions.merchantReference, provider: transactions.provider, planId: transactions.planId, amount: transactions.amount, currency: transactions.currency, status: transactions.status, userId: transactions.userId, userName: users.name, userPhone: users.phone })
@@ -855,7 +994,7 @@ export const adminRouter = router({
       return rows.map((row) => ({ ...row, createdAt: serializeDate(row.createdAt) }));
     }),
 
-    transactions: adminProcedure.input(transactionListSchema).query(async ({ input }) => {
+    transactions: premiumProcedure.input(transactionListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const where = input.status === "all" ? undefined : eq(transactions.status, input.status);
       const [rows, totals] = await Promise.all([
@@ -901,10 +1040,10 @@ export const adminRouter = router({
 
   system: router({
     /** État du serveur : base de données, migrations, données publiées, services configurés. */
-    status: adminProcedure.query(() => readSystemStatus()),
+    status: systemProcedure.query(() => readSystemStatus()),
 
     /** Met à jour tout de suite les pharmacies (annuaire) ou les structures de santé (OpenStreetMap). */
-    refreshData: adminProcedure.input(z.object({ kind: z.enum(["pharmacies", "healthcare"]) })).mutation(async ({ ctx, input }) => {
+    refreshData: systemProcedure.input(z.object({ kind: z.enum(["pharmacies", "healthcare"]) })).mutation(async ({ ctx, input }) => {
       const result = await updateCachedDataset(input.kind, true);
       const db = await getDb();
       if (db) await writeAudit(db, { actorUserId: ctx.user.id, action: "data.refreshed", targetType: "admin_console", targetId: input.kind, metadata: { ok: result.ok } });
@@ -912,7 +1051,7 @@ export const adminRouter = router({
     }),
 
     /** Sauvegarde JSON des données saisies dans la console. */
-    backup: adminProcedure.query(async () => {
+    backup: systemProcedure.query(async () => {
       try {
         return await readConsoleBackup();
       } catch {
@@ -923,21 +1062,21 @@ export const adminRouter = router({
 
   audit: router({
     /** Journal (5 000 lignes au plus) pour l'export CSV. */
-    export: adminProcedure.input(auditListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
+    export: auditProcedure.input(auditListSchema.omit({ page: true, limit: true })).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
       const rows = await db
         .select({ id: auditLogs.id, createdAt: auditLogs.createdAt, action: auditLogs.action, targetType: auditLogs.targetType, targetId: auditLogs.targetId, metadata: auditLogs.metadata, actorName: users.name, actorPhone: users.phone })
         .from(auditLogs)
         .leftJoin(users, eq(auditLogs.actorUserId, users.id))
-        .where(input.includeViews ? undefined : notLike(auditLogs.action, "%.viewed"))
+        .where(auditFilter(input))
         .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
         .limit(5_000);
       return rows.map((row) => ({ ...row, createdAt: serializeDate(row.createdAt) }));
     }),
 
-    list: adminProcedure.input(auditListSchema).query(async ({ input }) => {
+    list: auditProcedure.input(auditListSchema).query(async ({ input }) => {
       const db = failIfNoDb(await getDb());
-      const where = input.includeViews ? undefined : notLike(auditLogs.action, "%.viewed");
+      const where = auditFilter(input);
       const [rows, totals] = await Promise.all([
         db
           .select({
@@ -971,6 +1110,17 @@ export const adminRouter = router({
         page: input.page,
         limit: input.limit,
       };
+    }),
+
+    /** Auteurs présents dans le journal, pour le filtre. */
+    actors: auditProcedure.query(async () => {
+      const db = failIfNoDb(await getDb());
+      const rows = await db
+        .selectDistinct({ id: users.id, name: users.name, phone: users.phone, email: users.email })
+        .from(auditLogs)
+        .innerJoin(users, eq(auditLogs.actorUserId, users.id))
+        .limit(200);
+      return rows;
     }),
   }),
 });

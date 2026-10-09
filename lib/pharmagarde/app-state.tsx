@@ -6,6 +6,7 @@ import { AppState, Platform } from "react-native";
 import { getAuthorizationHeader, subscribeSessionTokenChanges } from "@/lib/_core/auth";
 import { useThemeContext } from "@/lib/theme-provider";
 import { fetchClinics, fetchMedicines, fetchPharmacies, getDefaultApiBaseUrl, normalizeBaseUrl } from "./api";
+import { configureUsage, flushUsage, trackUsage } from "./usage";
 import { announcementsFor, applyAppConfig, fetchAppConfig, loadStoredAppConfig, premiumPlansOf, type AppAnnouncement, type AppConfig } from "./app-config";
 import { distanceKm, filterPlacesByCity, inferCityFromAddressParts, inferNearestKnownCity, normalizeCityName } from "./city-utils";
 import { getDefaultLocationFallback } from "./location-policy";
@@ -512,6 +513,27 @@ export function PharmaGardeProvider({ children }: PropsWithChildren) {
     };
   }, [apiBaseUrl, isApiConfigured]);
   const premiumPlans = useMemo(() => premiumPlansOf(appConfig), [appConfig]);
+
+  // Statistiques d'usage anonymes : ouverture de l'application et recherches (voir lib/pharmagarde/usage.ts).
+  const usageCityRef = useRef(selectedCity);
+  usageCityRef.current = selectedCity;
+  useEffect(() => {
+    configureUsage(apiBaseUrl);
+  }, [apiBaseUrl]);
+  useEffect(() => {
+    trackUsage("app_open", usageCityRef.current);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") trackUsage("app_open", usageCityRef.current);
+      else void flushUsage();
+    });
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) return;
+    // Une recherche est comptée quand la saisie s'arrête, pas à chaque lettre.
+    const timer = setTimeout(() => trackUsage("search", usageCityRef.current), 1500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const announcements = useMemo(() => announcementsFor(appConfig, selectedCity), [appConfig, selectedCity]);
 
   useEffect(() => {

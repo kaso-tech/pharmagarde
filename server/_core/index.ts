@@ -7,6 +7,7 @@ import { registerAccountRoutes } from "../account";
 import { registerAdminImportRoutes } from "../admin-import";
 import { registerAppConfigRoute } from "../app-config";
 import { reloadContentConfig } from "../content-config";
+import { registerUsageRoutes } from "../usage";
 import { registerPhoneAuthRoutes } from "../phone-auth";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -67,6 +68,7 @@ async function startServer() {
   registerOAuthRoutes(app);
   registerAccountRoutes(app);
   registerAdminImportRoutes(app);
+  registerUsageRoutes(app);
   registerPhoneAuthRoutes(app);
   app.post("/payment/init", paymentInitRateLimit, initPremiumPayment);
   app.get("/pharmagarde/abonnement", handlePremiumPaymentReturn);

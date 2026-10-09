@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { auditLogs, transactions, users } from "../drizzle/schema";
+import { adminRoles, adminSessions, auditLogs, transactions, users } from "../drizzle/schema";
+
+// Le double facteur a ses propres tests (tests/admin-security-roles.test.ts).
+process.env.ADMIN_SECOND_FACTOR = "off";
 
 process.env.JWT_SECRET ||= "secret-de-test-pour-les-jetons-de-session";
 
@@ -8,10 +11,15 @@ process.env.JWT_SECRET ||= "secret-de-test-pour-les-jetons-de-session";
 function fakeDb(reads: unknown[][]) {
   const queue = [...reads];
   const writes: { op: "update" | "insert"; table: unknown; values: Record<string, unknown> }[] = [];
+  let table: unknown;
   const builder = {
-    from: () => builder,
+    from: (source: unknown) => {
+      table = source;
+      return builder;
+    },
     where: () => builder,
-    limit: async () => queue.shift() ?? [],
+    // Rôles et accès de la console : absents (super-admin), sans consommer les réponses prévues.
+    limit: async () => (table === adminRoles || table === adminSessions ? [] : (queue.shift() ?? [])),
   };
   return {
     writes,

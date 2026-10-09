@@ -4,6 +4,7 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 
 import { announcements, cities, cityHours, directoryEntries, dutyExceptions, dutyRotations, insurers, medicineCategoryLabels, medicineOverrides, premiumPlans } from "../drizzle/schema";
+import { secondFactorMode } from "./admin-auth";
 import { getDb } from "./db";
 import { getMedicinesCatalog, getPublishedMedicines } from "./medicines-data";
 import { getCacheState, type CacheKind } from "./pharmagarde-cache";
@@ -64,6 +65,17 @@ export async function readSystemStatus() {
     { key: "sms", label: "Envoi des SMS", ok: configured("SMS_WEBHOOK_URL"), detail: configured("SMS_WEBHOOK_URL") ? "Webhook SMS configuré" : "SMS_WEBHOOK_URL manquante : codes de vérification non envoyés" },
     { key: "ligdicash", label: "Paiement Ligdi Cash", ok: configured("LIGDI_BASE_URL", "LIGDI_API_TOKEN"), detail: configured("LIGDI_BASE_URL", "LIGDI_API_TOKEN") ? "Identifiants configurés" : "LIGDI_BASE_URL ou LIGDI_API_TOKEN manquant : paiement impossible" },
     { key: "cors", label: "Origines autorisées (CORS)", ok: configured("CORS_ALLOWED_ORIGINS"), detail: process.env.CORS_ALLOWED_ORIGINS?.trim() || "Non renseignées : valeurs par défaut" },
+    {
+      key: "second-factor",
+      label: "Double authentification de la console",
+      ok: secondFactorMode() === "on",
+      detail:
+        secondFactorMode() === "on"
+          ? "Code SMS demandé à chaque nouvel appareil (accès de 12 h)"
+          : secondFactorMode() === "off"
+            ? "Désactivée (ADMIN_SECOND_FACTOR=off)"
+            : "Suspendue : aucun fournisseur SMS configuré (SMS_WEBHOOK_URL)",
+    },
     { key: "admin-token", label: "Jeton de mise à jour des données", ok: configured("PHARMAGARDE_ADMIN_TOKEN"), detail: configured("PHARMAGARDE_ADMIN_TOKEN") ? "Configuré" : "Absent : la mise à jour automatique par jeton est fermée (le bouton de la console reste disponible)" },
   ];
 

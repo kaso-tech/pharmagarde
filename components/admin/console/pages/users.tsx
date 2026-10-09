@@ -8,12 +8,14 @@ import { datedFileName, downloadFile, toCsv } from "../files";
 import { AdminPage } from "../shell";
 import { PAGE_SIZE, PLAN_LABELS, TRANSACTION_STATUS, auditActionLabel, displayIdentity, formatDate, formatDay, formatXof, isActiveSubscription, useDebouncedValue, usePage } from "../shared";
 import { font, useAdminLayout, useAdminTheme } from "../theme";
-import { Alert, Avatar, Badge, Button, Card, CellStack, CellText, Chip, ConfirmDialog, DataState, DataTable, Dialog, Field, FieldLabel, Hint, Pagination, SearchInput, Select, Toolbar, type Column } from "../ui";
+import { Alert, Avatar, Badge, Button, Card, CellStack, CellText, Chip, ConfirmDialog, DataState, DataTable, Dialog, Field, FieldLabel, Hint, Pagination, SearchInput, Select, SelectField, Toolbar, type Column } from "../ui";
+import { useConsoleAccess } from "../access";
+import { ADMIN_ROLE_DESCRIPTIONS, ADMIN_ROLE_LABELS, ADMIN_ROLES, type AdminRole } from "@/shared/admin-roles";
 
 const COLUMNS: readonly Column[] = [
   { key: "user", label: "Utilisateur", flex: 2.2 },
   { key: "verification", label: "Téléphone", flex: 1.1 },
-  { key: "role", label: "Rôle", width: 130 },
+  { key: "role", label: "Rôle", width: 170 },
   { key: "premium", label: "Premium jusqu’au", flex: 1.2 },
   { key: "created", label: "Inscription", flex: 1 },
   { key: "lastSignedIn", label: "Dernière connexion", flex: 1.2 },
@@ -105,14 +107,26 @@ function PremiumGiftDialog({ target, onClose }: { target: GiftTarget | null; onC
   );
 }
 
-type ConfirmAction = { kind: "suspend" | "reactivate" | "revoke" | "promote" | "demote" | "delete" };
+type RoleValue = "user" | AdminRole;
+type ConfirmAction = { kind: "suspend" | "reactivate" | "revoke" | "delete" } | { kind: "role"; role: RoleValue };
 
-const CONFIRM_TEXT: Record<ConfirmAction["kind"], { title: string; message: string; label: string; tone: "danger" | "brand" }> = {
+const ROLE_OPTIONS = [{ value: "user", label: "Utilisateur (pas d’accès à la console)" }, ...ADMIN_ROLES.map((role) => ({ value: role, label: ADMIN_ROLE_LABELS[role] }))];
+
+/** Libellé du rôle d'un compte : utilisateur ou rôle dans la console. */
+export function roleBadge(user: { role: string; adminRole?: AdminRole | null }) {
+  return user.role === "admin" ? <Badge label={ADMIN_ROLE_LABELS[user.adminRole ?? "super_admin"]} tone="brand" icon="admin-panel-settings" /> : <Badge label="Utilisateur" tone="neutral" />;
+}
+
+function roleConfirmText(role: RoleValue) {
+  return role === "user"
+    ? { title: "Retirer l’accès à la console", message: "Ce compte n’aura plus accès à la console. Ses sessions sont fermées.", label: "Retirer l’accès", tone: "danger" as const }
+    : { title: `Rôle « ${ADMIN_ROLE_LABELS[role]} »`, message: `${ADMIN_ROLE_DESCRIPTIONS[role]} Ses sessions sont fermées pour appliquer le nouveau rôle ; un code SMS lui sera demandé à la prochaine ouverture de la console.`, label: "Appliquer le rôle", tone: "brand" as const };
+}
+
+const CONFIRM_TEXT: Record<"suspend" | "reactivate" | "revoke" | "delete", { title: string; message: string; label: string; tone: "danger" | "brand" }> = {
   suspend: { title: "Suspendre le compte", message: "L’utilisateur est déconnecté de tous ses appareils et ne peut plus se connecter jusqu’à la réactivation. Son abonnement n’est pas modifié.", label: "Suspendre", tone: "danger" },
   reactivate: { title: "Réactiver le compte", message: "L’utilisateur pourra de nouveau se connecter.", label: "Réactiver", tone: "brand" },
   revoke: { title: "Déconnecter tous les appareils", message: "Toutes les sessions ouvertes de ce compte sont fermées ; l’utilisateur devra se reconnecter.", label: "Déconnecter", tone: "danger" },
-  promote: { title: "Donner le rôle administrateur", message: "Ce compte aura accès à toute la console d’administration. Ses sessions sont fermées pour appliquer le nouveau rôle.", label: "Promouvoir", tone: "brand" },
-  demote: { title: "Retirer le rôle administrateur", message: "Ce compte n’aura plus accès à la console. Ses sessions sont fermées.", label: "Retirer le rôle", tone: "danger" },
   delete: { title: "Supprimer le compte", message: "Téléphone, e-mail et mot de passe sont effacés définitivement ; l’abonnement prend fin. Les paiements sont conservés sans lien avec l’identité. Action irréversible.", label: "Supprimer définitivement", tone: "danger" },
 };
 
@@ -148,16 +162,20 @@ function UserDetailDialog({ userId, onClose, onGift }: { userId: number | null; 
   const error = suspend.error?.message ?? revoke.error?.message ?? setRole.error?.message ?? remove.error?.message;
   const user = detail.data;
   const self = !!user && access.data?.id === user.id;
+  const isSuperAdmin = useConsoleAccess().role === "super_admin";
 
   const run = () => {
     if (!user || !confirm) return;
     const note = reason.trim() || undefined;
     if (confirm.kind === "suspend" || confirm.kind === "reactivate") suspend.mutate({ userId: user.id, suspended: confirm.kind === "suspend", reason: note });
     if (confirm.kind === "revoke") revoke.mutate({ userId: user.id });
-    if (confirm.kind === "promote" || confirm.kind === "demote") setRole.mutate({ userId: user.id, role: confirm.kind === "promote" ? "admin" : "user" });
+    if (confirm.kind === "role") setRole.mutate({ userId: user.id, role: confirm.role });
     if (confirm.kind === "delete") remove.mutate({ userId: user.id, confirm: true, reason: note });
   };
-  const confirmText = confirm ? CONFIRM_TEXT[confirm.kind] : null;
+  const confirmText = confirm ? (confirm.kind === "role" ? roleConfirmText(confirm.role) : CONFIRM_TEXT[confirm.kind]) : null;
+  const currentRole: RoleValue = user ? (user.role === "admin" ? (user.adminRole ?? "super_admin") : "user") : "user";
+  const [roleChoice, setRoleChoice] = useState<RoleValue | null>(null);
+  const chosenRole = roleChoice ?? currentRole;
 
   return (
     <Dialog visible={!!userId} title="Fiche utilisateur" description={user ? displayIdentity(user) : undefined} onClose={onClose} width={860} footer={<Button label="Fermer" onPress={onClose} />}>
@@ -169,7 +187,7 @@ function UserDetailDialog({ userId, onClose, onGift }: { userId: number | null; 
               <View style={styles.flex}>
                 <Text style={[styles.detailName, { color: theme.text }]}>{displayIdentity(user)}</Text>
                 <View style={styles.badges}>
-                  <Badge label={user.role === "admin" ? "Administrateur" : "Utilisateur"} tone={user.role === "admin" ? "brand" : "neutral"} />
+                  {roleBadge(user)}
                   {user.deleted ? <Badge label="Compte supprimé" tone="danger" /> : user.suspendedAt ? <Badge label={`Suspendu le ${formatDay(user.suspendedAt)}`} tone="danger" icon="block" /> : <Badge label="Actif" tone="success" dot />}
                   {isActiveSubscription(user.subscriptionEnd) ? <Badge label={`Premium jusqu’au ${formatDay(user.subscriptionEnd)}`} tone="info" icon="workspace-premium" /> : null}
                 </View>
@@ -189,11 +207,17 @@ function UserDetailDialog({ userId, onClose, onGift }: { userId: number | null; 
                 <View style={styles.actions}>
                   <Button label={isActiveSubscription(user.subscriptionEnd) ? "Gérer le Premium" : "Offrir le Premium"} icon="card-giftcard" onPress={() => onGift(user)} />
                   <Button label="Déconnecter les appareils" icon="phonelink-erase" disabled={pending} onPress={() => setConfirm({ kind: "revoke" })} />
-                  {!self ? <Button label={user.role === "admin" ? "Retirer le rôle admin" : "Promouvoir administrateur"} icon="admin-panel-settings" disabled={pending} onPress={() => setConfirm({ kind: user.role === "admin" ? "demote" : "promote" })} /> : null}
                   {!self ? <Button label={user.suspendedAt ? "Réactiver le compte" : "Suspendre le compte"} icon={user.suspendedAt ? "lock-open" : "block"} disabled={pending} onPress={() => setConfirm({ kind: user.suspendedAt ? "reactivate" : "suspend" })} /> : null}
                   {!self ? <Button label="Supprimer le compte" variant="ghost" icon="delete-outline" disabled={pending} onPress={() => setConfirm({ kind: "delete" })} /> : null}
                 </View>
                 {self ? <Hint>Les actions sur votre propre compte se font dans « Mon compte ».</Hint> : null}
+                {!self && isSuperAdmin ? (
+                  <View style={[styles.roleRow, desktop && styles.roleRowDesktop]}>
+                    <SelectField style={styles.flex} label="Rôle dans la console" value={chosenRole} options={ROLE_OPTIONS} onChange={(value) => setRoleChoice(value as RoleValue)} />
+                    <Button label="Appliquer" icon="admin-panel-settings" disabled={pending || chosenRole === currentRole} onPress={() => setConfirm({ kind: "role", role: chosenRole })} />
+                  </View>
+                ) : null}
+                {!self && isSuperAdmin && chosenRole !== "user" ? <Hint>{ADMIN_ROLE_DESCRIPTIONS[chosenRole]}</Hint> : null}
                 {confirm && (confirm.kind === "suspend" || confirm.kind === "delete") ? <Field label="Motif (facultatif, enregistré dans le journal)" value={reason} onChangeText={setReason} /> : null}
                 {error ? <Alert tone="danger">{error}</Alert> : null}
               </Card>
@@ -271,7 +295,7 @@ export function UsersPage() {
                 { label: "Nom", value: (user) => user.name },
                 { label: "Téléphone", value: (user) => user.phone },
                 { label: "E-mail", value: (user) => user.email },
-                { label: "Rôle", value: (user) => (user.role === "admin" ? "Administrateur" : "Utilisateur") },
+                { label: "Rôle", value: (user) => (user.role === "admin" ? "Console" : "Utilisateur") },
                 { label: "Téléphone vérifié le", value: (user) => user.phoneVerifiedAt },
                 { label: "Premium jusqu’au", value: (user) => user.subscriptionEnd },
                 { label: "Suspendu le", value: (user) => user.suspendedAt },
@@ -288,7 +312,7 @@ export function UsersPage() {
           <SearchInput value={search} onChangeText={setSearch} placeholder="Rechercher par nom, téléphone ou e-mail" style={desktop ? styles.search : undefined} />
           <Select label="Premium" style={desktop ? styles.filter : undefined} value={premium} onChange={(value) => setPremium(value as typeof premium)} options={[{ value: "all", label: "Tous les comptes" }, { value: "active", label: "Premium actif" }, { value: "inactive", label: "Sans Premium" }]} />
           <Select label="Téléphone" style={desktop ? styles.filter : undefined} value={verified} onChange={(value) => setVerified(value as typeof verified)} options={[{ value: "all", label: "Vérifiés ou non" }, { value: "verified", label: "Téléphone vérifié" }, { value: "unverified", label: "À vérifier" }]} />
-          <Select label="Rôle" style={desktop ? styles.filter : undefined} value={role} onChange={(value) => setRole(value as typeof role)} options={[{ value: "all", label: "Tous les rôles" }, { value: "admin", label: "Administrateurs" }, { value: "user", label: "Utilisateurs" }]} />
+          <Select label="Rôle" style={desktop ? styles.filter : undefined} value={role} onChange={(value) => setRole(value as typeof role)} options={[{ value: "all", label: "Tous les rôles" }, { value: "admin", label: "Comptes de la console" }, { value: "user", label: "Utilisateurs" }]} />
         </Toolbar>
         <DataState loading={users.isLoading} error={users.error} onRetry={() => users.refetch()} empty={!rows.length} emptyTitle="Aucun utilisateur" emptyMessage="Aucun compte ne correspond à ces filtres.">
           {desktop ? (
@@ -306,7 +330,7 @@ export function UsersPage() {
                     if (user.suspendedAt) return <Badge label="Suspendu" tone="danger" icon="block" />;
                     return user.phoneVerifiedAt ? <Badge label="Vérifié" tone="success" dot /> : <Badge label="À vérifier" tone="warning" dot />;
                   case "role":
-                    return <Badge label={user.role === "admin" ? "Administrateur" : "Utilisateur"} tone={user.role === "admin" ? "brand" : "neutral"} />;
+                    return roleBadge(user);
                   case "premium":
                     return premiumBadge(user);
                   case "created":
@@ -327,7 +351,7 @@ export function UsersPage() {
                   <Avatar label={displayIdentity(user)} size={36} tone="neutral" />
                   <View style={styles.flex}>
                     <Text numberOfLines={1} style={[styles.mobileTitle, { color: theme.text }]}>{displayIdentity(user)}</Text>
-                    <Text numberOfLines={1} style={[styles.mobileMeta, { color: theme.textMuted }]}>{user.phone ?? user.email ?? "Coordonnée absente"} · {user.role === "admin" ? "Administrateur" : "Utilisateur"}</Text>
+                    <Text numberOfLines={1} style={[styles.mobileMeta, { color: theme.textMuted }]}>{user.phone ?? user.email ?? "Coordonnée absente"} · {user.role === "admin" ? ADMIN_ROLE_LABELS[user.adminRole ?? "super_admin"] : "Utilisateur"}</Text>
                   </View>
                 </View>
                 <Text style={[styles.mobileMeta, { color: theme.textMuted }]}>Vérification : {user.phoneVerifiedAt ? formatDate(user.phoneVerifiedAt) : "non vérifié"} · Premium : {isActiveSubscription(user.subscriptionEnd) ? `jusqu’au ${formatDay(user.subscriptionEnd)}` : "non actif"}</Text>
@@ -343,7 +367,7 @@ export function UsersPage() {
           </View>
         </DataState>
       </Card>
-      <UserDetailDialog userId={detailId} onClose={() => setDetailId(null)} onGift={(target) => { setDetailId(null); setGiftTarget(target); }} />
+      <UserDetailDialog key={detailId ?? "none"} userId={detailId} onClose={() => setDetailId(null)} onGift={(target) => { setDetailId(null); setGiftTarget(target); }} />
       <PremiumGiftDialog target={giftTarget} onClose={() => setGiftTarget(null)} />
     </AdminPage>
   );
@@ -363,6 +387,8 @@ const styles = StyleSheet.create({
   historyTitle: { fontSize: font.sm, fontWeight: "600" },
   historyMeta: { fontSize: font.xs },
   mobileActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  roleRow: { gap: 8 },
+  roleRowDesktop: { flexDirection: "row", alignItems: "flex-end" },
   flex: { flex: 1, minWidth: 0 },
   field: { gap: 8 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },

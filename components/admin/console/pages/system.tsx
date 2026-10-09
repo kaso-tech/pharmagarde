@@ -78,7 +78,7 @@ export function SystemPage() {
               </Card>
               <Card title="Services" padded={false}>
                 {data.services.map((service) => (
-                  <StatusRow key={service.key} ok={service.ok} warn={service.key === "cors" || service.key === "admin-token"} label={service.label} detail={service.detail} />
+                  <StatusRow key={service.key} ok={service.ok} warn={service.key === "cors" || service.key === "admin-token" || service.key === "second-factor"} label={service.label} detail={service.detail} />
                 ))}
               </Card>
             </Grid>

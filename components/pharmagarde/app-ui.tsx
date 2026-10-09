@@ -11,6 +11,7 @@ import { formatInsurers } from "@/lib/pharmagarde/insurances";
 import { formatPriceRange, medicineFormLabel } from "@/lib/pharmagarde/medicines";
 import { placeHoursLabel, placeStatusLabel } from "@/lib/pharmagarde/place-ordering";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
+import { trackUsage } from "@/lib/pharmagarde/usage";
 import { CombinedSearchItem, FavoriteItem, HealthPlace, Medicine, favoriteKey } from "@/lib/pharmagarde/types";
 
 function entityLabel(type: FavoriteItem["entityType"]) {
@@ -157,8 +158,13 @@ export function SearchField({ value, onChangeText, placeholder = "Rechercher", i
 }
 
 export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace; isExpanded: boolean; onToggle: () => void }) {
-  const { favoriteKeys, toggleFavorite } = usePharmaGarde();
+  const { favoriteKeys, selectedCity, toggleFavorite } = usePharmaGarde();
   const palette = usePremiumPalette();
+  // Fiche consultée : comptée à l'ouverture de la carte (statistiques anonymes).
+  useEffect(() => {
+    if (isExpanded) trackUsage("place_view", selectedCity);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded]);
   const favorite: FavoriteItem = {
     id: place.id,
     entityType: place.type,
@@ -234,11 +240,11 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
             </View>
           ) : null}
           <View style={styles.cardActions}>
-            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.cardMuted, opacity: place.phone ? 1 : 0.46 }, pressed && place.phone ? styles.pressedScale : undefined]} disabled={!place.phone} onPress={(event) => { event.stopPropagation(); haptic.light(); callPhone(place.phone); }}>
+            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.cardMuted, opacity: place.phone ? 1 : 0.46 }, pressed && place.phone ? styles.pressedScale : undefined]} disabled={!place.phone} onPress={(event) => { event.stopPropagation(); haptic.light(); trackUsage("call", selectedCity); callPhone(place.phone); }}>
               <MaterialIcons name="call" size={18} color={place.phone ? accent : palette.muted} />
               <Text style={[styles.secondaryButtonText, { color: place.phone ? palette.text : palette.muted }]}>Appeler</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.cardMuted, opacity: canNavigate ? 1 : 0.46 }, pressed && canNavigate ? styles.pressedScale : undefined]} disabled={!canNavigate} onPress={(event) => { event.stopPropagation(); haptic.medium(); openDirections(favorite); }}>
+            <Pressable accessibilityRole="button" style={({ pressed }) => [styles.secondaryButton, { backgroundColor: palette.cardMuted, opacity: canNavigate ? 1 : 0.46 }, pressed && canNavigate ? styles.pressedScale : undefined]} disabled={!canNavigate} onPress={(event) => { event.stopPropagation(); haptic.medium(); trackUsage("directions", selectedCity); openDirections(favorite); }}>
               <MaterialIcons name="directions" size={18} color={canNavigate ? accent : palette.muted} />
               <Text style={[styles.secondaryButtonText, { color: canNavigate ? palette.text : palette.muted }]}>Itinéraire</Text>
             </Pressable>

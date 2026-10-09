@@ -5,10 +5,12 @@ import { setSessionToken } from "@/lib/_core/auth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/pharmagarde/auth-validation";
 import { trpc } from "@/lib/trpc";
 
+import { ADMIN_ROLE_DESCRIPTIONS, ADMIN_ROLE_LABELS } from "@/shared/admin-roles";
+
 import { AdminPage } from "../shell";
-import { displayIdentity, formatDate } from "../shared";
+import { displayIdentity, formatDate, formatRelative } from "../shared";
 import { font, useAdminLayout, useAdminTheme } from "../theme";
-import { Alert, Avatar, Badge, Button, Card, DataState, Field } from "../ui";
+import { Alert, Avatar, Badge, Button, Card, DataState, Field, Hint, IconButton } from "../ui";
 
 function Fact({ label, value }: { label: string; value: string }) {
   const theme = useAdminTheme();
@@ -17,6 +19,51 @@ function Fact({ label, value }: { label: string; value: string }) {
       <Text style={[styles.factLabel, { color: theme.textMuted }]}>{label}</Text>
       <Text style={[styles.factValue, { color: theme.text }]}>{value}</Text>
     </View>
+  );
+}
+
+/** « Chrome · Windows » à partir de l'en-tête User-Agent. */
+export function describeDevice(userAgent: string | null) {
+  if (!userAgent) return "Appareil inconnu";
+  const browser = /Edg\//.test(userAgent) ? "Edge" : /OPR\//.test(userAgent) ? "Opera" : /Firefox\//.test(userAgent) ? "Firefox" : /Chrome\//.test(userAgent) ? "Chrome" : /Safari\//.test(userAgent) ? "Safari" : /okhttp|Expo|CFNetwork/i.test(userAgent) ? "Application" : "Navigateur";
+  const system = /Android/.test(userAgent) ? "Android" : /iPhone|iPad|iOS/.test(userAgent) ? "iOS" : /Windows/.test(userAgent) ? "Windows" : /Mac OS X|Macintosh/.test(userAgent) ? "macOS" : /Linux/.test(userAgent) ? "Linux" : null;
+  return system ? `${browser} · ${system}` : browser;
+}
+
+function ConsoleSessions() {
+  const theme = useAdminTheme();
+  const utils = trpc.useUtils();
+  const sessions = trpc.admin.account.sessions.useQuery(undefined, { retry: 1 });
+  const refresh = () => utils.admin.account.sessions.invalidate();
+  const revoke = trpc.admin.account.revokeSession.useMutation({ onSuccess: refresh });
+  const revokeOthers = trpc.admin.account.revokeOtherSessions.useMutation({ onSuccess: refresh });
+  const rows = sessions.data ?? [];
+  const others = rows.filter((row) => row.active && !row.current).length;
+  return (
+    <Card
+      title="Accès à la console"
+      description="Appareils sur lesquels le code SMS a été saisi. Un accès dure 12 heures ; fermez ceux que vous ne reconnaissez pas."
+      padded={false}
+      actions={others ? <Button size="sm" label="Fermer les autres accès" icon="logout" loading={revokeOthers.isPending} onPress={() => revokeOthers.mutate()} /> : undefined}
+    >
+      {revoke.error || revokeOthers.error ? <View style={styles.cardAlert}><Alert tone="danger">{revoke.error?.message ?? revokeOthers.error?.message}</Alert></View> : null}
+      <DataState loading={sessions.isLoading} error={sessions.error} onRetry={() => sessions.refetch()} empty={!rows.length} emptyTitle="Aucun accès enregistré" emptyMessage="Le double facteur n’est pas actif sur ce serveur, ou la migration 0012 n’est pas appliquée.">
+        {rows.map((row, index) => (
+          <View key={row.id} style={[styles.session, index < rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
+            <View style={styles.flex}>
+              <View style={styles.sessionTitle}>
+                <Text style={[styles.factValue, { color: theme.text }]}>{describeDevice(row.userAgent)}</Text>
+                {row.current ? <Badge label="Cet appareil" tone="brand" /> : row.active ? <Badge label="Actif" tone="success" dot /> : <Badge label="Fermé" tone="neutral" dot />}
+              </View>
+              <Text style={[styles.factLabel, { color: theme.textMuted }]}>
+                {row.ip ? `${row.ip} · ` : ""}ouvert le {formatDate(row.createdAt)} · vu {formatRelative(row.lastSeenAt)}
+              </Text>
+            </View>
+            {row.active && !row.current ? <IconButton icon="logout" label="Fermer cet accès" tone="danger" onPress={() => revoke.mutate({ id: row.id })} /> : null}
+          </View>
+        ))}
+      </DataState>
+    </Card>
   );
 }
 
@@ -44,7 +91,7 @@ export function AccountPage() {
       await setSessionToken(token);
       setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setNotice({ area: "password", text: "Mot de passe modifié. Vos autres appareils ont été déconnectés." });
-      await utils.admin.account.get.invalidate();
+      await Promise.all([utils.admin.account.get.invalidate(), utils.admin.account.sessions.invalidate()]);
     },
   });
 
@@ -71,8 +118,9 @@ export function AccountPage() {
               <View style={styles.identity}>
                 <Avatar label={displayIdentity(data)} size={64} />
                 <Text style={[styles.identityName, { color: theme.text }]}>{displayIdentity(data)}</Text>
-                <Badge label={data.role === "admin" ? "Administrateur" : "Utilisateur"} tone="brand" icon="verified-user" />
+                <Badge label={data.adminRole ? ADMIN_ROLE_LABELS[data.adminRole] : "Administrateur"} tone="brand" icon="verified-user" />
               </View>
+              {data.adminRole ? <Hint>{ADMIN_ROLE_DESCRIPTIONS[data.adminRole]}</Hint> : null}
               <Fact label="Téléphone (identifiant de connexion)" value={data.phone ?? "—"} />
               <Fact label="Vérification du téléphone" value={data.phoneVerifiedAt ? `Vérifié le ${formatDate(data.phoneVerifiedAt)}` : "Non vérifié"} />
               <Fact label="Compte créé le" value={formatDate(data.createdAt)} />
@@ -115,6 +163,8 @@ export function AccountPage() {
                 </View>
                 {changePassword.error ? <Alert tone="danger">{changePassword.error.message}</Alert> : null}
               </Card>
+
+              <ConsoleSessions />
             </View>
           </View>
         ) : null}
@@ -138,4 +188,7 @@ const styles = StyleSheet.create({
   column: { gap: 16 },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 8 },
   notice: { flex: 1, fontSize: font.sm, fontWeight: "500" },
+  session: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 14 },
+  sessionTitle: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
+  cardAlert: { padding: 16 },
 });

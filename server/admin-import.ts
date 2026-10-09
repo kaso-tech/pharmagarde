@@ -11,6 +11,8 @@ import { readMedicinesWorkbook } from "./medicine-import";
 import { changedMedicineFields, getEffectiveMedicines, medicineEditBetween, type EffectiveMedicine } from "./medicines-data";
 import type { DirectoryPharmacy } from "./pharmacy-directory";
 import { readPharmacyWorkbook } from "./pharmacy-import";
+import { canWrite, type AdminArea } from "../shared/admin-roles";
+import { resolveConsoleAccess } from "./admin-auth";
 import { sdk } from "./_core/sdk";
 
 const MAX_IMPORT_BYTES = 3 * 1024 * 1024;
@@ -92,15 +94,29 @@ export function diffMedicinesImport(imported: readonly Medicine[], current: read
   return { adds, updates, unchanged, missing };
 }
 
-async function authenticateAdmin(req: Request, res: Response) {
+/** Compte de la console avec le double facteur validé et le droit de modifier la page. */
+async function authenticateAdmin(req: Request, res: Response, area: AdminArea) {
+  let user: Awaited<ReturnType<typeof sdk.authenticateRequest>>;
   try {
-    const user = await sdk.authenticateRequest(req);
-    if (user.role === "admin") return user;
-    res.status(403).json({ error: "Accès administrateur requis." });
+    user = await sdk.authenticateRequest(req);
   } catch {
     res.status(401).json({ error: "Connexion requise." });
+    return null;
   }
-  return null;
+  if (user.role !== "admin") {
+    res.status(403).json({ error: "Accès administrateur requis." });
+    return null;
+  }
+  const access = await resolveConsoleAccess(req, user);
+  if (!access.secondFactor.verified) {
+    res.status(403).json({ error: "Code de connexion à la console requis." });
+    return null;
+  }
+  if (!canWrite(access.role, area)) {
+    res.status(403).json({ error: "Votre rôle ne permet pas cet import." });
+    return null;
+  }
+  return user;
 }
 
 /**
@@ -111,7 +127,7 @@ async function authenticateAdmin(req: Request, res: Response) {
  */
 export function registerAdminImportRoutes(app: Express) {
   app.post("/api/admin/import/pharmacies", express.raw({ type: () => true, limit: MAX_IMPORT_BYTES }), async (req: Request, res: Response) => {
-    const user = await authenticateAdmin(req, res);
+    const user = await authenticateAdmin(req, res, "directory");
     if (!user) return;
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       res.status(400).json({ error: "Fichier Excel manquant." });
@@ -175,7 +191,7 @@ export function registerAdminImportRoutes(app: Express) {
    * `&hideMissing=1`, les produits absents du fichier sont masqués (jamais supprimés).
    */
   app.post("/api/admin/import/medicines", express.raw({ type: () => true, limit: MAX_MEDICINES_IMPORT_BYTES }), async (req: Request, res: Response) => {
-    const user = await authenticateAdmin(req, res);
+    const user = await authenticateAdmin(req, res, "medicines");
     if (!user) return;
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       res.status(400).json({ error: "Fichier Excel manquant." });

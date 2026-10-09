@@ -2,9 +2,9 @@ import type { Request, Response } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sendSms, SmsUnavailableError } from "../server/_core/sms";
-import { CODE_TTL_MS, issueVerificationCode, MAX_CODE_ATTEMPTS, verifyCode, type VerificationStore } from "../server/verification-codes";
+import { CODE_TTL_MS, issueVerificationCode, MAX_CODE_ATTEMPTS, verifyCode, type VerificationPurpose, type VerificationStore } from "../server/verification-codes";
 
-type Row = { id: number; phone: string; purpose: "register" | "password_reset"; codeHash: string; attempts: number; expiresAt: Date; consumedAt: Date | null };
+type Row = { id: number; phone: string; purpose: VerificationPurpose; codeHash: string; attempts: number; expiresAt: Date; consumedAt: Date | null };
 
 function memoryStore() {
   const rows: Row[] = [];
