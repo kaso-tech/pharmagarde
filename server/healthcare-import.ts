@@ -1,4 +1,4 @@
-// Lecture d'un tableur de structures de santé (cliniques, CSPS, CMA, hôpitaux…) pour l'import
+// Lecture d'un tableur de structures de santé (cliniques, CSPS, CMA, hôpitaux, cabinets, opticiens…) pour l'import
 // depuis la console d'administration.
 //
 // Colonnes lues dans la première feuille (ligne d'en-tête détectée parmi les 5 premières) :
@@ -8,12 +8,12 @@
 import ExcelJS from "exceljs";
 
 import { SUPPORTED_CITIES } from "./cities";
-import type { LocalEstablishmentType } from "./pharmagarde-cache";
+import { HEALTHCARE_TYPES, type HealthcareType } from "../lib/pharmagarde/healthcare-types";
 import { isInBurkinaFaso, normalizeBurkinaPhone, parseCoordinate, slugify } from "./pharmacy-directory";
 
-export type HealthcareType = Exclude<LocalEstablishmentType, "Pharmacie">;
+export type { HealthcareType };
 
-export const HEALTHCARE_IMPORT_TYPES: readonly HealthcareType[] = ["CHU", "CHR", "CMA", "CSPS", "Clinique", "Hôpital", "Centre de santé"];
+export const HEALTHCARE_IMPORT_TYPES: readonly HealthcareType[] = HEALTHCARE_TYPES;
 
 export type ImportedHealthcarePlace = {
   city: string;
@@ -40,10 +40,16 @@ export function resolveHealthcareType(raw: string, name = ""): HealthcareType | 
   const direct = HEALTHCARE_IMPORT_TYPES.find((type) => slugify(type) === key);
   if (direct) return direct;
   if (key.includes("chu") || key.includes("chr")) return /\bchu\b/i.test(name) || key === "chu" ? "CHU" : "CHR";
+  if (key.includes("dentaire")) return "Cabinet dentaire";
+  if (key.includes("ophtalmo")) return "Ophtalmologie";
+  if (key.includes("laboratoire") || key.includes("imagerie") || key.includes("radiologie")) return "Laboratoire et imagerie";
+  if (key.includes("opticien") || key.includes("optique")) return "Opticien";
+  if (key.includes("infirmier")) return "Cabinet de soins infirmiers";
   if (key.includes("clinique")) return "Clinique";
   if (key.includes("csps")) return "CSPS";
   if (key.includes("cma") || key.includes("cmu")) return "CMA";
   if (key.includes("hopital")) return "Hôpital";
+  if (key.includes("cabinet")) return "Cabinet médical";
   if (key.includes("centre-medical") || key.includes("centre-de-sante")) return "Centre de santé";
   return null;
 }

@@ -7,6 +7,7 @@ import { Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from "re
 
 import { GlobalAppShell } from "@/components/pharmagarde/app-shell";
 import { usePharmaGarde } from "@/lib/pharmagarde/app-state";
+import { healthcareFamilyOf, type HealthcareFamily } from "@/lib/pharmagarde/healthcare-types";
 import { formatInsurers } from "@/lib/pharmagarde/insurances";
 import { formatPriceRange, medicineFormLabel } from "@/lib/pharmagarde/medicines";
 import { placeHoursLabel, placeStatusLabel } from "@/lib/pharmagarde/place-ordering";
@@ -22,6 +23,12 @@ function entityLabel(type: FavoriteItem["entityType"]) {
 
 export function localPlaceTypeLabel(place: HealthPlace) {
   return place.establishmentType ?? (place.type === "pharmacy" ? "Pharmacie" : "Centre de santé");
+}
+
+const FAMILY_ICONS: Record<HealthcareFamily, keyof typeof MaterialIcons.glyphMap> = { hospital: "local-hospital", clinic: "local-hospital", centre: "local-hospital", office: "medical-services", eyes: "visibility", lab: "science" };
+
+export function placeIcon(place: HealthPlace): keyof typeof MaterialIcons.glyphMap {
+  return place.type === "pharmacy" ? "local-pharmacy" : FAMILY_ICONS[healthcareFamilyOf(place.establishmentType)];
 }
 
 async function openDirections(item: { latitude?: number; longitude?: number; title: string }) {
@@ -193,7 +200,7 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
     >
       <View style={styles.cardHeader}>
         <View style={[styles.markerBadge, { backgroundColor: accent }]}> 
-          <MaterialIcons name={place.type === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={20} color="#FFFFFF" />
+          <MaterialIcons name={placeIcon(place)} size={20} color="#FFFFFF" />
         </View>
         <View style={styles.cardTitleArea}>
           <Text style={[styles.cardTitle, { color: palette.text }]} numberOfLines={1}>{place.name}</Text>
@@ -215,7 +222,7 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
               <MaterialIcons name={active ? "favorite" : "favorite-border"} size={23} color={active ? palette.danger : palette.muted} />
             </Pressable>
             <View style={[styles.compactInfoPill, styles.typeInfoPill, { backgroundColor: palette.cardMuted }]}> 
-              <MaterialIcons name={place.type === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={15} color={accent} />
+              <MaterialIcons name={placeIcon(place)} size={15} color={accent} />
               <Text numberOfLines={1} style={[styles.compactInfoText, { color: palette.text }]}>{typeLabel}</Text>
             </View>
             <View style={[styles.compactInfoPill, { backgroundColor: palette.cardMuted }]}> 

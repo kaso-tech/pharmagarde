@@ -17,9 +17,15 @@ export function healthcareNameCore(name: string) {
     .join(" ");
 }
 
+/**
+ * Mots gardés dans le nom (« Cabinet Dentaire Shalom » n'est pas « CSPS Shalom ») mais qui ne
+ * suffisent pas à rapprocher deux structures voisines : « St Antoine » n'est pas « St Jean ».
+ */
+const WEAK_WORDS = new Set(["saint", "sainte", "cabinet", "infirmier", "infirmiers", "infirmiere", "obstetricaux", "medicaux", "dentaire", "pediatrique", "ophtalmologie", "ophtalmologique", "optique", "optic", "opticien", "lunetterie", "laboratoire", "analyses", "biologie", "biomedicales", "medicales", "imagerie"]);
+
 export function wordOverlap(left: string, right: string) {
-  const a = new Set(left.split(" ").filter(Boolean));
-  const b = new Set(right.split(" ").filter(Boolean));
+  const a = new Set(left.split(" ").filter((word) => word && !WEAK_WORDS.has(word)));
+  const b = new Set(right.split(" ").filter((word) => word && !WEAK_WORDS.has(word)));
   if (!a.size || !b.size) return 0;
   let common = 0;
   for (const word of a) if (b.has(word)) common += 1;

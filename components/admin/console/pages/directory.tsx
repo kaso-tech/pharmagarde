@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LocationPicker } from "@/components/pharmagarde/location-picker";
 import { WeeklyHoursEditor, cloneHours } from "@/components/pharmagarde/weekly-hours-editor";
 import { getKnownCityCoordinates } from "@/lib/pharmagarde/city-utils";
+import { HEALTHCARE_TYPES, isHealthcareType } from "@/lib/pharmagarde/healthcare-types";
 import { formatInsurers, getInsurers, isInsurerId, normalizeInsurerIds, setInsurers, type InsurerId } from "@/lib/pharmagarde/insurances";
 import { DEFAULT_WEEKLY_HOURS, formatWeeklyHours, validateWeeklyHours, type WeeklyHours } from "@/lib/pharmagarde/opening-hours";
 import { haptic } from "@/lib/pharmagarde/premium-ui";
@@ -16,7 +17,7 @@ import { AdminPage } from "../shell";
 import { DirectoryImportDialog } from "./directory-import";
 import { PAGE_SIZE, numberOrNull, useDebouncedValue, usePage } from "../shared";
 import { font, radius, useAdminLayout, useAdminTheme } from "../theme";
-import { Alert, Badge, Button, Card, CellStack, CellText, Chip, ConfirmDialog, DataState, DataTable, Dialog, Field, FieldLabel, Hint, IconButton, Pagination, SearchInput, Segmented, Select, Toolbar, isHovered, type Column } from "../ui";
+import { Alert, Badge, Button, Card, CellStack, CellText, Chip, ConfirmDialog, DataState, DataTable, Dialog, Field, FieldLabel, Hint, IconButton, Pagination, SearchInput, Segmented, Select, SelectField, Toolbar, isHovered, type Column } from "../ui";
 
 type DirectoryKind = "pharmacy" | "healthcare";
 type DutyGroupFilter = "all" | "none" | "1" | "2" | "3" | "4";
@@ -130,13 +131,15 @@ export function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange }:
   const longitude = numberOrNull(form.longitude);
   const location = latitude !== null && longitude !== null ? { latitude, longitude } : null;
   const required = form.kind === "pharmacy" ? " *" : "";
+  // Un type saisi avant la liste fermée reste affiché tel quel jusqu'à ce qu'il soit changé.
+  const typeOptions = [...HEALTHCARE_TYPES, ...(form.establishmentType && !isHealthcareType(form.establishmentType) ? [form.establishmentType] : [])].map((type) => ({ value: type, label: type }));
   return (
     <View>
       <FormSection title="Informations" description="Nom et coordonnées affichés dans l’application.">
         <Segmented value={form.kind} onChange={(value) => onChange("kind", value as DirectoryKind)} options={[{ value: "pharmacy", label: "Pharmacie" }, { value: "healthcare", label: "Structure de santé" }]} />
         <Row>
           <Field style={styles.flex} label="Nom *" value={form.name} onChangeText={(value) => onChange("name", value)} placeholder={form.kind === "pharmacy" ? "Ex. Pharmacie Wend-Panga" : "Ex. CSPS de Tanghin"} />
-          {form.kind === "healthcare" ? <Field style={styles.flex} label="Type d’établissement" value={form.establishmentType} onChangeText={(value) => onChange("establishmentType", value)} placeholder="CSPS, CMA, Clinique…" /> : null}
+          {form.kind === "healthcare" ? <SelectField style={styles.flex} label="Type d’établissement" value={form.establishmentType} options={typeOptions} onChange={(value) => onChange("establishmentType", value)} /> : null}
         </Row>
         <Row>
           <View style={[styles.flex, styles.field]}>

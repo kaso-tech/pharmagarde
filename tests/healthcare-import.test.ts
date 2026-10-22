@@ -5,6 +5,7 @@ vi.mock("../server/db", () => ({ getDb: async () => null, getUserByOpenId: vi.fn
 
 const { parseHealthcareWorkbook, resolveHealthcareType } = await import("../server/healthcare-import");
 const { diffHealthcareImport, healthcareNameCore } = await import("../server/admin-import");
+const { isSameHealthcarePlace } = await import("../server/healthcare-match");
 
 type Item = Parameters<typeof diffHealthcareImport>[1][number];
 
@@ -30,7 +31,13 @@ describe("import des structures de santé", () => {
     expect(resolveHealthcareType("CHR / CHU", "Centre Hospitalier Régional")).toBe("CHR");
     expect(resolveHealthcareType("Hôpital (Privé)")).toBe("Hôpital");
     expect(resolveHealthcareType("Centre Médical (Privé)")).toBe("Centre de santé");
-    expect(resolveHealthcareType("Opticien")).toBeNull();
+    expect(resolveHealthcareType("Cabinet Infirmier")).toBe("Cabinet de soins infirmiers");
+    expect(resolveHealthcareType("Cabinet Médical")).toBe("Cabinet médical");
+    expect(resolveHealthcareType("Cabinet Dentaire")).toBe("Cabinet dentaire");
+    expect(resolveHealthcareType("Ophtalmologue")).toBe("Ophtalmologie");
+    expect(resolveHealthcareType("Laboratoire")).toBe("Laboratoire et imagerie");
+    expect(resolveHealthcareType("Opticien")).toBe("Opticien");
+    expect(resolveHealthcareType("Vétérinaire")).toBeNull();
   });
 
   it("lit le tableur et rejette les lignes inexploitables", () => {
@@ -39,7 +46,7 @@ describe("import des structures de santé", () => {
         ["Ouagadougou", "Clinique Sainte Odile", "Clinique", "70 11 22 33 / 25 30 40 50", 12.36, -1.51, null],
         ["Koupèla", "CMA de Koupéla", "CMA", null, null, null, null],
         ["Bamako", "Clinique du Fleuve", "Clinique", null, null, null, null],
-        ["Ouagadougou", "Optique Vision", "Opticien", null, null, null, null],
+        ["Ouagadougou", "Clinique Vétérinaire", "Vétérinaire", null, null, null, null],
         ["Ouagadougou", "Clinique Sainte Odile", "Clinique", null, null, null, null],
         ["Ouagadougou", "CSPS Zongo", "CSPS", "12", 40, 2, "Zongo"],
       ]),
@@ -49,13 +56,17 @@ describe("import des structures de santé", () => {
       { city: "Koupéla", name: "CMA de Koupéla", type: "CMA", phone: null, address: null, latitude: null, longitude: null },
       { city: "Ouagadougou", name: "CSPS Zongo", type: "CSPS", phone: null, address: "Zongo", latitude: null, longitude: null },
     ]);
-    expect(skipped.map((row) => row.reason)).toEqual(["ville non prise en charge par l'app", "type non pris en charge (« Opticien »)", "en double dans le fichier"]);
+    expect(skipped.map((row) => row.reason)).toEqual(["ville non prise en charge par l'app", "type non pris en charge (« Vétérinaire »)", "en double dans le fichier"]);
     expect(warnings.some((warning) => warning.includes("hors du Burkina Faso"))).toBe(true);
     expect(warnings.some((warning) => warning.includes("téléphone invalide"))).toBe(true);
   });
 
   it("complète les structures connues sans rien écraser et ajoute les autres", () => {
     expect(healthcareNameCore("Clinique Médicale Ste Odile")).toBe("sainte odile");
+    // Voisins dont seul « saint » ou le métier est commun : structures différentes.
+    expect(isSameHealthcarePlace({ name: "Cabinet de Soins Infirmiers St Antoine", latitude: 12.3, longitude: -1.5 }, { name: "Clinique St Jean", latitude: 12.3001, longitude: -1.5 })).toBe(false);
+    expect(isSameHealthcarePlace({ name: "Cabinet de Soins Infirmiers La Paix", latitude: 12.3, longitude: -1.5 }, { name: "Cabinet de Soins Infirmiers Laafi Zaka", latitude: 12.3001, longitude: -1.5 })).toBe(false);
+    expect(isSameHealthcarePlace({ name: "Cabinet de Soins Médicaux La Croix Glorieuse", latitude: 12.3, longitude: -1.5 }, { name: "Centre Médical La Croix Glorieuse", latitude: 12.3001, longitude: -1.5 })).toBe(true);
     const current = [
       item({ id: "osm-odile", name: "Clinique Sainte Odile", phone: "+226 25 00 00 00", establishmentType: "Centre de santé" }),
       item({ id: "osm-zongo", name: "Dispensaire Zongo", latitude: 12.3, longitude: -1.6 }),

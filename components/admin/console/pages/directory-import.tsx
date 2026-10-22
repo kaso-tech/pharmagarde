@@ -20,7 +20,7 @@ const KINDS: Record<ImportKind, { label: string; columns: string; intro: string 
   },
   healthcare: {
     label: "Structures de santé",
-    columns: "Colonnes lues : Ville, Nom, Type (CHU, CHR, CMA, CSPS, Clinique, Hôpital, Centre de santé), Téléphone, Latitude, Longitude, Adresse.",
+    columns: "Colonnes lues : Ville, Nom, Type (CHU, CHR, CMA, CSPS, Clinique, Hôpital, Centre de santé, Cabinet médical, Cabinet de soins infirmiers, Cabinet dentaire, Ophtalmologie, Laboratoire et imagerie, Opticien), Téléphone, Latitude, Longitude, Adresse.",
     intro: "Les structures du fichier sont comparées à celles déjà publiées (OpenStreetMap et console). Une structure reconnue par son nom ou sa position n’est que complétée (téléphone, position, type) ; rien n’est écrasé. Les autres sont ajoutées. Rien n’est enregistré avant « Appliquer ».",
   },
 };
