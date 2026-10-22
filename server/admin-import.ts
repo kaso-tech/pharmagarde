@@ -14,6 +14,9 @@ import { readPharmacyWorkbook } from "./pharmacy-import";
 import { readHealthcareWorkbook, type ImportedHealthcarePlace } from "./healthcare-import";
 import { cityMatchKey } from "./admin-directory";
 import { slugify } from "./pharmacy-directory";
+import { healthcareNameCore, wordOverlap } from "./healthcare-match";
+
+export { healthcareNameCore };
 import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { canWrite, type AdminArea } from "../shared/admin-roles";
 import { resolveConsoleAccess } from "./admin-auth";
@@ -99,28 +102,6 @@ export function diffMedicinesImport(imported: readonly Medicine[], current: read
 }
 
 /** Compte de la console avec le double facteur validé et le droit de modifier la page. */
-/** Mots trop courants pour distinguer deux structures de santé (« Clinique », « Centre médical »…). */
-const GENERIC_WORDS = new Set(["clinique", "polyclinique", "centre", "medical", "medicale", "medico", "chirurgical", "chirurgicale", "sante", "soins", "csps", "cma", "cmu", "chu", "chr", "hopital", "urbain", "prive", "publique", "public", "de", "du", "des", "la", "le", "les", "l", "d", "et"]);
-
-/** Mots distinctifs d'un nom : « Clinique Médicale Sainte Odile » → « sainte odile ». */
-export function healthcareNameCore(name: string) {
-  return slugify(name)
-    .replace(/\bst\b/g, "saint")
-    .replace(/\bste\b/g, "sainte")
-    .split("-")
-    .filter((word) => word && !GENERIC_WORDS.has(word))
-    .join(" ");
-}
-
-function wordOverlap(left: string, right: string) {
-  const a = new Set(left.split(" ").filter(Boolean));
-  const b = new Set(right.split(" ").filter(Boolean));
-  if (!a.size || !b.size) return 0;
-  let common = 0;
-  for (const word of a) if (b.has(word)) common += 1;
-  return common / Math.min(a.size, b.size);
-}
-
 /**
  * Rapproche un tableur de structures de santé de l'annuaire en vigueur. Une structure est
  * reconnue par son nom (mots distinctifs identiques, même ville) ou par sa position (moins de

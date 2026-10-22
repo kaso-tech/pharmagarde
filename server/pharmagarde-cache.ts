@@ -7,6 +7,8 @@ import path from "node:path";
 import { applyCorsHeaders } from "./_core/security";
 import { SUPPORTED_CITIES, type SupportedCity } from "./cities";
 import { getContentConfig } from "./content-config";
+import { loadHealthcareDirectory, type HealthcareDirectory } from "./healthcare-directory";
+import { isSameHealthcarePlace } from "./healthcare-match";
 import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-overrides";
 import { formatWeeklyHours, isOpenAt, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
@@ -406,6 +408,11 @@ async function loadState(kind: CacheKind) {
 
 export async function initializePharmaGardeCache() {
   await Promise.all([loadState("pharmacies"), loadState("healthcare")]);
+  try {
+    healthcareDirectory = await loadHealthcareDirectory();
+  } catch (error) {
+    console.error("[Structures de santé] Annuaire illisible, seules les données OpenStreetMap sont publiées :", error instanceof Error ? error.message : error);
+  }
 }
 
 export function getCacheState(kind: CacheKind) {
@@ -495,9 +502,54 @@ function withCacheHeaders(req: Request, res: Response, kind: CacheKind) {
   res.setHeader("X-PharmaGarde-Cache-Source", "server-local-cache-by-city");
 }
 
-function selectItemsByCity(state: CacheState, cityFilter: RequestedCityFilter) {
-  if (cityFilter.key) return state.byCity[cityFilter.key] ?? [];
-  return flattenBuckets(state.byCity);
+function selectItemsByCity(byCity: CacheBuckets, cityFilter: RequestedCityFilter) {
+  if (cityFilter.key) return byCity[cityFilter.key] ?? [];
+  return flattenBuckets(byCity);
+}
+
+// --- Annuaire des structures de santé (server/data/healthcare.json) ------------------------------
+
+let healthcareDirectory: HealthcareDirectory = { version: 1, updatedAt: "", source: "", places: [] };
+let mergedHealthcare: { directoryUpdatedAt: string; osm: CacheBuckets; byCity: CacheBuckets } | null = null;
+
+/**
+ * Ajoute l'annuaire aux structures OpenStreetMap d'une ville : une structure OpenStreetMap
+ * reconnue dans l'annuaire (même nom distinctif, ou à moins de 150 m avec un nom proche) est
+ * remplacée par la fiche de l'annuaire, qui reprend son téléphone ou son adresse s'il lui en manque.
+ */
+export function mergeHealthcareDirectory(byCity: CacheBuckets, directory: HealthcareDirectory): CacheBuckets {
+  if (directory.places.length === 0) return byCity;
+  const merged: CacheBuckets = Object.fromEntries(Object.entries(byCity).map(([key, items]) => [key, [...items]]));
+  for (const place of directory.places) {
+    const key = cityKey(place.city);
+    const bucket = (merged[key] ??= []);
+    const index = bucket.findIndex((item) => item.source !== "annuaire" && isSameHealthcarePlace(place, item));
+    const duplicate = index >= 0 ? bucket.splice(index, 1)[0] : undefined;
+    bucket.push({
+      id: place.id,
+      type: place.type,
+      category: "healthcare",
+      name: place.name,
+      city: place.city,
+      phone: place.phone ?? duplicate?.phone,
+      address: place.address ?? duplicate?.address,
+      latitude: place.latitude ?? duplicate?.latitude,
+      longitude: place.longitude ?? duplicate?.longitude,
+      source: "annuaire",
+      updatedAt: directory.updatedAt || undefined,
+    });
+  }
+  return merged;
+}
+
+/** Compartiments publiés : pharmacies telles quelles, structures de santé avec l'annuaire. */
+export function getPublishedBuckets(kind: CacheKind): CacheBuckets {
+  const state = memoryCache[kind];
+  if (kind !== "healthcare") return state.byCity;
+  if (!mergedHealthcare || mergedHealthcare.osm !== state.byCity || mergedHealthcare.directoryUpdatedAt !== healthcareDirectory.updatedAt) {
+    mergedHealthcare = { directoryUpdatedAt: healthcareDirectory.updatedAt, osm: state.byCity, byCity: mergeHealthcareDirectory(state.byCity, healthcareDirectory) };
+  }
+  return mergedHealthcare.byCity;
 }
 
 /**
@@ -506,16 +558,16 @@ function selectItemsByCity(state: CacheState, cityFilter: RequestedCityFilter) {
  * ville saisie dans la console.
  */
 async function selectPublishedItems(kind: CacheKind, cityFilter: RequestedCityFilter) {
-  const state = memoryCache[kind];
+  const byCity = getPublishedBuckets(kind);
   const overrides = await getDirectoryOverrides();
-  if (overrides.length === 0) return { items: selectItemsByCity(state, cityFilter), total: countBuckets(state.byCity) };
+  if (overrides.length === 0) return { items: selectItemsByCity(byCity, cityFilter), total: countBuckets(byCity) };
 
-  const merged = applyDirectoryOverrides(flattenBuckets(state.byCity), overrides, kind === "pharmacies" ? "pharmacy" : "healthcare");
+  const merged = applyDirectoryOverrides(flattenBuckets(byCity), overrides, kind === "pharmacies" ? "pharmacy" : "healthcare");
   if (!cityFilter.key) return { items: merged, total: merged.length };
 
   const overriddenIds = new Set(overrides.map((override) => override.id));
   const bucketKeyById = new Map<string, string>();
-  for (const [key, items] of Object.entries(state.byCity)) {
+  for (const [key, items] of Object.entries(byCity)) {
     for (const item of items) bucketKeyById.set(item.id, key);
   }
   const items = merged.filter((item) => (overriddenIds.has(item.id) ? cityKey(item.city) : bucketKeyById.get(item.id)) === cityFilter.key);
