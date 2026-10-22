@@ -16,12 +16,14 @@ export type DirectoryPharmacy = {
   id: string;
   city: string;
   name: string;
-  phone: string;
+  /** Absent quand aucun numéro n'est connu (l'application n'affiche alors pas d'appel). */
+  phone?: string;
   /** Groupe de garde (1 à 4), null s'il n'est pas renseigné dans l'annuaire. */
   dutyGroup: DutyGroup | null;
   address?: string;
-  latitude: number;
-  longitude: number;
+  /** Position absente quand elle n'est pas connue : la pharmacie est listée sans distance ni carte. */
+  latitude?: number;
+  longitude?: number;
 };
 
 export type PharmacyDirectory = {
@@ -83,7 +85,10 @@ export function validateDirectory(value: unknown): PharmacyDirectory {
     if (!pharmacy.id || !pharmacy.name || !pharmacy.city) throw new Error(`Pharmacie invalide : ${JSON.stringify(pharmacy)}`);
     if (ids.has(pharmacy.id)) throw new Error(`Identifiant de pharmacie en double : ${pharmacy.id}`);
     ids.add(pharmacy.id);
-    if (!isInBurkinaFaso(pharmacy.latitude, pharmacy.longitude)) throw new Error(`Coordonnées hors du Burkina Faso : ${pharmacy.id}`);
+    const hasLatitude = pharmacy.latitude !== undefined && pharmacy.latitude !== null;
+    const hasLongitude = pharmacy.longitude !== undefined && pharmacy.longitude !== null;
+    if (hasLatitude !== hasLongitude) throw new Error(`Coordonnées incomplètes : ${pharmacy.id}`);
+    if (hasLatitude && !isInBurkinaFaso(pharmacy.latitude!, pharmacy.longitude!)) throw new Error(`Coordonnées hors du Burkina Faso : ${pharmacy.id}`);
   }
   return directory as PharmacyDirectory;
 }

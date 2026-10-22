@@ -23,20 +23,20 @@ describe("villes gérées depuis la console", () => {
   const row = (name: string, extra: Partial<CityRow> = {}): CityRow => ({ name, latitude: 12, longitude: -1, aliases: null, published: true, updatedBy: 1, updatedAt: at, ...extra });
 
   it("garde l'ordre de référence, applique les modifications et ajoute les nouvelles villes à la fin", () => {
-    const list = buildCityList([row("Koupéla", { latitude: 12.18, longitude: -0.35, aliases: '["kouritenga"]' }), row("Manga", { published: false })]);
+    const list = buildCityList([row("Boussé", { latitude: 12.66, longitude: -1.89, aliases: '["kourweogo"]' }), row("Manga", { published: false })]);
     expect(list[0]).toMatchObject({ name: "Ouagadougou", source: "default", published: true });
     expect(list.find((city) => city.name === "Manga")).toMatchObject({ source: "modified", published: false });
-    expect(list.at(-1)).toMatchObject({ name: "Koupéla", source: "added", aliases: ["kouritenga"] });
+    expect(list.at(-1)).toMatchObject({ name: "Boussé", source: "added", aliases: ["kourweogo"] });
     expect(list.find((city) => city.name === "Kaya")?.aliases).toContain("sanmatenga");
   });
 
   it("met à jour la liste de villes de l'application", () => {
     const snapshot = [...KNOWN_BURKINA_CITIES];
     try {
-      setPublishedCities([{ name: "Ouagadougou", latitude: 12.37, longitude: -1.52 }, { name: "Koupéla", latitude: 12.18, longitude: -0.35, aliases: ["Kouritenga"] }]);
-      expect(PHARMAGARDE_CITIES).toEqual(["Ouagadougou", "Koupéla"]);
+      setPublishedCities([{ name: "Ouagadougou", latitude: 12.37, longitude: -1.52 }, { name: "Boussé", latitude: 12.66, longitude: -1.89, aliases: ["Kourweogo"] }]);
+      expect(PHARMAGARDE_CITIES).toEqual(["Ouagadougou", "Boussé"]);
       expect(KNOWN_BURKINA_CITIES[0]?.aliases).toContain("ouaga");
-      expect(KNOWN_BURKINA_CITIES[1]?.aliases).toEqual(["koupéla", "kouritenga"]);
+      expect(KNOWN_BURKINA_CITIES[1]?.aliases).toEqual(["boussé", "kourweogo"]);
     } finally {
       setPublishedCities(snapshot);
     }
