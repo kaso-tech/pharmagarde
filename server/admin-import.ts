@@ -11,6 +11,10 @@ import { readMedicinesWorkbook } from "./medicine-import";
 import { changedMedicineFields, getEffectiveMedicines, medicineEditBetween, type EffectiveMedicine } from "./medicines-data";
 import type { DirectoryPharmacy } from "./pharmacy-directory";
 import { readPharmacyWorkbook } from "./pharmacy-import";
+import { readHealthcareWorkbook, type ImportedHealthcarePlace } from "./healthcare-import";
+import { cityMatchKey } from "./admin-directory";
+import { slugify } from "./pharmacy-directory";
+import { distanceKm } from "../lib/pharmagarde/city-utils";
 import { canWrite, type AdminArea } from "../shared/admin-roles";
 import { resolveConsoleAccess } from "./admin-auth";
 import { sdk } from "./_core/sdk";
@@ -95,6 +99,85 @@ export function diffMedicinesImport(imported: readonly Medicine[], current: read
 }
 
 /** Compte de la console avec le double facteur validé et le droit de modifier la page. */
+/** Mots trop courants pour distinguer deux structures de santé (« Clinique », « Centre médical »…). */
+const GENERIC_WORDS = new Set(["clinique", "polyclinique", "centre", "medical", "medicale", "medico", "chirurgical", "chirurgicale", "sante", "soins", "csps", "cma", "cmu", "chu", "chr", "hopital", "urbain", "prive", "publique", "public", "de", "du", "des", "la", "le", "les", "l", "d", "et"]);
+
+/** Mots distinctifs d'un nom : « Clinique Médicale Sainte Odile » → « sainte odile ». */
+export function healthcareNameCore(name: string) {
+  return slugify(name)
+    .replace(/\bst\b/g, "saint")
+    .replace(/\bste\b/g, "sainte")
+    .split("-")
+    .filter((word) => word && !GENERIC_WORDS.has(word))
+    .join(" ");
+}
+
+function wordOverlap(left: string, right: string) {
+  const a = new Set(left.split(" ").filter(Boolean));
+  const b = new Set(right.split(" ").filter(Boolean));
+  if (!a.size || !b.size) return 0;
+  let common = 0;
+  for (const word of a) if (b.has(word)) common += 1;
+  return common / Math.min(a.size, b.size);
+}
+
+/**
+ * Rapproche un tableur de structures de santé de l'annuaire en vigueur. Une structure est
+ * reconnue par son nom (mots distinctifs identiques, même ville) ou par sa position (moins de
+ * 150 m avec un nom proche). Une structure reconnue n'est que complétée : téléphone, adresse ou
+ * position manquants, type précis à la place de « Centre de santé ». Rien n'est écrasé.
+ */
+export function diffHealthcareImport(imported: readonly ImportedHealthcarePlace[], current: readonly AdminDirectoryItem[]) {
+  const healthcare = current.filter((item) => item.kind === "healthcare");
+  const used = new Set<string>();
+  const adds: ImportedHealthcarePlace[] = [];
+  const updates: { place: ImportedHealthcarePlace; existing: AdminDirectoryItem; changes: string[]; completed: Partial<AdminDirectoryItem> }[] = [];
+  let unchanged = 0;
+  for (const place of imported) {
+    const core = healthcareNameCore(place.name);
+    const sameCity = healthcare.filter((item) => !used.has(item.id) && cityMatchKey(item.city) === cityMatchKey(place.city));
+    const existing =
+      sameCity.find((item) => core && healthcareNameCore(item.name) === core) ??
+      (place.latitude !== null && place.longitude !== null
+        ? sameCity.find(
+            (item) =>
+              item.latitude !== null &&
+              item.longitude !== null &&
+              distanceKm({ latitude: place.latitude!, longitude: place.longitude! }, { latitude: item.latitude, longitude: item.longitude }) < 0.15 &&
+              wordOverlap(core, healthcareNameCore(item.name)) >= 0.5,
+          )
+        : undefined);
+    if (!existing) {
+      adds.push(place);
+      continue;
+    }
+    used.add(existing.id);
+    const completed: Partial<AdminDirectoryItem> = {};
+    const changes: string[] = [];
+    if (!existing.phone && place.phone) {
+      completed.phone = place.phone;
+      changes.push("téléphone");
+    }
+    if (!existing.address && place.address) {
+      completed.address = place.address;
+      changes.push("adresse");
+    }
+    if ((existing.latitude === null || existing.longitude === null) && place.latitude !== null) {
+      completed.latitude = place.latitude;
+      completed.longitude = place.longitude;
+      changes.push("position");
+    }
+    if ((!existing.establishmentType || existing.establishmentType === "Centre de santé") && place.type !== "Centre de santé") {
+      completed.establishmentType = place.type;
+      changes.push(`type (${place.type})`);
+    }
+    if (existing.status === "archived") changes.push("republiée");
+    if (changes.length) updates.push({ place, existing, changes, completed });
+    else unchanged += 1;
+  }
+  return { adds, updates, unchanged };
+}
+
 async function authenticateAdmin(req: Request, res: Response, area: AdminArea) {
   let user: Awaited<ReturnType<typeof sdk.authenticateRequest>>;
   try {
@@ -247,6 +330,84 @@ export function registerAdminImportRoutes(app: Express) {
       missing: missing.slice(0, PREVIEW_ROWS).map((item) => describe(item.medicine)),
       warnings: parsed.warnings.slice(0, 100),
       warningCount: parsed.warnings.length,
+    });
+  });
+
+  /**
+   * Import Excel de structures de santé : `POST /api/admin/import/healthcare` (même principe que les
+   * pharmacies). Les nouvelles structures deviennent des fiches administrées ; celles déjà connues
+   * (OpenStreetMap ou console) sont seulement complétées.
+   */
+  app.post("/api/admin/import/healthcare", express.raw({ type: () => true, limit: MAX_IMPORT_BYTES }), async (req: Request, res: Response) => {
+    const user = await authenticateAdmin(req, res, "directory");
+    if (!user) return;
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      res.status(400).json({ error: "Fichier Excel manquant." });
+      return;
+    }
+    let parsed: Awaited<ReturnType<typeof readHealthcareWorkbook>>;
+    try {
+      parsed = await readHealthcareWorkbook({ buffer: req.body });
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? `Fichier illisible : ${error.message}` : "Fichier Excel illisible." });
+      return;
+    }
+
+    const current = await readMergedDirectory();
+    const { adds, updates, unchanged } = diffHealthcareImport(parsed.places, current);
+    const apply = req.query.apply === "1";
+    if (apply && adds.length + updates.length > 0) {
+      const db = await getDb();
+      if (!db) {
+        res.status(503).json({ error: "Base de données indisponible." });
+        return;
+      }
+      const inputs = [
+        ...adds.map((place) => ({
+          kind: "healthcare" as const,
+          city: place.city,
+          name: place.name,
+          phone: place.phone,
+          address: place.address,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          establishmentType: place.type,
+        })),
+        ...updates.map(({ existing, completed }) => {
+          const item = { ...existing, ...completed };
+          return {
+            id: item.id,
+            kind: "healthcare" as const,
+            city: item.city,
+            name: item.name,
+            phone: item.phone,
+            address: item.address,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            establishmentType: item.establishmentType,
+            openingHours: item.openingHours,
+            insurances: item.insurances as never,
+          };
+        }),
+      ];
+      try {
+        await saveDirectoryEntries(db, user.id, inputs, "excel_import");
+      } catch (error) {
+        res.status(400).json({ error: error instanceof Error ? `Import refusé : ${error.message}` : "Import refusé." });
+        return;
+      }
+      await writeAudit(db, { actorUserId: user.id, action: "directory.imported", targetType: "healthcare", metadata: { added: adds.length, updated: updates.length, skipped: parsed.skipped.length } });
+    }
+
+    res.json({
+      applied: apply,
+      total: parsed.places.length,
+      cities: [...new Set(parsed.places.map((place) => place.city))],
+      adds: adds.map((place) => ({ id: `${slugify(place.city)}-${slugify(place.name)}`, name: place.name, city: place.city, detail: `${place.type}${place.latitude === null ? " · sans position" : ""}${place.phone ? "" : " · sans téléphone"}` })),
+      updates: updates.map(({ existing, changes }) => ({ id: existing.id, name: existing.name, city: existing.city, changes })),
+      unchanged,
+      skipped: parsed.skipped,
+      warnings: parsed.warnings,
     });
   });
 }

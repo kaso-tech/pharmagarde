@@ -8,21 +8,36 @@ import { trpc } from "@/lib/trpc";
 
 import { pickFile } from "../files";
 import { font, useAdminTheme } from "../theme";
-import { Alert, Badge, Button, Card, CellText, DataTable, Dialog, Grid, Hint, KpiCard } from "../ui";
+import { Alert, Badge, Button, Card, CellText, DataTable, Dialog, Grid, Hint, KpiCard, Segmented } from "../ui";
+
+type ImportKind = "pharmacies" | "healthcare";
+
+const KINDS: Record<ImportKind, { label: string; columns: string; intro: string }> = {
+  pharmacies: {
+    label: "Pharmacies",
+    columns: "Colonnes lues : Ville, Pharmacie, Téléphone, Groupe, Situation géographique, Latitude, Longitude.",
+    intro: "Les pharmacies du fichier sont comparées à l’annuaire publié. Vous voyez d’abord les ajouts, les modifications et les lignes rejetées ; rien n’est enregistré avant « Appliquer ». Les horaires propres et les assurances déjà saisis sont conservés.",
+  },
+  healthcare: {
+    label: "Structures de santé",
+    columns: "Colonnes lues : Ville, Nom, Type (CHU, CHR, CMA, CSPS, Clinique, Hôpital, Centre de santé), Téléphone, Latitude, Longitude, Adresse.",
+    intro: "Les structures du fichier sont comparées à celles déjà publiées (OpenStreetMap et console). Une structure reconnue par son nom ou sa position n’est que complétée (téléphone, position, type) ; rien n’est écrasé. Les autres sont ajoutées. Rien n’est enregistré avant « Appliquer ».",
+  },
+};
 
 type ImportReport = {
   applied: boolean;
   total: number;
   cities: string[];
-  adds: { id: string; name: string; city: string; dutyGroup: number | null }[];
+  adds: { id: string; name: string; city: string; dutyGroup?: number | null; detail?: string }[];
   updates: { id: string; name: string; city: string; changes: string[] }[];
   unchanged: number;
   skipped: { line: number; city: string; name: string; reason: string }[];
   warnings: string[];
 };
 
-async function sendWorkbook(file: File, apply: boolean): Promise<ImportReport> {
-  const response = await fetch(`${getApiBaseUrl()}/api/admin/import/pharmacies${apply ? "?apply=1" : ""}`, {
+async function sendWorkbook(kind: ImportKind, file: File, apply: boolean): Promise<ImportReport> {
+  const response = await fetch(`${getApiBaseUrl()}/api/admin/import/${kind}${apply ? "?apply=1" : ""}`, {
     method: "POST",
     body: file,
     credentials: "include",
@@ -44,6 +59,7 @@ export function DirectoryImportDialog({ visible, onClose }: { visible: boolean; 
   const [report, setReport] = useState<ImportReport | null>(null);
   const [pending, setPending] = useState<"preview" | "apply" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [kind, setKind] = useState<ImportKind>("pharmacies");
 
   const reset = () => {
     setFile(null);
@@ -63,7 +79,7 @@ export function DirectoryImportDialog({ visible, onClose }: { visible: boolean; 
     setError(null);
     setPending("preview");
     try {
-      setReport(await sendWorkbook(picked, false));
+      setReport(await sendWorkbook(kind, picked, false));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Import impossible.");
     } finally {
@@ -75,7 +91,7 @@ export function DirectoryImportDialog({ visible, onClose }: { visible: boolean; 
     setPending("apply");
     setError(null);
     try {
-      const applied = await sendWorkbook(file, true);
+      const applied = await sendWorkbook(kind, file, true);
       haptic.success();
       setReport(applied);
       await Promise.all([utils.admin.directory.list.invalidate(), utils.admin.duty.overview.invalidate(), utils.admin.dashboard.invalidate()]);
@@ -91,7 +107,7 @@ export function DirectoryImportDialog({ visible, onClose }: { visible: boolean; 
     <Dialog
       visible={visible}
       title="Importer un fichier Excel"
-      description="Colonnes lues : Ville, Pharmacie, Téléphone, Groupe, Situation géographique, Latitude, Longitude."
+      description={KINDS[kind].columns}
       onClose={close}
       width={860}
       footer={
@@ -114,16 +130,19 @@ export function DirectoryImportDialog({ visible, onClose }: { visible: boolean; 
       }
     >
       {!report && !pending ? (
-        <Alert tone="info" title="Comment ça marche">
-          {"Les pharmacies du fichier sont comparées à l’annuaire publié. Vous voyez d’abord les ajouts, les modifications et les lignes rejetées ; rien n’est enregistré avant « Appliquer ». Les horaires propres et les assurances déjà saisis sont conservés."}
-        </Alert>
+        <>
+          <Segmented value={kind} onChange={(value) => setKind(value as ImportKind)} options={(Object.keys(KINDS) as ImportKind[]).map((value) => ({ value, label: KINDS[value].label }))} />
+          <Alert tone="info" title="Comment ça marche">
+            {KINDS[kind].intro}
+          </Alert>
+        </>
       ) : null}
       {pending === "preview" ? <Hint>Lecture de « {file?.name} »…</Hint> : null}
       {error ? <Alert tone="danger">{error}</Alert> : null}
       {report ? (
         <>
-          {report.applied ? <Alert tone="success" title="Import appliqué">{`${report.adds.length} fiche(s) ajoutée(s) et ${report.updates.length} modifiée(s), publiées immédiatement dans l’application.`}</Alert> : null}
-          <Text style={[styles.file, { color: theme.textSecondary }]}>{file?.name} · {report.total} pharmacies lues · {report.cities.join(", ")}</Text>
+          {report.applied ? <Alert tone="success" title="Import appliqué">{`${report.adds.length} fiche(s) ajoutée(s) et ${report.updates.length} ${kind === "pharmacies" ? "modifiée(s)" : "complétée(s)"}, publiées immédiatement dans l’application.`}</Alert> : null}
+          <Text style={[styles.file, { color: theme.textSecondary }]}>{file?.name} · {report.total} {kind === "pharmacies" ? "pharmacies" : "structures"} lues · {report.cities.join(", ")}</Text>
           <Grid columns={4}>
             <KpiCard label="À ajouter" value={String(report.adds.length)} icon="add-circle-outline" tone="success" />
             <KpiCard label="À modifier" value={String(report.updates.length)} icon="edit" tone="info" />
@@ -135,11 +154,11 @@ export function DirectoryImportDialog({ visible, onClose }: { visible: boolean; 
               <DataTable
                 columns={[
                   { key: "type", label: "", width: 110 },
-                  { key: "name", label: "Pharmacie", flex: 2 },
+                  { key: "name", label: kind === "pharmacies" ? "Pharmacie" : "Structure", flex: 2 },
                   { key: "city", label: "Ville", flex: 1 },
                   { key: "detail", label: "Détail", flex: 2 },
                 ]}
-                rows={[...report.adds.map((row) => ({ ...row, type: "add" as const, detail: row.dutyGroup ? `Groupe ${row.dutyGroup}` : "Sans groupe" })), ...report.updates.map((row) => ({ ...row, type: "update" as const, detail: row.changes.join(", ") }))]}
+                rows={[...report.adds.map((row) => ({ ...row, type: "add" as const, detail: row.detail ?? (row.dutyGroup ? `Groupe ${row.dutyGroup}` : "Sans groupe") })), ...report.updates.map((row) => ({ ...row, type: "update" as const, detail: row.changes.join(", ") }))]}
                 rowKey={(row) => `${row.type}-${row.id}`}
                 minWidth={620}
                 renderCell={(row, key) => {
