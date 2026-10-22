@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-22T08:00:00.000Z",
+  "updatedAt": "2026-10-23T08:00:00.000Z",
   "source": "Faso Santé (liste des établissements, octobre 2026), positions OpenStreetMap / Google Maps vérifiées par nom et ville",
   "places": [
     {"id":"hc-fada-ngourma-chr-de-fada-ngourma","city":"Fada N'gourma","name":"CHR de Fada N'Gourma","type":"CHR","latitude":12.0595047,"longitude":0.3538212},
@@ -48,7 +48,7 @@
     {"id":"hc-ouagadougou-csps-de-wemtenga","city":"Ouagadougou","name":"CSPS de Wemtenga","type":"CSPS","latitude":12.3714799,"longitude":-1.4850617},
     {"id":"hc-ouagadougou-csps-de-zagtouli","city":"Ouagadougou","name":"CSPS de Zagtouli","type":"CSPS","latitude":12.3261702,"longitude":-1.6258157},
     {"id":"hc-ouagadougou-csps-de-zongo","city":"Ouagadougou","name":"CSPS de Zongo","type":"CSPS","latitude":12.3635926,"longitude":-1.6166055},
-    {"id":"hc-ouagadougou-csps-du-sect-16","city":"Ouagadougou","name":"CSPS du Sect 16","type":"CSPS","latitude":12.3350236,"longitude":-1.4990247},
+    {"id":"hc-ouagadougou-csps-du-sect-16","city":"Ouagadougou","name":"CSPS du Sect 16","type":"CSPS","phone":"+226 25 38 46 14","latitude":12.3350236,"longitude":-1.4990247},
     {"id":"hc-ouagadougou-centre-communautaire-de-soins-laafi","city":"Ouagadougou","name":"Centre Communautaire de Soins Laafi","type":"CSPS","phone":"+226 25 47 60 66","latitude":12.3577277,"longitude":-1.5007817},
     {"id":"hc-ouagadougou-centre-de-sante-laafi-reg-traore","city":"Ouagadougou","name":"Centre de Santé Laafi Rég-Traoré","type":"CSPS","phone":"+226 70 72 04 31","latitude":12.465519,"longitude":-1.5475795},
     {"id":"hc-ouagadougou-centre-de-sante-lafiaso","city":"Ouagadougou","name":"Centre de Santé Lafiaso","type":"CSPS","phone":"+226 58 20 72 26","latitude":12.2803983,"longitude":-1.5640745},
@@ -69,7 +69,7 @@
     {"id":"hc-ouagadougou-centre-medical-ellel","city":"Ouagadougou","name":"Centre Médical Ellel","type":"Centre de santé","phone":"+226 25 50 90 27","latitude":12.2818188,"longitude":-1.5850686},
     {"id":"hc-ouagadougou-centre-medical-espoir","city":"Ouagadougou","name":"Centre Médical Espoir","type":"Centre de santé","phone":"+226 79 07 20 20","latitude":12.3771915,"longitude":-1.4243536},
     {"id":"hc-ouagadougou-centre-medical-fatima","city":"Ouagadougou","name":"Centre Médical Fatima","type":"Centre de santé","phone":"+226 72 24 98 24","latitude":12.3842418,"longitude":-1.4242037},
-    {"id":"hc-ouagadougou-centre-medical-international-generaliste","city":"Ouagadougou","name":"Centre Médical International Généraliste","type":"Centre de santé","latitude":12.3731667,"longitude":-1.507259},
+    {"id":"hc-ouagadougou-centre-medical-international-generaliste","city":"Ouagadougou","name":"Centre Médical International Généraliste","type":"Centre de santé","phone":"+226 70 20 00 00","latitude":12.3731667,"longitude":-1.507259},
     {"id":"hc-ouagadougou-centre-medical-kajy","city":"Ouagadougou","name":"Centre Médical Kajy","type":"Centre de santé","latitude":12.3713825,"longitude":-1.618302},
     {"id":"hc-ouagadougou-centre-medical-kambia","city":"Ouagadougou","name":"Centre Médical Kambia","type":"Centre de santé","phone":"+226 75 40 34 05","latitude":12.41832,"longitude":-1.5938646},
     {"id":"hc-ouagadougou-centre-medical-keogo","city":"Ouagadougou","name":"Centre Médical Keogo","type":"Centre de santé","phone":"+226 25 45 80 01","latitude":12.44455,"longitude":-1.564363},
@@ -86,7 +86,7 @@
     {"id":"hc-ouagadougou-centre-medical-wendzinkre","city":"Ouagadougou","name":"Centre Médical Wendzinkre","type":"Centre de santé","phone":"+226 70 01 71 71","latitude":12.3836906,"longitude":-1.5448347},
     {"id":"hc-ouagadougou-centre-medical-de-lesperance","city":"Ouagadougou","name":"Centre Médical de l'Espérance","type":"Centre de santé","phone":"+226 25 37 56 56","latitude":12.3108401,"longitude":-1.5205937},
     {"id":"hc-ouagadougou-centre-medical-du-point-g","city":"Ouagadougou","name":"Centre Médical du Point G","type":"Centre de santé","latitude":12.3400903,"longitude":-1.5823766},
-    {"id":"hc-ouagadougou-centre-medical-international-specialiste","city":"Ouagadougou","name":"Centre Médical international Spécialiste","type":"Centre de santé","latitude":12.3731667,"longitude":-1.507259},
+    {"id":"hc-ouagadougou-centre-medical-international-specialiste","city":"Ouagadougou","name":"Centre Médical international Spécialiste","type":"Centre de santé","phone":"+226 70 20 00 00","latitude":12.3731667,"longitude":-1.507259},
     {"id":"hc-ouagadougou-centre-medical-le-chandelier-dor","city":"Ouagadougou","name":"Centre Médical le Chandelier d'Or","type":"Centre de santé","phone":"+226 25 34 63 07","latitude":12.3534456,"longitude":-1.5436714},
     {"id":"hc-ouagadougou-centre-daccueil-notre-dame-de-fatima","city":"Ouagadougou","name":"Centre d'Accueil Notre Dame de Fatima","type":"Centre de santé","latitude":12.3413846,"longitude":-1.4709573},
     {"id":"hc-ouagadougou-clinique-alataou","city":"Ouagadougou","name":"Clinique Alataou","type":"Clinique","phone":"+226 55 80 00 00","latitude":12.3652162,"longitude":-1.5113162},
@@ -157,10 +157,10 @@
     {"id":"hc-ouagadougou-polyclinique-sandof","city":"Ouagadougou","name":"Polyclinique Sandof","type":"Clinique","phone":"+226 25 36 09 06","latitude":12.3601128,"longitude":-1.4951347},
     {"id":"hc-ouagadougou-polyclinique-yentema","city":"Ouagadougou","name":"Polyclinique Yentema","type":"Clinique","phone":"+226 25 33 70 70","latitude":12.3657533,"longitude":-1.5267784},
     {"id":"hc-ouagadougou-hopital-paul-vi","city":"Ouagadougou","name":"Hôpital Paul VI","type":"Hôpital","phone":"+226 25 50 85 52","latitude":12.3995486,"longitude":-1.5576671},
-    {"id":"hc-ouagadougou-hopital-schiphra","city":"Ouagadougou","name":"Hôpital Schiphra","type":"Hôpital","latitude":12.3908476,"longitude":-1.5180178},
+    {"id":"hc-ouagadougou-hopital-schiphra","city":"Ouagadougou","name":"Hôpital Schiphra","type":"Hôpital","phone":"+226 25 33 32 29","latitude":12.3908476,"longitude":-1.5180178},
     {"id":"hc-ouagadougou-hopital-schiphra-pole-ii","city":"Ouagadougou","name":"Hôpital Schiphra Pôle II","type":"Hôpital","latitude":12.4264895,"longitude":-1.5361782},
     {"id":"hc-ouagadougou-hopital-st-camille-de-ouagadougou","city":"Ouagadougou","name":"Hôpital St Camille de Ouagadougou","type":"Hôpital","phone":"+226 25 36 12 32","latitude":12.3669522,"longitude":-1.4952733},
-    {"id":"hc-tenkodogo-centre-hospitalier-regional-de-tenkodogo","city":"Tenkodogo","name":"Centre Hospitalier Régional de Tenkodogo","type":"CHR","latitude":11.7813952,"longitude":-0.3676848},
+    {"id":"hc-tenkodogo-centre-hospitalier-regional-de-tenkodogo","city":"Tenkodogo","name":"Centre Hospitalier Régional de Tenkodogo","type":"CHR","phone":"+226 24 71 00 12","latitude":11.7813952,"longitude":-0.3676848},
     {"id":"hc-tenkodogo-clinique-bethel","city":"Tenkodogo","name":"Clinique Béthel","type":"Clinique","phone":"+226 24 71 06 37","latitude":11.786876,"longitude":-0.3864088},
     {"id":"hc-tenkodogo-clinique-somde","city":"Tenkodogo","name":"Clinique Somde","type":"Clinique","phone":"+226 62 42 75 81","latitude":11.7849858,"longitude":-0.3907285}
   ]
