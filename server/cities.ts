@@ -23,6 +23,8 @@ export const DEFAULT_CITIES: readonly SupportedCity[] = [
   { name: "Ziniaré", latitude: 12.5822, longitude: -1.2983 },
   { name: "Dédougou", latitude: 12.4634, longitude: -3.4608 },
   { name: "Manga", latitude: 11.6636, longitude: -1.0731 },
+  { name: "Koupéla", latitude: 12.1794, longitude: -0.3517 },
+  { name: "Pouytenga", latitude: 12.2464, longitude: -0.4286 },
 ];
 
 /** Villes publiées dans l'application (liste de référence tant que la console n'a rien changé). */

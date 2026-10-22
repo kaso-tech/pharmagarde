@@ -45,6 +45,8 @@ describe("utilitaires ville PharmaGarde", () => {
       "Ziniaré",
       "Dédougou",
       "Manga",
+      "Koupéla",
+      "Pouytenga",
     ]);
   });
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-07T18:29:41.045Z",
+  "updatedAt": "2026-10-22T08:00:00.000Z",
   "pharmacies": [
     {
       "id": "ph-banfora-charclam",
@@ -748,6 +748,81 @@
       "longitude": -4.3252112
     },
     {
+      "id": "ph-bobo-dioulasso-badenya",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Badenya",
+      "phone": "+226 63 83 22 57",
+      "dutyGroup": null,
+      "latitude": 11.2369685,
+      "longitude": -4.3017456
+    },
+    {
+      "id": "ph-bobo-dioulasso-colombe",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Colombe",
+      "phone": "+226 79 74 53 18",
+      "dutyGroup": null
+    },
+    {
+      "id": "ph-bobo-dioulasso-kiri",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Kiri",
+      "phone": "+226 52 73 20 20",
+      "dutyGroup": null
+    },
+    {
+      "id": "ph-bobo-dioulasso-lamoussa-david",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Lamoussa David",
+      "phone": "+226 20 97 21 72",
+      "dutyGroup": null,
+      "latitude": 11.1707776,
+      "longitude": -4.2817383
+    },
+    {
+      "id": "ph-bobo-dioulasso-sisaole",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Sisaolé",
+      "phone": "+226 72 76 11 20",
+      "dutyGroup": null,
+      "latitude": 11.1838401,
+      "longitude": -4.3442429
+    },
+    {
+      "id": "ph-bobo-dioulasso-yiwo-yo",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Yiwo Yo",
+      "phone": "+226 69 99 28 77",
+      "dutyGroup": null,
+      "latitude": 11.1717572,
+      "longitude": -4.257327
+    },
+    {
+      "id": "ph-bobo-dioulasso-dogona",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Dogona",
+      "phone": "+226 20 95 64 48",
+      "dutyGroup": null,
+      "latitude": 11.1886421,
+      "longitude": -4.2800683
+    },
+    {
+      "id": "ph-bobo-dioulasso-grace-divine",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Grâce Divine",
+      "phone": "+226 20 97 48 25",
+      "dutyGroup": null
+    },
+    {
+      "id": "ph-bobo-dioulasso-okana",
+      "city": "Bobo-Dioulasso",
+      "name": "Pharmacie Okana",
+      "phone": "+226 02 95 87 87",
+      "dutyGroup": null,
+      "latitude": 11.2105249,
+      "longitude": -4.2872808
+    },
+    {
       "id": "ph-dedougou-bankuy",
       "city": "Dédougou",
       "name": "Pharmacie Bankuy",
@@ -989,6 +1064,31 @@
       "dutyGroup": 2,
       "latitude": 12.2616577,
       "longitude": -2.3605847
+    },
+    {
+      "id": "ph-koudougou-ste-henriette",
+      "city": "Koudougou",
+      "name": "Pharmacie Ste Henriette",
+      "phone": "+226 60 28 41 96",
+      "dutyGroup": null,
+      "latitude": 12.2598098,
+      "longitude": -2.3729085
+    },
+    {
+      "id": "ph-koupela-kouritenga",
+      "city": "Koupéla",
+      "name": "Pharmacie Kouritenga",
+      "phone": "+226 24 70 05 01",
+      "dutyGroup": null,
+      "latitude": 12.1826997,
+      "longitude": -0.3574875
+    },
+    {
+      "id": "ph-koupela-nabonswende",
+      "city": "Koupéla",
+      "name": "Pharmacie Nabonswende",
+      "phone": "+226 68 23 68 18",
+      "dutyGroup": null
     },
     {
       "id": "ph-ouagadougou-1200-logements",
@@ -3362,6 +3462,56 @@
       "longitude": -1.5294884
     },
     {
+      "id": "ph-ouagadougou-yinere-parapharmacie",
+      "city": "Ouagadougou",
+      "name": "Yinere Parapharmacie",
+      "phone": "+226 55 21 85 85",
+      "dutyGroup": null,
+      "latitude": 12.3602742,
+      "longitude": -1.516062
+    },
+    {
+      "id": "ph-ouagadougou-lobbo",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Lobbo",
+      "phone": "+226 25 48 26 48",
+      "dutyGroup": 1,
+      "latitude": 12.2911401,
+      "longitude": -1.534471
+    },
+    {
+      "id": "ph-ouagadougou-baba",
+      "city": "Ouagadougou",
+      "name": "Pharmacie Baba",
+      "phone": "+226 25 35 10 00",
+      "dutyGroup": 3,
+      "latitude": 12.4185727,
+      "longitude": -1.5521726
+    },
+    {
+      "id": "ph-ouagadougou-depot-pharmaceutique-ecla",
+      "city": "Ouagadougou",
+      "name": "Dépôt Pharmaceutique ECLA",
+      "dutyGroup": null,
+      "latitude": 12.3364443,
+      "longitude": -1.5643359
+    },
+    {
+      "id": "ph-ouagadougou-good-pharma",
+      "city": "Ouagadougou",
+      "name": "Good Pharma",
+      "dutyGroup": null,
+      "latitude": 12.3583586,
+      "longitude": -1.5405905
+    },
+    {
+      "id": "ph-ouagadougou-parapharmacie-bio",
+      "city": "Ouagadougou",
+      "name": "Parapharmacie Bio",
+      "phone": "+226 01 16 83 85",
+      "dutyGroup": null
+    },
+    {
       "id": "ph-ouahigouya-nayolsba",
       "city": "Ouahigouya",
       "name": "Pharmacie Nayolsba",
@@ -3405,6 +3555,24 @@
       "dutyGroup": 1,
       "latitude": 13.5690855,
       "longitude": -2.4245828
+    },
+    {
+      "id": "ph-pouytenga-teega-wende",
+      "city": "Pouytenga",
+      "name": "Pharmacie Teega-Wende",
+      "phone": "+226 24 70 68 00",
+      "dutyGroup": null,
+      "latitude": 12.2448548,
+      "longitude": -0.4341977
+    },
+    {
+      "id": "ph-pouytenga-wayolsba",
+      "city": "Pouytenga",
+      "name": "Pharmacie Wayolsba",
+      "phone": "+226 66 93 31 72",
+      "dutyGroup": null,
+      "latitude": 12.2495146,
+      "longitude": -0.4308298
     },
     {
       "id": "ph-tenkodogo-hopital",

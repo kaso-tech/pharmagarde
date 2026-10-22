@@ -81,33 +81,58 @@ describe("import du tableur (pnpm import:pharmacies)", () => {
 describe("annuaire versionné dans le dépôt", () => {
   const directory = validateDirectory(JSON.parse(readFileSync("server/data/pharmacies.json", "utf8")));
 
-  it("contient les villes importées, uniquement avec coordonnées et sans colonnes inutiles", () => {
+  it("contient les villes importées, avec coordonnées (sauf positions inconnues) et sans colonnes inutiles", () => {
     const byCity = new Map<string, number>();
     for (const pharmacy of directory.pharmacies) byCity.set(pharmacy.city, (byCity.get(pharmacy.city) ?? 0) + 1);
     expect(Object.fromEntries(byCity)).toEqual({
       Banfora: 5,
-      "Bobo-Dioulasso": 70,
+      "Bobo-Dioulasso": 79,
       Dori: 3,
       Dédougou: 4,
       "Fada N'gourma": 5,
       Gaoua: 3,
       Kaya: 5,
-      Koudougou: 7,
-      Ouagadougou: 239,
+      Koudougou: 8,
+      Koupéla: 2,
+      Ouagadougou: 245,
       Ouahigouya: 5,
+      Pouytenga: 2,
       Tenkodogo: 5,
       Ziniaré: 2,
     });
+    // Pharmacies ajoutées sans position publique fiable : listées sans distance ni carte.
+    expect(directory.pharmacies.filter((pharmacy) => pharmacy.latitude === undefined).map((pharmacy) => pharmacy.name)).toEqual(["Pharmacie Colombe", "Pharmacie Kiri", "Pharmacie Grâce Divine", "Pharmacie Nabonswende", "Parapharmacie Bio"]);
     for (const pharmacy of directory.pharmacies) {
-      expect(Number.isFinite(pharmacy.latitude) && Number.isFinite(pharmacy.longitude)).toBe(true);
+      if (pharmacy.latitude === undefined) expect(pharmacy.longitude).toBeUndefined();
+      else expect(Number.isFinite(pharmacy.latitude) && Number.isFinite(pharmacy.longitude)).toBe(true);
       expect(Object.keys(pharmacy).every((key) => ["id", "city", "name", "phone", "dutyGroup", "address", "latitude", "longitude"].includes(key))).toBe(true);
     }
   });
 
-  it("renseigne le groupe de garde dans les villes programmées, sauf Diyama (groupe absent du fichier)", () => {
+  it("renseigne le groupe de garde dans les villes programmées, sauf les pharmacies dont le groupe n'est pas confirmé", () => {
     const groupCities = new Set(DUTY_ROTATIONS.map((rotation) => rotation.city));
     const withoutGroup = directory.pharmacies.filter((pharmacy) => groupCities.has(pharmacy.city) && pharmacy.dutyGroup === null).map((pharmacy) => pharmacy.name);
-    expect(withoutGroup).toEqual(["Pharmacie Diyama"]);
+    // Diyama : groupe absent du fichier d'origine. Ajouts d'octobre 2026 (liste Faso Santé) : groupe à
+    // confirmer à Bobo-Dioulasso et Koudougou, aucun groupe pour les parapharmacies et dépôts.
+    expect(withoutGroup.sort()).toEqual(
+      [
+        "Pharmacie Diyama",
+        "Pharmacie Badenya",
+        "Pharmacie Colombe",
+        "Pharmacie Kiri",
+        "Pharmacie Lamoussa David",
+        "Pharmacie Sisaolé",
+        "Pharmacie Yiwo Yo",
+        "Pharmacie Dogona",
+        "Pharmacie Grâce Divine",
+        "Pharmacie Okana",
+        "Pharmacie Ste Henriette",
+        "Yinere Parapharmacie",
+        "Dépôt Pharmaceutique ECLA",
+        "Good Pharma",
+        "Parapharmacie Bio",
+      ].sort(),
+    );
   });
 
   it("n'attribue pas de groupe dans les villes dont la programmation n'est pas confirmée", () => {

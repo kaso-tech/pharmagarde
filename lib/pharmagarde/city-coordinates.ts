@@ -20,6 +20,8 @@ export const PHARMAGARDE_CITIES: string[] = [
   "Ziniaré",
   "Dédougou",
   "Manga",
+  "Koupéla",
+  "Pouytenga",
 ];
 
 export const KNOWN_BURKINA_CITIES: KnownBurkinaCity[] = [
@@ -36,6 +38,8 @@ export const KNOWN_BURKINA_CITIES: KnownBurkinaCity[] = [
   { name: "Ziniaré", latitude: 12.5822, longitude: -1.2972, aliases: ["ziniaré", "ziniare", "oubritenga"] },
   { name: "Dédougou", latitude: 12.4634, longitude: -3.4608, aliases: ["dédougou", "dedougou", "mouhoun"] },
   { name: "Manga", latitude: 11.6636, longitude: -1.0731, aliases: ["manga", "zoundwéogo", "zoundweogo"] },
+  { name: "Koupéla", latitude: 12.1794, longitude: -0.3517, aliases: ["koupéla", "koupela", "kouritenga"] },
+  { name: "Pouytenga", latitude: 12.2464, longitude: -0.4286, aliases: ["pouytenga"] },
 ];
 
 const DEFAULT_CITIES = [...KNOWN_BURKINA_CITIES];
