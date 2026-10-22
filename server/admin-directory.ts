@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { DirectoryEntry } from "../drizzle/schema";
 import { INSURER_ID_PATTERN, isInsurerId, normalizeInsurerIds } from "../lib/pharmagarde/insurances";
 import { WEEK_DAYS, parseWeeklyHours, validateWeeklyHours, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
-import { SUPPORTED_CITIES, getCacheState, type CachedHealthPlace } from "./pharmagarde-cache";
+import { SUPPORTED_CITIES, getPublishedBuckets, type CachedHealthPlace } from "./pharmagarde-cache";
 import { DUTY_GROUPS, isInBurkinaFaso, loadPharmacyDirectory, normalizeBurkinaPhone, slugify } from "./pharmacy-directory";
 
 export type AdminDirectoryKind = "pharmacy" | "healthcare";
@@ -186,7 +186,7 @@ function healthcareItems(items: CachedHealthPlace[]): AdminDirectoryItem[] {
     establishmentType: item.type,
     openingHours: null,
     insurances: [],
-    source: "cache",
+    source: item.source === "annuaire" ? "annuaire" : "cache",
     managed: false,
     updatedAt: item.updatedAt ?? null,
   }));
@@ -195,7 +195,8 @@ function healthcareItems(items: CachedHealthPlace[]): AdminDirectoryItem[] {
 /** Sources existantes, sans I/O externe : annuaire versionné et cache mémoire déjà initialisé. */
 export async function getBaseAdminDirectoryItems(): Promise<AdminDirectoryItem[]> {
   const directory = await loadPharmacyDirectory();
-  const healthcare = Object.values(getCacheState("healthcare").byCity).flat();
+  // Structures OpenStreetMap et annuaire versionné, fusionnés comme dans les listes publiques.
+  const healthcare = Object.values(getPublishedBuckets("healthcare")).flat();
   return [...pharmacyItems(directory), ...healthcareItems(healthcare)];
 }
 

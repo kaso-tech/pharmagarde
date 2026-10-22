@@ -53,6 +53,7 @@ describe("cache backend PharmaGarde", () => {
     vi.restoreAllMocks();
     vi.resetModules();
     delete process.env.PHARMAGARDE_CACHE_DIR;
+    delete process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY;
     delete process.env.PHARMAGARDE_OSM_REQUEST_DELAY_MS;
   });
 
@@ -92,6 +93,8 @@ describe("cache backend PharmaGarde", () => {
     );
 
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    // Structures de test seulement : l'annuaire versionné des structures de santé n'est pas chargé.
+    process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY = path.join(cacheDir, "absent-healthcare.json");
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const { initializePharmaGardeCache, registerPharmaGardeCacheRoutes } = await import("../server/pharmagarde-cache");
 
@@ -163,6 +166,8 @@ describe("cache backend PharmaGarde", () => {
     );
 
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    // Structures de test seulement : l'annuaire versionné des structures de santé n'est pas chargé.
+    process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY = path.join(cacheDir, "absent-healthcare.json");
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
     const { initializePharmaGardeCache, registerPharmaGardeCacheRoutes } = await import("../server/pharmagarde-cache");
@@ -240,6 +245,8 @@ describe("cache backend PharmaGarde", () => {
     );
 
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    // Structures de test seulement : l'annuaire versionné des structures de santé n'est pas chargé.
+    process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY = path.join(cacheDir, "absent-healthcare.json");
     const { initializePharmaGardeCache, registerPharmaGardeCacheRoutes } = await import("../server/pharmagarde-cache");
 
     await initializePharmaGardeCache();
@@ -269,6 +276,8 @@ describe("cache backend PharmaGarde", () => {
     );
 
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    // Structures de test seulement : l'annuaire versionné des structures de santé n'est pas chargé.
+    process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY = path.join(cacheDir, "absent-healthcare.json");
     const { initializePharmaGardeCache, getCacheState, isCacheFresh } = await import("../server/pharmagarde-cache");
     await initializePharmaGardeCache();
 
@@ -293,6 +302,8 @@ describe("cache backend PharmaGarde", () => {
       "utf8",
     );
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    // Structures de test seulement : l'annuaire versionné des structures de santé n'est pas chargé.
+    process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY = path.join(cacheDir, "absent-healthcare.json");
     process.env.PHARMAGARDE_PHARMACY_DIRECTORY = directoryPath;
 
     const fetchSpy = vi.spyOn(globalThis, "fetch");
@@ -317,6 +328,8 @@ describe("cache backend PharmaGarde", () => {
   it("collecte les structures de santé (et elles seules) via Overpass, normalise, classe et stocke par ville", async () => {
     const cacheDir = await mkdtemp(path.join(tmpdir(), "pharmagarde-osm-cache-"));
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    // Structures de test seulement : l'annuaire versionné des structures de santé n'est pas chargé.
+    process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY = path.join(cacheDir, "absent-healthcare.json");
     process.env.PHARMAGARDE_OSM_REQUEST_DELAY_MS = "0";
 
     const { SUPPORTED_CITIES, getCacheState, updateCachedDataset } = await import("../server/pharmagarde-cache");
@@ -361,6 +374,8 @@ describe("cache backend PharmaGarde", () => {
   it("garde les villes réussies et signale les erreurs Overpass sans vider le cache", async () => {
     const cacheDir = await mkdtemp(path.join(tmpdir(), "pharmagarde-osm-errors-"));
     process.env.PHARMAGARDE_CACHE_DIR = cacheDir;
+    // Structures de test seulement : l'annuaire versionné des structures de santé n'est pas chargé.
+    process.env.PHARMAGARDE_HEALTHCARE_DIRECTORY = path.join(cacheDir, "absent-healthcare.json");
     process.env.PHARMAGARDE_OSM_REQUEST_DELAY_MS = "0";
 
     const { updateCachedDataset } = await import("../server/pharmagarde-cache");
