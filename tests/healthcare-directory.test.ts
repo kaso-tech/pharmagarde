@@ -3,12 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../server/db", () => ({ getDb: async () => null, getUserByOpenId: vi.fn(), deleteUserAccount: vi.fn() }));
 
 const { loadHealthcareDirectory, validateHealthcareDirectory } = await import("../server/healthcare-directory");
-const { mergeHealthcareDirectory } = await import("../server/pharmagarde-cache");
+const { mergeHealthcareDirectory, normalizeOsmElement } = await import("../server/pharmagarde-cache");
+const { SUPPORTED_CITIES } = await import("../server/cities");
 
 describe("annuaire des structures de santé", () => {
   it("est valide et ne contient que des structures avec position", async () => {
     const directory = await loadHealthcareDirectory();
-    expect(directory.places.length).toBe(160);
+    expect(directory.places.length).toBe(257);
     const byCity: Record<string, number> = {};
     for (const place of directory.places) {
       byCity[place.city] = (byCity[place.city] ?? 0) + 1;
@@ -16,12 +17,23 @@ describe("annuaire des structures de santé", () => {
       expect(place.id).toMatch(/^hc-/);
       expect(Object.keys(place).every((key) => ["id", "city", "name", "type", "phone", "address", "latitude", "longitude"].includes(key))).toBe(true);
     }
-    expect(byCity).toEqual({ "Fada N'gourma": 3, Koupéla: 4, Ouagadougou: 150, Tenkodogo: 3 });
+    expect(byCity).toEqual({ "Fada N'gourma": 3, Koupéla: 4, Ouagadougou: 247, Tenkodogo: 3 });
+  });
+
+  it("classe les lieux OpenStreetMap dans les nouveaux types", () => {
+    const typeOf = (name: string, tags: Record<string, string> = {}) => normalizeOsmElement({ type: "node", id: 1, lat: 12.37, lon: -1.52, tags: { name, ...tags } }, SUPPORTED_CITIES[0]!)?.type;
+    expect(typeOf("Clinique Dentaire Amaria")).toBe("Cabinet dentaire");
+    expect(typeOf("Clinique Ophtalmologique La Lumière")).toBe("Ophtalmologie");
+    expect(typeOf("Laboratoire Bio2000")).toBe("Laboratoire et imagerie");
+    expect(typeOf("Lunetterie du Faso")).toBe("Opticien");
+    expect(typeOf("Cabinet de Soins Infirmiers La Paix")).toBe("Cabinet de soins infirmiers");
+    expect(typeOf("Cabinet Médical Aurore", { amenity: "doctors" })).toBe("Cabinet médical");
+    expect(typeOf("Clinique Sainte Odile")).toBe("Clinique");
   });
 
   it("refuse un type inconnu ou des coordonnées incomplètes", () => {
     const base = { version: 1, updatedAt: "2026-10-22", source: "test" };
-    expect(() => validateHealthcareDirectory({ ...base, places: [{ id: "hc-1", city: "Ouagadougou", name: "Optique", type: "Opticien", latitude: 12.3, longitude: -1.5 }] })).toThrow(/Type inconnu/);
+    expect(() => validateHealthcareDirectory({ ...base, places: [{ id: "hc-1", city: "Ouagadougou", name: "Clinique vétérinaire", type: "Vétérinaire", latitude: 12.3, longitude: -1.5 }] })).toThrow(/Type inconnu/);
     expect(() => validateHealthcareDirectory({ ...base, places: [{ id: "hc-1", city: "Ouagadougou", name: "CSPS", type: "CSPS", latitude: 12.3 }] })).toThrow(/incomplètes/);
   });
 

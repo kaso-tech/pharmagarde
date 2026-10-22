@@ -18,11 +18,12 @@ import { dutyStatusAt, dutyWeekAt, findDutyRotation } from "./duty-roster";
 import type { Medicine } from "../lib/pharmagarde/types";
 import { getPublishedMedicines, medicinesOverlayVersion, MEDICINES_NOTICE } from "./medicines-data";
 import { loadPharmacyDirectory, type PharmacyDirectory } from "./pharmacy-directory";
+import type { HealthcareType } from "../lib/pharmagarde/healthcare-types";
 import { getAuthenticatedDbUser, getPremiumStatusForUser } from "./premium";
 
 export type CacheKind = "pharmacies" | "healthcare";
 export type CachedPlaceCategory = "pharmacy" | "healthcare";
-export type LocalEstablishmentType = "Pharmacie" | "CHU" | "CHR" | "CMA" | "CSPS" | "Clinique" | "Hôpital" | "Centre de santé";
+export type LocalEstablishmentType = "Pharmacie" | HealthcareType;
 
 export type CachedHealthPlace = {
   id: string;
@@ -158,8 +159,14 @@ function classifyPlace(name: string, osmTypes: string[] = []): { category: Cache
   if (/\bchr\b/.test(normalizedName)) return { category: "healthcare", type: "CHR" };
   if (/\bcma\b/.test(normalizedName)) return { category: "healthcare", type: "CMA" };
   if (/\bcsps\b/.test(normalizedName)) return { category: "healthcare", type: "CSPS" };
+  if (normalizedName.includes("dentaire") || osmTypes.includes("dentist")) return { category: "healthcare", type: "Cabinet dentaire" };
+  if (normalizedName.includes("ophtalmo")) return { category: "healthcare", type: "Ophtalmologie" };
+  if (/laboratoire|imagerie|radiologie/.test(normalizedName) || osmTypes.includes("laboratory")) return { category: "healthcare", type: "Laboratoire et imagerie" };
+  if (/\boptique\b|opticien|lunetterie/.test(normalizedName) || osmTypes.includes("optometrist")) return { category: "healthcare", type: "Opticien" };
   if (normalizedName.includes("clinique") || normalizedName.includes("clinic") || osmTypes.includes("clinic")) return { category: "healthcare", type: "Clinique" };
   if (osmTypes.includes("hospital") || normalizedName.includes("hopital") || normalizedName.includes("hospital")) return { category: "healthcare", type: "Hôpital" };
+  if (normalizedName.includes("infirmier")) return { category: "healthcare", type: "Cabinet de soins infirmiers" };
+  if (normalizedName.includes("cabinet")) return { category: "healthcare", type: "Cabinet médical" };
   return { category: "healthcare", type: "Centre de santé" };
 }
 

@@ -1,4 +1,5 @@
 import { directoryEntries, type DirectoryEntry } from "../drizzle/schema";
+import { HEALTHCARE_TYPES } from "../lib/pharmagarde/healthcare-types";
 import { normalizeInsurerIds } from "../lib/pharmagarde/insurances";
 import { parseWeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { getDb } from "./db";
@@ -12,8 +13,6 @@ import type { CachedHealthPlace, CachedPlaceCategory, LocalEstablishmentType } f
  * ainsi qu'au plus tard toutes les minutes pour qu'une autre instance du serveur les voie aussi.
  */
 const RELOAD_INTERVAL_MS = 60_000;
-
-const HEALTHCARE_TYPES: readonly LocalEstablishmentType[] = ["CHU", "CHR", "CMA", "CSPS", "Clinique", "Hôpital", "Centre de santé"];
 
 let snapshot: DirectoryEntry[] = [];
 let loadedAt = 0;

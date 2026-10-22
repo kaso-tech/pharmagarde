@@ -91,8 +91,9 @@ describe("cartes pharmacies et cliniques", () => {
     expect(placeCard).toContain("styles.placeInfoRow");
     expect(placeCard).toContain("ratingLabel");
     expect(placeCard).toContain("phoneLabel");
-    expect(placeCard).toContain("local-pharmacy");
-    expect(placeCard).toContain("local-hospital");
+    expect(placeCard).toContain("name={placeIcon(place)}");
+    expect(appUi).toContain('place.type === "pharmacy" ? "local-pharmacy"');
+    expect(appUi).toContain('hospital: "local-hospital"');
     expect(placeCard.indexOf("favorite-border")).toBeGreaterThan(placeCard.indexOf("{isExpanded ? ("));
     expect(placeCard).toContain("localPlaceTypeLabel(place)");
     expect(placeCard).toContain("const typeLabel = localPlaceTypeLabel(place)");
