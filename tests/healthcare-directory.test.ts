@@ -9,7 +9,7 @@ const { SUPPORTED_CITIES } = await import("../server/cities");
 describe("annuaire des structures de santé", () => {
   it("est valide et ne contient que des structures avec position", async () => {
     const directory = await loadHealthcareDirectory();
-    expect(directory.places.length).toBe(384);
+    expect(directory.places.length).toBe(402);
     const byCity: Record<string, number> = {};
     for (const place of directory.places) {
       byCity[place.city] = (byCity[place.city] ?? 0) + 1;
@@ -17,8 +17,8 @@ describe("annuaire des structures de santé", () => {
       expect(place.id).toMatch(/^hc-/);
       expect(Object.keys(place).every((key) => ["id", "city", "name", "type", "phone", "address", "latitude", "longitude", "approximateLocation"].includes(key))).toBe(true);
     }
-    expect(byCity).toEqual({ "Fada N'gourma": 6, Koupéla: 8, Ouagadougou: 363, Pouytenga: 1, Tenkodogo: 6 });
-    expect(directory.places.filter((place) => place.approximateLocation)).toHaveLength(127);
+    expect(byCity).toEqual({ "Fada N'gourma": 7, Koupéla: 8, Ouagadougou: 380, Pouytenga: 1, Tenkodogo: 6 });
+    expect(directory.places.filter((place) => place.approximateLocation)).toHaveLength(145);
   });
 
   it("classe les lieux OpenStreetMap dans les nouveaux types", () => {
