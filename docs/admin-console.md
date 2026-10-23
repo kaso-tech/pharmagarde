@@ -78,3 +78,23 @@ Les routes `/pharmacies` et `/healthcare` publient `status` (`on_duty`, `open`, 
 ## Assurances
 
 La liste de référence des assurances (Ascoma, Coris, Faari+, GA, Gras Savoye, Maado, MCI, MSH, Mutraf, Olea, Onea, Raynal, Saham, Sonar, Sunu, UAB, Yelen) est dans `lib/pharmagarde/insurances.ts`. Dans la console, la fiche d'un établissement permet de cocher les assurances acceptées (colonne `directory_entries.insurances`, migration `0008_insurances`) et l'annuaire se filtre par assurance. Les routes `/pharmacies` et `/healthcare` publient `insurances` (identifiants) ; l'application affiche « Assurances : … » dans la carte de l'établissement.
+
+## Vérification des établissements
+
+La page « Vérification » (`/admin/verification`, droits de la page Établissements) sert à contrôler les fiches une à une. Elle présente une file triée par urgence et, pour chaque fiche, les problèmes détectés (`server/place-verification.ts`) :
+
+- **Signalée par un utilisateur** : signalement en attente dans Contributions ;
+- **Écart avec OpenStreetMap** : un lieu OpenStreetMap de nom proche est à plus de 300 m du point publié ;
+- **Doublon possible** : un autre établissement publié à moins de 40 m, ou avec le même numéro dans la même ville ;
+- **Position approximative** : position d'une source unique non recoupée (champ `approximateLocation` de `server/data/healthcare.json`) ;
+- **Sans position**, **Sans téléphone**.
+
+La fiche affiche une carte avec la position retenue (repère vert déplaçable) et les positions de référence : point publié, lieux OpenStreetMap au nom proche, positions proposées dans les signalements, établissements voisins. Un fond satellite est proposé si `EXPO_PUBLIC_MAPLIBRE_SATELLITE_STYLE_URL` est configurée. Les décisions possibles :
+
+- **Valider** : enregistre les corrections (nom, téléphone, type, adresse, position) comme une modification de la fiche, puis la marque vérifiée. Si la position a été contrôlée, la mention « position approximative » disparaît de l'application ;
+- **À vérifier sur place** : la fiche passe dans la file « sur place » avec une note ;
+- **Passer**, **Rouvrir**.
+
+Raccourcis clavier sur ordinateur : ← → (fiche précédente ou suivante), V (valider), P (passer). Un signalement arrivé après la vérification remet la fiche dans la file « à vérifier ». Chaque décision est journalisée (`directory.verified`, `directory.needs_visit`, `directory.verification_reopened`).
+
+La migration `0013_place_verifications` crée la table `place_verifications` (état, position confirmée, note, auteur et date). Tant qu'elle n'est pas appliquée, la page affiche toutes les fiches « à vérifier » et les décisions échouent.

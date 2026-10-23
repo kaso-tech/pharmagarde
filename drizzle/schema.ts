@@ -337,3 +337,24 @@ export const usageDaily = mysqlTable(
 export type AdminRoleRow = typeof adminRoles.$inferSelect;
 export type AdminSessionRow = typeof adminSessions.$inferSelect;
 export type UsageDailyRow = typeof usageDaily.$inferSelect;
+
+/**
+ * Vérification des établissements une à une dans la console : fiche contrôlée (position et
+ * informations) ou à vérifier sur place. Une position confirmée n'est plus signalée
+ * « approximative » dans l'application.
+ */
+export const placeVerifications = mysqlTable(
+  "place_verifications",
+  {
+    id: varchar("id", { length: 128 }).primaryKey(),
+    kind: mysqlEnum("kind", ["pharmacy", "healthcare"]).notNull(),
+    status: mysqlEnum("status", ["verified", "needs_visit"]).notNull(),
+    positionConfirmed: boolean("positionConfirmed").default(false).notNull(),
+    note: text("note"),
+    checkedBy: int("checkedBy").notNull(),
+    checkedAt: timestamp("checkedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [index("place_verifications_status_idx").on(table.status)],
+);
+
+export type PlaceVerificationRow = typeof placeVerifications.$inferSelect;
