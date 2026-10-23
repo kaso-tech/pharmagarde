@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-23T18:00:00.000Z",
+  "updatedAt": "2026-10-24T08:00:00.000Z",
   "source": "Faso Santé (liste des établissements, octobre 2026), positions OpenStreetMap / Google Maps vérifiées par nom et ville",
   "places": [
     {"id":"hc-fada-ngourma-chr-de-fada-ngourma","city":"Fada N'gourma","name":"CHR de Fada N'Gourma","type":"CHR","latitude":12.0595047,"longitude":0.3538212},
@@ -386,6 +386,24 @@
     {"id":"hc-ouagadougou-optique-maxi-vision","city":"Ouagadougou","name":"Optique Maxi Vision","type":"Opticien","phone":"+226 25 50 50 73","latitude":12.3760979,"longitude":-1.5207836,"approximateLocation":true},
     {"id":"hc-ouagadougou-optique-zandas-agence-2","city":"Ouagadougou","name":"Optique Zandas – agence 2","type":"Opticien","phone":"+226 25 48 12 82","latitude":12.36876,"longitude":-1.49416,"approximateLocation":true},
     {"id":"hc-ouagadougou-rose-optique-agence-2","city":"Ouagadougou","name":"Rose Optique – agence 2","type":"Opticien","phone":"+226 25 48 00 47","latitude":12.3376664,"longitude":-1.5645284,"approximateLocation":true},
-    {"id":"hc-tenkodogo-cabinet-de-soins-song-taaba","city":"Tenkodogo","name":"Cabinet de Soins Song Taaba","type":"Cabinet de soins infirmiers","phone":"+226 61 19 93 20","latitude":11.79103,"longitude":-0.376,"approximateLocation":true}
+    {"id":"hc-tenkodogo-cabinet-de-soins-song-taaba","city":"Tenkodogo","name":"Cabinet de Soins Song Taaba","type":"Cabinet de soins infirmiers","phone":"+226 61 19 93 20","latitude":11.79103,"longitude":-0.376,"approximateLocation":true},
+    {"id":"hc-ouagadougou-centre-medical-urbain-du-sect-15","city":"Ouagadougou","name":"Centre Médical Urbain du sect 15","type":"CMA","latitude":12.394788,"longitude":-1.5753421,"approximateLocation":true},
+    {"id":"hc-ouagadougou-centre-medical-du-secteur-16","city":"Ouagadougou","name":"Centre Médical du secteur 16","type":"CMA","latitude":12.38573,"longitude":-1.5732,"approximateLocation":true},
+    {"id":"hc-ouagadougou-csps-action-pour-la-mere-et-lenfant","city":"Ouagadougou","name":"CSPS Action pour la mère et l'enfant","type":"CSPS","latitude":12.3780683,"longitude":-1.6097046,"approximateLocation":true},
+    {"id":"hc-ouagadougou-csps-espoir","city":"Ouagadougou","name":"CSPS Espoir","type":"CSPS","latitude":12.427501,"longitude":-1.6498652,"approximateLocation":true},
+    {"id":"hc-ouagadougou-csps-tilgre","city":"Ouagadougou","name":"CSPS Tilgré","type":"CSPS","latitude":12.3078405,"longitude":-1.6072152,"approximateLocation":true},
+    {"id":"hc-ouagadougou-centre-medical-ecla-tanghin","city":"Ouagadougou","name":"Centre Médical ECLA Tanghin","type":"Centre de santé","latitude":12.3996185,"longitude":-1.5153785,"approximateLocation":true},
+    {"id":"hc-ouagadougou-centre-medical-prive-ste-marie","city":"Ouagadougou","name":"Centre Médical Privé Ste Marie","type":"Centre de santé","latitude":12.28528,"longitude":-1.45833,"approximateLocation":true},
+    {"id":"hc-fada-ngourma-cabinet-de-soins-pougoumba","city":"Fada N'gourma","name":"Cabinet de Soins Pougoumba","type":"Cabinet de soins infirmiers","latitude":12.05563,"longitude":0.37715,"approximateLocation":true},
+    {"id":"hc-ouagadougou-cabinet-de-soins-infirmiers-yzula","city":"Ouagadougou","name":"Cabinet de Soins Infirmiers Yzula","type":"Cabinet de soins infirmiers","latitude":12.3310586,"longitude":-1.582766,"approximateLocation":true},
+    {"id":"hc-ouagadougou-cabinet-de-sante-rahma","city":"Ouagadougou","name":"Cabinet de sante Rahma","type":"Cabinet de soins infirmiers","latitude":12.3276855,"longitude":-1.4549032,"approximateLocation":true},
+    {"id":"hc-ouagadougou-coob-agence-3","city":"Ouagadougou","name":"COOB – agence 3","type":"Opticien","latitude":12.3326087,"longitude":-1.5212577,"approximateLocation":true},
+    {"id":"hc-ouagadougou-lunetterie-du-faso-agence-8","city":"Ouagadougou","name":"Lunetterie du Faso – agence 8","type":"Opticien","latitude":12.36992,"longitude":-1.4763,"approximateLocation":true},
+    {"id":"hc-ouagadougou-luno-lopticien-2","city":"Ouagadougou","name":"Luno l’Opticien","type":"Opticien","latitude":12.35332,"longitude":-1.51718,"approximateLocation":true},
+    {"id":"hc-ouagadougou-optic-alize-agence-3","city":"Ouagadougou","name":"Optic Alizé – agence 3","type":"Opticien","latitude":12.3087342,"longitude":-1.5285485,"approximateLocation":true},
+    {"id":"hc-ouagadougou-optic-store","city":"Ouagadougou","name":"Optic Store","type":"Opticien","latitude":12.360638,"longitude":-1.558805,"approximateLocation":true},
+    {"id":"hc-ouagadougou-optique-bonne-vision","city":"Ouagadougou","name":"Optique Bonne Vision","type":"Opticien","latitude":12.372908,"longitude":-1.552857,"approximateLocation":true},
+    {"id":"hc-ouagadougou-optique-st-michel","city":"Ouagadougou","name":"Optique St Michel","type":"Opticien","latitude":12.3814164,"longitude":-1.5108688,"approximateLocation":true},
+    {"id":"hc-ouagadougou-rachid-optique","city":"Ouagadougou","name":"Rachid Optique","type":"Opticien","latitude":12.37811,"longitude":-1.51168,"approximateLocation":true}
   ]
 }
