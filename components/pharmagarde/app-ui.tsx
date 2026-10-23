@@ -204,13 +204,14 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
   const canNavigate = place.latitude !== undefined && place.longitude !== undefined;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${place.name}. Appuyer pour ${isExpanded ? "masquer" : "afficher"} les actions.`}
-      style={({ pressed }) => [styles.card, { backgroundColor: palette.card, borderColor: palette.border }, pressed ? styles.pressedCard : undefined]}
-      onPress={() => { haptic.selection(); onToggle(); }}
-    >
-      <View style={styles.cardHeader}>
+    // Seul l'en-tête déplie la carte : un bouton ne peut pas contenir les autres boutons (favori, appel…).
+    <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${place.name}. Appuyer pour ${isExpanded ? "masquer" : "afficher"} les actions.`}
+        style={({ pressed }) => [styles.cardHeader, pressed ? styles.pressedCard : undefined]}
+        onPress={() => { haptic.selection(); onToggle(); }}
+      >
         <View style={[styles.markerBadge, { backgroundColor: accent }]}> 
           <MaterialIcons name={placeIcon(place)} size={20} color="#FFFFFF" />
         </View>
@@ -226,7 +227,7 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
             <Text style={[styles.metaText, { color: place.isOpen === false && place.onDuty !== true ? palette.danger : palette.success }]}>{placeStatusLabel(place)}</Text>
           </View>
         </View>
-      </View>
+      </Pressable>
       {isExpanded ? (
         <View style={styles.placeExpandableContent}>
           <View style={styles.placeInfoRow}>
@@ -283,7 +284,7 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
           </Pressable>
         </View>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
