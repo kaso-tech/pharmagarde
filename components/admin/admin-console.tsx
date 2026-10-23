@@ -14,6 +14,7 @@ import { PremiumPage } from "./console/pages/premium";
 import { StatsPage } from "./console/pages/stats";
 import { SystemPage } from "./console/pages/system";
 import { UsersPage } from "./console/pages/users";
+import { VerificationPage } from "./console/pages/verification";
 import { AdminShell } from "./console/shell";
 import type { AdminSection } from "./console/shared";
 
@@ -21,6 +22,7 @@ const PAGES: Record<AdminSection, () => React.JSX.Element> = {
   dashboard: DashboardPage,
   stats: StatsPage,
   directory: DirectoryPage,
+  verification: VerificationPage,
   contributions: ContributionsPage,
   duty: DutyPage,
   hours: HoursPage,

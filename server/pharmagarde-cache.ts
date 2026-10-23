@@ -10,7 +10,7 @@ import { getContentConfig } from "./content-config";
 import { loadHealthcareDirectory, type HealthcareDirectory } from "./healthcare-directory";
 import { isSameHealthcarePlace } from "./healthcare-match";
 import { distanceKm } from "../lib/pharmagarde/city-utils";
-import { applyDirectoryOverrides, getDirectoryOverrides } from "./directory-overrides";
+import { applyDirectoryOverrides, getConfirmedPositions, getDirectoryOverrides } from "./directory-overrides";
 import { formatWeeklyHours, isOpenAt, type WeeklyHours } from "../lib/pharmagarde/opening-hours";
 import { getCityHoursLookup } from "./city-hours";
 import { currentDutyConfig, getDutyConfig, type DutyConfig } from "./duty-config";
@@ -570,9 +570,10 @@ export function getPublishedBuckets(kind: CacheKind): CacheBuckets {
 async function selectPublishedItems(kind: CacheKind, cityFilter: RequestedCityFilter) {
   const byCity = getPublishedBuckets(kind);
   const overrides = await getDirectoryOverrides();
-  if (overrides.length === 0) return { items: selectItemsByCity(byCity, cityFilter), total: countBuckets(byCity) };
+  const confirmed = getConfirmedPositions();
+  if (overrides.length === 0 && confirmed.size === 0) return { items: selectItemsByCity(byCity, cityFilter), total: countBuckets(byCity) };
 
-  const merged = applyDirectoryOverrides(flattenBuckets(byCity), overrides, kind === "pharmacies" ? "pharmacy" : "healthcare");
+  const merged = applyDirectoryOverrides(flattenBuckets(byCity), overrides, kind === "pharmacies" ? "pharmacy" : "healthcare", confirmed);
   if (!cityFilter.key) return { items: merged, total: merged.length };
 
   const overriddenIds = new Set(overrides.map((override) => override.id));

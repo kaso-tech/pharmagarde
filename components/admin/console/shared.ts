@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { IconName } from "./ui";
 import type { Tone } from "./theme";
 
-export type AdminSection = "dashboard" | "stats" | "directory" | "contributions" | "duty" | "hours" | "users" | "premium" | "medicines" | "insurers" | "cities" | "announcements" | "plans" | "audit" | "system" | "account";
+export type AdminSection = "dashboard" | "stats" | "directory" | "verification" | "contributions" | "duty" | "hours" | "users" | "premium" | "medicines" | "insurers" | "cities" | "announcements" | "plans" | "audit" | "system" | "account";
 
 export const PAGE_SIZE = 50;
 
@@ -19,6 +19,7 @@ export const NAV_GROUPS: readonly { label: string; items: readonly { section: Ad
     label: "Annuaire",
     items: [
       { section: "directory", href: "/admin/annuaire", label: "Établissements", icon: "local-pharmacy" },
+      { section: "verification", href: "/admin/verification", label: "Vérification", icon: "fact-check" },
       { section: "contributions", href: "/admin/contributions", label: "Contributions", icon: "inbox" },
       { section: "duty", href: "/admin/gardes", label: "Gardes", icon: "event-available" },
       { section: "hours", href: "/admin/horaires", label: "Horaires", icon: "schedule" },
@@ -48,6 +49,7 @@ export const SECTION_TITLES: Record<AdminSection, string> = {
   dashboard: "Tableau de bord",
   stats: "Statistiques d’usage",
   directory: "Annuaire",
+  verification: "Vérification",
   contributions: "Contributions",
   duty: "Gardes",
   hours: "Horaires",
@@ -67,6 +69,7 @@ export const SECTION_SUBTITLES: Record<AdminSection, string> = {
   dashboard: "Vue d’ensemble des comptes, des paiements et de l’annuaire.",
   stats: "Utilisation de l’application : ouvertures, recherches, fiches consultées, appels et itinéraires, par jour et par ville.",
   directory: "Pharmacies et structures de santé publiées dans l’application.",
+  verification: "Contrôle des établissements un à un : position sur la carte, positions concurrentes, doublons, numéro et signalements.",
   contributions: "Établissements proposés et erreurs signalées depuis l’application, à vérifier avant publication.",
   duty: "Groupe de garde de chaque ville. La garde change chaque samedi à 8 h.",
   hours: "Horaires de service par ville, fixés par l’ONPBF. Une pharmacie de garde est ouverte 24 h/24.",
@@ -101,8 +104,12 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   "directory.upserted": "Fiche enregistrée",
   "directory.archived": "Fiche archivée",
   "directory.restored": "Fiche restaurée",
+  "directory.verified": "Fiche vérifiée",
+  "directory.needs_visit": "Fiche à vérifier sur place",
+  "directory.verification_reopened": "Vérification rouverte",
   "admin.dashboard.viewed": "Consultation du tableau de bord",
   "admin.directory.viewed": "Consultation de l’annuaire",
+  "admin.verification.viewed": "Consultation de la vérification",
   "admin.duty.viewed": "Consultation des gardes",
   "admin.hours.viewed": "Consultation des horaires",
   "city_hours.updated": "Horaires de ville modifiés",

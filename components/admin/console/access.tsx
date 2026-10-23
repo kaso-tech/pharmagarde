@@ -23,6 +23,7 @@ export function useConsoleAccess() {
 
 /** Zone de droits d'une page (« Mon compte » n'en a pas : toujours accessible). */
 export function sectionArea(section: AdminSection): AdminArea | null {
+  if (section === "verification") return "directory";
   return section === "account" ? null : section;
 }
 

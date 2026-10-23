@@ -7,6 +7,7 @@ import { adminRoles, adminSessions, auditLogs, cityHours, contributions, directo
 import { getDb } from "./db";
 import { diffChanges, safeMetadata, writeAudit } from "./audit-log";
 import { contentRouters } from "./admin-content";
+import { createVerificationRouter } from "./admin-verification";
 import { areaProcedure, confirmConsoleCode, consoleProcedure, hashSessionToken, listConsoleSessions, maskPhone, readAdminRole, readAdminRoleMap, requestConsoleCode, requireAccess, resolveConsoleAccess, revokeConsoleSessions } from "./admin-auth";
 import { ADMIN_ROLES, adminPermissions, type AdminRole } from "../shared/admin-roles";
 import { listCityHours, reloadCityHours } from "./city-hours";
@@ -124,7 +125,7 @@ function startOfMonth(now = new Date()) {
 }
 
 const activitySchema = z.object({
-  area: z.enum(["dashboard", "directory", "duty", "hours", "users", "premium", "audit", "account", "contributions", "system", "stats", "medicines", "insurers", "cities", "announcements", "plans"]),
+  area: z.enum(["dashboard", "directory", "verification", "duty", "hours", "users", "premium", "audit", "account", "contributions", "system", "stats", "medicines", "insurers", "cities", "announcements", "plans"]),
 });
 
 function failIfNoDb<T>(db: T | null): T {
@@ -283,6 +284,7 @@ const auditProcedure = areaProcedure("audit");
 
 export const adminRouter = router({
   ...contentRouters,
+  verification: createVerificationRouter({ readMergedDirectory, saveDirectoryEntries }),
   /** Compte, rôle, droits par page et état du double facteur (accessible avant le code SMS). */
   access: adminProcedure.query(async ({ ctx }) => {
     const access = await resolveConsoleAccess(ctx.req, ctx.user);

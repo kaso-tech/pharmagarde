@@ -1,4 +1,6 @@
-import { directoryEntries, type DirectoryEntry } from "../drizzle/schema";
+import { and, eq } from "drizzle-orm";
+
+import { directoryEntries, placeVerifications, type DirectoryEntry } from "../drizzle/schema";
 import { HEALTHCARE_TYPES } from "../lib/pharmagarde/healthcare-types";
 import { normalizeInsurerIds } from "../lib/pharmagarde/insurances";
 import { parseWeeklyHours } from "../lib/pharmagarde/opening-hours";
@@ -15,6 +17,8 @@ import type { CachedHealthPlace, CachedPlaceCategory, LocalEstablishmentType } f
 const RELOAD_INTERVAL_MS = 60_000;
 
 let snapshot: DirectoryEntry[] = [];
+/** Établissements dont la position a été confirmée dans la console (plus « approximative »). */
+let confirmedPositions: ReadonlySet<string> = new Set();
 let loadedAt = 0;
 let generation = 0;
 let pendingReload: Promise<DirectoryEntry[]> | null = null;
@@ -24,6 +28,7 @@ export async function reloadDirectoryOverrides(): Promise<DirectoryEntry[]> {
   const current = ++generation;
   const db = await getDb();
   let rows: DirectoryEntry[] | null = [];
+  let confirmed: string[] | null = [];
   if (db) {
     try {
       rows = await db.select().from(directoryEntries);
@@ -31,10 +36,18 @@ export async function reloadDirectoryOverrides(): Promise<DirectoryEntry[]> {
       rows = null;
       console.warn("[Annuaire] Surcharges administrées illisibles (migration 0006 appliquée ?), dernière version conservée :", error instanceof Error ? error.message : error);
     }
+    try {
+      const verified = await db.select({ id: placeVerifications.id }).from(placeVerifications).where(and(eq(placeVerifications.status, "verified"), eq(placeVerifications.positionConfirmed, true)));
+      confirmed = verified.map((row) => row.id);
+    } catch (error) {
+      confirmed = null;
+      console.warn("[Annuaire] Vérifications illisibles (migration 0013 appliquée ?), dernière version conservée :", error instanceof Error ? error.message : error);
+    }
   }
   // Une lecture lancée avant une modification ne doit pas écraser une lecture plus récente.
   if (current === generation) {
     if (rows) snapshot = rows;
+    if (confirmed) confirmedPositions = new Set(confirmed);
     loadedAt = Date.now();
   }
   return snapshot;
@@ -48,6 +61,11 @@ export async function getDirectoryOverrides(): Promise<readonly DirectoryEntry[]
     await pendingReload;
   }
   return snapshot;
+}
+
+/** À appeler après getDirectoryOverrides(), qui relit aussi les positions confirmées. */
+export function getConfirmedPositions(): ReadonlySet<string> {
+  return confirmedPositions;
 }
 
 function toIso(value: Date | string | null | undefined) {
@@ -89,8 +107,8 @@ function toPlace(override: DirectoryEntry, category: CachedPlaceCategory, curren
  * modification le remplace à sa place, un ajout est placé en fin de liste. Une surcharge d'un autre
  * type (pharmacie devenue structure de santé, ou l'inverse) retire l'élément de cette liste.
  */
-export function applyDirectoryOverrides(items: readonly CachedHealthPlace[], overrides: readonly DirectoryEntry[], category: CachedPlaceCategory): CachedHealthPlace[] {
-  if (overrides.length === 0) return [...items];
+export function applyDirectoryOverrides(items: readonly CachedHealthPlace[], overrides: readonly DirectoryEntry[], category: CachedPlaceCategory, confirmed: ReadonlySet<string> = new Set()): CachedHealthPlace[] {
+  if (overrides.length === 0 && confirmed.size === 0) return [...items];
   const overridesById = new Map(overrides.map((override) => [override.id, override]));
   const baseIds = new Set(items.map((item) => item.id));
   const isPublished = (override: DirectoryEntry) => override.status === "active" && override.kind === category;
@@ -104,5 +122,6 @@ export function applyDirectoryOverrides(items: readonly CachedHealthPlace[], ove
   for (const override of overrides) {
     if (!baseIds.has(override.id) && isPublished(override)) result.push(toPlace(override, category));
   }
-  return result;
+  // Position confirmée dans la console : la mention « approximative » disparaît.
+  return confirmed.size ? result.map((item) => (item.approximateLocation && confirmed.has(item.id) ? { ...item, approximateLocation: undefined } : item)) : result;
 }
