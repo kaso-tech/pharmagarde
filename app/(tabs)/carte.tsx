@@ -3,7 +3,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useCallback, useMemo, useState } from "react";
 import { Animated, FlatList, Linking, PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
-import { AppChrome, localPlaceTypeLabel } from "@/components/pharmagarde/app-ui";
+import { AppChrome, ApproximateLocationNote, localPlaceTypeLabel, placeIcon } from "@/components/pharmagarde/app-ui";
 import { PharmaMap } from "@/components/pharmagarde/PharmaMap";
 import { haptic, usePremiumPalette } from "@/lib/pharmagarde/premium-ui";
 import { placeStatusLabel, sortPlacesByOpenThenDistance } from "@/lib/pharmagarde/place-ordering";
@@ -77,7 +77,7 @@ function MapPlaceCard({ place, active, favorite, isExpanded, onSelect, onToggle,
     >
       <View style={styles.placeHeader}>
         <View style={[styles.placeIcon, { backgroundColor: accent }]}> 
-          <MaterialIcons name={place.type === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={21} color="#FFFFFF" />
+          <MaterialIcons name={placeIcon(place)} size={21} color="#FFFFFF" />
         </View>
         <View style={styles.placeTitleArea}>
           <Text style={[styles.placeTitle, { color: palette.text }]} numberOfLines={1}>{place.name}</Text>
@@ -110,7 +110,7 @@ function MapPlaceCard({ place, active, favorite, isExpanded, onSelect, onToggle,
               <MaterialIcons name={favorite ? "favorite" : "favorite-border"} size={23} color={favorite ? palette.danger : palette.muted} />
             </Pressable>
             <View style={[styles.compactInfoPill, styles.typeInfoPill, { backgroundColor: palette.cardMuted }]}> 
-              <MaterialIcons name={place.type === "pharmacy" ? "local-pharmacy" : "local-hospital"} size={15} color={accent} />
+              <MaterialIcons name={placeIcon(place)} size={15} color={accent} />
               <Text numberOfLines={1} style={[styles.compactInfoText, { color: palette.text }]}>{typeLabel}</Text>
             </View>
             <View style={[styles.compactInfoPill, { backgroundColor: palette.cardMuted }]}> 
@@ -122,6 +122,7 @@ function MapPlaceCard({ place, active, favorite, isExpanded, onSelect, onToggle,
               <Text numberOfLines={1} style={[styles.compactInfoText, { color: canCall ? palette.text : palette.muted }]}>{phoneLabel}</Text>
             </View>
           </View>
+          <ApproximateLocationNote place={place} />
           <View style={styles.actionRow}>
             <Pressable
               accessibilityRole="button"

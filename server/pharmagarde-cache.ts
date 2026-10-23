@@ -40,6 +40,8 @@ export type CachedHealthPlace = {
   distanceKm?: number;
   latitude?: number;
   longitude?: number;
+  /** Position issue d'une source unique non recoupée, affichée « position approximative ». */
+  approximateLocation?: boolean;
   isOpen?: boolean;
   /** Horaires lisibles publiés, ex. « Lun–Ven 8 h–20 h · Sam 8 h–12 h · Dim fermé ». */
   openingHours?: string;
@@ -542,6 +544,7 @@ export function mergeHealthcareDirectory(byCity: CacheBuckets, directory: Health
       address: place.address ?? duplicate?.address,
       latitude: place.latitude ?? duplicate?.latitude,
       longitude: place.longitude ?? duplicate?.longitude,
+      ...(place.approximateLocation ? { approximateLocation: true } : {}),
       source: "annuaire",
       updatedAt: directory.updatedAt || undefined,
     });

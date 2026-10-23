@@ -38,6 +38,8 @@ export type DirectoryForm = {
   openingHours: WeeklyHours;
   /** Assurances acceptées (identifiants de lib/pharmagarde/insurances.ts). */
   insurances: InsurerId[];
+  /** Position d'une source unique, signalée « approximative » tant qu'elle n'est pas déplacée. */
+  approximateLocation?: boolean;
 };
 
 const OTHER_CITY = "__autre__";
@@ -161,6 +163,7 @@ export function DirectoryFormFields({ form, cityNames, cityHoursFor, onChange }:
       </FormSection>
 
       <FormSection title="Emplacement" description={form.kind === "pharmacy" ? "Obligatoire pour une pharmacie, pour l’afficher sur la carte." : "Facultatif."}>
+        {form.approximateLocation ? <Hint tone="warning">Position approximative (une seule source, non vérifiée) : l’application l’indique sur la fiche. Corrigez-la sur la carte pour retirer la mention.</Hint> : null}
         <LocationPicker
           value={location}
           center={getKnownCityCoordinates(form.city)}
@@ -300,7 +303,7 @@ export function DirectoryPage() {
   };
   const openEdit = (item: DirectoryItem) => {
     upsert.reset();
-    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS, insurances: normalizeInsurerIds(item.insurances, { includeInactive: true }) });
+    setForm({ id: item.id, kind: item.kind, name: item.name, city: item.city, phone: item.phone ?? "", address: item.address ?? "", latitude: item.latitude?.toString() ?? "", longitude: item.longitude?.toString() ?? "", dutyGroup: item.dutyGroup?.toString() ?? "", establishmentType: item.establishmentType ?? "Centre de santé", hoursMode: item.openingHours ? "custom" : "city", openingHours: item.openingHours ?? DEFAULT_WEEKLY_HOURS, insurances: normalizeInsurerIds(item.insurances, { includeInactive: true }), approximateLocation: item.approximateLocation });
     setShowForm(true);
   };
   const submit = () => upsert.mutate(toUpsertInput(form));

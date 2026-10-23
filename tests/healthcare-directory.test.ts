@@ -9,15 +9,16 @@ const { SUPPORTED_CITIES } = await import("../server/cities");
 describe("annuaire des structures de santé", () => {
   it("est valide et ne contient que des structures avec position", async () => {
     const directory = await loadHealthcareDirectory();
-    expect(directory.places.length).toBe(257);
+    expect(directory.places.length).toBe(384);
     const byCity: Record<string, number> = {};
     for (const place of directory.places) {
       byCity[place.city] = (byCity[place.city] ?? 0) + 1;
       expect(Number.isFinite(place.latitude) && Number.isFinite(place.longitude)).toBe(true);
       expect(place.id).toMatch(/^hc-/);
-      expect(Object.keys(place).every((key) => ["id", "city", "name", "type", "phone", "address", "latitude", "longitude"].includes(key))).toBe(true);
+      expect(Object.keys(place).every((key) => ["id", "city", "name", "type", "phone", "address", "latitude", "longitude", "approximateLocation"].includes(key))).toBe(true);
     }
-    expect(byCity).toEqual({ "Fada N'gourma": 3, Koupéla: 4, Ouagadougou: 247, Tenkodogo: 3 });
+    expect(byCity).toEqual({ "Fada N'gourma": 6, Koupéla: 8, Ouagadougou: 363, Pouytenga: 1, Tenkodogo: 6 });
+    expect(directory.places.filter((place) => place.approximateLocation)).toHaveLength(127);
   });
 
   it("classe les lieux OpenStreetMap dans les nouveaux types", () => {
@@ -35,6 +36,7 @@ describe("annuaire des structures de santé", () => {
     const base = { version: 1, updatedAt: "2026-10-22", source: "test" };
     expect(() => validateHealthcareDirectory({ ...base, places: [{ id: "hc-1", city: "Ouagadougou", name: "Clinique vétérinaire", type: "Vétérinaire", latitude: 12.3, longitude: -1.5 }] })).toThrow(/Type inconnu/);
     expect(() => validateHealthcareDirectory({ ...base, places: [{ id: "hc-1", city: "Ouagadougou", name: "CSPS", type: "CSPS", latitude: 12.3 }] })).toThrow(/incomplètes/);
+    expect(() => validateHealthcareDirectory({ ...base, places: [{ id: "hc-1", city: "Ouagadougou", name: "CSPS", type: "CSPS", approximateLocation: true }] })).toThrow(/approximative/);
   });
 
   it("remplace la structure OpenStreetMap correspondante et garde les autres", () => {
@@ -49,5 +51,10 @@ describe("annuaire des structures de santé", () => {
     // Le téléphone de la fiche OpenStreetMap est repris ; la source d'origine n'est pas modifiée.
     expect(merged.ouagadougou?.[1]).toMatchObject({ type: "Clinique", phone: "+226 25 00 00 00", source: "annuaire" });
     expect(osm.ouagadougou).toHaveLength(2);
+  });
+
+  it("publie la mention de position approximative", () => {
+    const merged = mergeHealthcareDirectory({}, { version: 1, updatedAt: "2026-10-23", source: "test", places: [{ id: "hc-a", city: "Ouagadougou", name: "CSPS Espoir", type: "CSPS", latitude: 12.3, longitude: -1.5, approximateLocation: true }, { id: "hc-b", city: "Ouagadougou", name: "CSPS Zongo", type: "CSPS", latitude: 12.31, longitude: -1.6 }] });
+    expect(merged.ouagadougou?.map((item) => item.approximateLocation)).toEqual([true, undefined]);
   });
 });

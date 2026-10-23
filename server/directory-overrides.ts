@@ -74,6 +74,8 @@ function toPlace(override: DirectoryEntry, category: CachedPlaceCategory, curren
     address: override.address ?? undefined,
     latitude: override.latitude ?? undefined,
     longitude: override.longitude ?? undefined,
+    // Une position déplacée dans la console n'est plus celle de la source approximative.
+    approximateLocation: current?.approximateLocation && override.latitude === current.latitude && override.longitude === current.longitude ? true : undefined,
     dutyGroup: category === "pharmacy" ? override.dutyGroup ?? null : undefined,
     serviceHours: parseWeeklyHours(override.openingHours) ?? undefined,
     insurances: normalizeInsurerIds(override.insurances),

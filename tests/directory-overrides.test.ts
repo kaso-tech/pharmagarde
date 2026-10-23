@@ -48,6 +48,14 @@ describe("annuaire public · surcharges de la console d’administration", () =>
     expect(pharmacies[0]?.name).toBe("Pharmacie Abby");
   });
 
+  it("retire la mention de position approximative quand la console déplace le point", () => {
+    const clinic: CachedHealthPlace = { id: "hc-espoir", type: "CSPS", category: "healthcare", name: "CSPS Espoir", city: "Ouagadougou", phone: "+226 70 00 00 00", latitude: 12.3, longitude: -1.5, approximateLocation: true, source: "annuaire" };
+    const kept = applyDirectoryOverrides([clinic], [entry({ id: "hc-espoir", kind: "healthcare", city: "Ouagadougou", name: "CSPS Espoir", phone: "+226 70 11 11 11", latitude: 12.3, longitude: -1.5 })], "healthcare");
+    const moved = applyDirectoryOverrides([clinic], [entry({ id: "hc-espoir", kind: "healthcare", city: "Ouagadougou", name: "CSPS Espoir", latitude: 12.31, longitude: -1.5 })], "healthcare");
+    expect(kept[0]?.approximateLocation).toBe(true);
+    expect(moved[0]?.approximateLocation).toBeUndefined();
+  });
+
   it("retire une fiche archivée et ajoute une fiche créée dans la console", () => {
     const result = applyDirectoryOverrides(
       pharmacies,

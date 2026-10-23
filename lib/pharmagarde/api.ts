@@ -104,6 +104,7 @@ function normalizePlace(raw: Record<string, unknown>, type: "pharmacy" | "clinic
     distanceKm: getNumber(raw, ["distanceKm", "distance_km", "distance", "distanceInKm"]),
     latitude: getNumber(raw, ["latitude", "lat"]),
     longitude: getNumber(raw, ["longitude", "lng", "lon"]),
+    approximateLocation: getBoolean(raw, ["approximateLocation"]),
     isOpen: getBoolean(raw, ["isOpen", "open", "ouvert"]),
     establishmentType: getString(raw, ["establishmentType", "establishment_type", "typeEtablissement", "type_etablissement", "localType", "local_type", "type"]),
     openingHours: getString(raw, ["openingHours", "opening_hours", "horaires"]),
