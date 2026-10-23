@@ -65,17 +65,18 @@ function MapPlaceCard({ place, active, favorite, isExpanded, onSelect, onToggle,
   const typeLabel = localPlaceTypeLabel(place);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${place.name}. Appuyer pour ${isExpanded ? "masquer" : "afficher"} les actions.`}
-      style={({ pressed }) => [styles.placeCard, { backgroundColor: palette.card, borderColor: active ? accent : palette.border, borderWidth: active ? 2 : 1 }, pressed ? styles.pressedCard : undefined]}
-      onPress={() => {
-        haptic.selection();
-        onSelect();
-        onToggle();
-      }}
-    >
-      <View style={styles.placeHeader}>
+    // Seul l'en-tête déplie la carte : un bouton ne peut pas contenir les autres boutons (favori, appel…).
+    <View style={[styles.placeCard, { backgroundColor: palette.card, borderColor: active ? accent : palette.border, borderWidth: active ? 2 : 1 }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${place.name}. Appuyer pour ${isExpanded ? "masquer" : "afficher"} les actions.`}
+        style={({ pressed }) => [styles.placeHeader, pressed ? styles.pressedCard : undefined]}
+        onPress={() => {
+          haptic.selection();
+          onSelect();
+          onToggle();
+        }}
+      >
         <View style={[styles.placeIcon, { backgroundColor: accent }]}> 
           <MaterialIcons name={placeIcon(place)} size={21} color="#FFFFFF" />
         </View>
@@ -91,7 +92,7 @@ function MapPlaceCard({ place, active, favorite, isExpanded, onSelect, onToggle,
             <Text style={[styles.metaText, { color: place.isOpen === false && place.onDuty !== true ? palette.danger : palette.success }]}>{placeStatusLabel(place)}</Text>
           </View>
         </View>
-      </View>
+      </Pressable>
 
       {isExpanded ? (
         <View style={styles.placeExpandableContent}>
@@ -153,7 +154,7 @@ function MapPlaceCard({ place, active, favorite, isExpanded, onSelect, onToggle,
           </View>
         </View>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
