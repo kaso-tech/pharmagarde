@@ -122,8 +122,8 @@ describe("cartes pharmacies et cliniques", () => {
     expect(mapPlaceCard).toContain("phoneLabel");
     expect(mapPlaceCard).toContain("localPlaceTypeLabel(place)");
     expect(mapPlaceCard).toContain("const typeLabel = localPlaceTypeLabel(place)");
-    expect(mapPlaceCard).toContain("local-pharmacy");
-    expect(mapPlaceCard).toContain("local-hospital");
+    expect(mapPlaceCard).toContain("name={placeIcon(place)}");
+    expect(mapPlaceCard).toContain("<ApproximateLocationNote place={place} />");
     expect(mapPlaceCard.indexOf("{typeLabel}")).toBeGreaterThan(mapPlaceCard.indexOf("favorite-border"));
     expect(mapPlaceCard.indexOf("{typeLabel}")).toBeLessThan(mapPlaceCard.indexOf('name="star"'));
     expect(appUi).toContain("localPlaceTypeLabel(place: HealthPlace)");

@@ -20,6 +20,8 @@ export type DirectoryHealthcarePlace = {
   address?: string;
   latitude?: number;
   longitude?: number;
+  /** Position d'une source unique non recoupée (fiche Faso Santé) : signalée comme approximative. */
+  approximateLocation?: true;
 };
 
 export type HealthcareDirectory = {
@@ -41,6 +43,7 @@ export function validateHealthcareDirectory(value: unknown): HealthcareDirectory
     const hasLatitude = place.latitude !== undefined;
     if (hasLatitude !== (place.longitude !== undefined)) throw new Error(`Coordonnées incomplètes : ${place.id}`);
     if (hasLatitude && !isInBurkinaFaso(place.latitude!, place.longitude!)) throw new Error(`Coordonnées hors du Burkina Faso : ${place.id}`);
+    if (place.approximateLocation !== undefined && (place.approximateLocation !== true || !hasLatitude)) throw new Error(`Position approximative sans coordonnées : ${place.id}`);
   }
   return { version: 1, updatedAt: String(directory.updatedAt ?? ""), source: String(directory.source ?? ""), places: directory.places };
 }

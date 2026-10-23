@@ -19,6 +19,8 @@ export type AdminDirectoryItem = {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
+  /** Position d'une source unique non recoupée, signalée « approximative » dans l'application. */
+  approximateLocation?: boolean;
   dutyGroup: number | null;
   establishmentType: string | null;
   /** Horaires propres ; null = horaires de la ville. */
@@ -182,6 +184,7 @@ function healthcareItems(items: CachedHealthPlace[]): AdminDirectoryItem[] {
     address: item.address ?? null,
     latitude: item.latitude ?? null,
     longitude: item.longitude ?? null,
+    ...(item.approximateLocation ? { approximateLocation: true } : {}),
     dutyGroup: null,
     establishmentType: item.type,
     openingHours: null,
@@ -222,6 +225,7 @@ export function mergeAdminDirectoryItems(baseItems: AdminDirectoryItem[], overri
       address: override.address ?? null,
       latitude: override.latitude ?? null,
       longitude: override.longitude ?? null,
+      ...(current?.approximateLocation && override.latitude === current.latitude && override.longitude === current.longitude ? { approximateLocation: true } : {}),
       dutyGroup: kind === "pharmacy" ? override.dutyGroup ?? null : null,
       establishmentType: override.establishmentType ?? current?.establishmentType ?? (kind === "pharmacy" ? "Pharmacie" : "Centre de santé"),
       openingHours: parseWeeklyHours(override.openingHours),

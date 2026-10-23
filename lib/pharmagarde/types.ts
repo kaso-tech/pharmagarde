@@ -19,6 +19,8 @@ export type HealthPlace = {
   distanceLabel?: string;
   latitude?: number;
   longitude?: number;
+  /** Position d'une source unique non recoupée : l'application la signale comme approximative. */
+  approximateLocation?: boolean;
   isOpen?: boolean;
   /** Type métier déduit des données OpenStreetMap : Pharmacie, CHU, CSPS, CMA, etc. */
   establishmentType?: string;

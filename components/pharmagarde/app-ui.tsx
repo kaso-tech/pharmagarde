@@ -42,6 +42,18 @@ async function callPhone(phone?: string) {
   await Linking.openURL(`tel:${phone.replace(/\s+/g, "")}`);
 }
 
+/** Mention des positions issues d'une source unique non vérifiée. */
+export function ApproximateLocationNote({ place }: { place: HealthPlace }) {
+  const palette = usePremiumPalette();
+  if (!place.approximateLocation) return null;
+  return (
+    <View style={styles.hoursInfoRow}>
+      <MaterialIcons name="not-listed-location" size={15} color={palette.warning} />
+      <Text style={[styles.compactInfoText, styles.hoursInfoText, { color: palette.text }]}>Position approximative : appelez l’établissement pour vous faire guider.</Text>
+    </View>
+  );
+}
+
 /** Avertissement affiché sur chaque fiche médicament et en tête du catalogue. */
 export const MEDICAL_DISCLAIMER = "Information indicative : ne remplace pas l’avis d’un médecin ou d’un pharmacien. Ne commencez, n’arrêtez ni ne modifiez un traitement sans avis professionnel. En cas d’urgence, contactez les secours ou rendez-vous au centre de santé le plus proche.";
 
@@ -240,6 +252,7 @@ export function PlaceCard({ place, isExpanded, onToggle }: { place: HealthPlace;
               <Text style={[styles.compactInfoText, styles.hoursInfoText, { color: palette.text }]}>{hoursLabel}</Text>
             </View>
           ) : null}
+          <ApproximateLocationNote place={place} />
           {place.insurances?.length ? (
             <View style={styles.hoursInfoRow}>
               <MaterialIcons name="health-and-safety" size={15} color={accent} />
